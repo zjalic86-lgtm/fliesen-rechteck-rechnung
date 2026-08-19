@@ -34,10 +34,26 @@ label{font-weight:700}
 .itemline input,.itemline select{margin-bottom:0}
 .remove{border:0;background:#eee;border-radius:10px;padding:12px;font-weight:700}
 @media(max-width:620px){.row,.itemline{grid-template-columns:1fr 1fr}.itemline .wide{grid-column:1/-1}}
+
+.lockScreen{position:fixed;inset:0;background:#f4f5f7;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+.lockBox{width:min(420px,100%);background:#fff;border-radius:22px;padding:24px;box-shadow:0 8px 30px rgba(0,0,0,.08)}
+.lockBox h2{margin-top:0}
+.lockBox input{font-size:22px;text-align:center;letter-spacing:8px}
+.lockError{color:#b00020;font-weight:700;min-height:20px}
+
 </style>
 </head>
 <body>
-<div class="app">
+<div id="lockScreen" class="lockScreen">
+  <div class="lockBox">
+    <h2 id="lockTitle">FR Fliesen Rechteck</h2>
+    <p id="lockInfo" class="small">PIN eingeben</p>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••">
+    <div id="lockError" class="lockError"></div>
+    <button class="btn" onclick="unlockApp()">Öffnen</button>
+  </div>
+</div>
+<div class="app" id="mainApp" style="display:none">
   <div class="card head">
     <img id="logoPreview" class="logo hidden">
     <h1>FR Fliesen Rechteck</h1>
@@ -114,12 +130,90 @@ label{font-weight:700}
     <label>Logo auswählen</label>
     <input id="logoInput" type="file" accept="image/*">
     <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
+    <hr style="border:0;border-top:1px solid #ddd;margin:20px 0">
+    <h3>Sicherheit</h3>
+    <label>Neuer PIN</label>
+    <input id="newPin" type="password" inputmode="numeric" maxlength="6" placeholder="4–6 Ziffern">
+    <button class="btn outline" onclick="changePin()">PIN ändern</button>
+    <button class="btn outline" onclick="lockNow()">Jetzt sperren</button>
     <button class="btn outline" onclick="home()">Zurück</button>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
+let frPin=localStorage.getItem('frPin')||'';
+
+function setupLock(){
+  const title=document.getElementById('lockTitle');
+  const info=document.getElementById('lockInfo');
+  if(!frPin){
+    title.textContent='PIN erstellen';
+    info.textContent='Erstelle einen PIN mit 4–6 Ziffern.';
+  }else{
+    title.textContent='FR Fliesen Rechteck';
+    info.textContent='PIN eingeben';
+  }
+  setTimeout(()=>document.getElementById('pinInput').focus(),150);
+}
+
+function unlockApp(){
+  const input=document.getElementById('pinInput');
+  const pin=(input.value||'').trim();
+  const err=document.getElementById('lockError');
+  err.textContent='';
+
+  if(!frPin){
+    if(!/^[0-9]{4,6}$/.test(pin)){
+      err.textContent='Bitte 4–6 Ziffern eingeben.';
+      return;
+    }
+    localStorage.setItem('frPin',pin);
+    frPin=pin;
+  }else if(pin!==frPin){
+    err.textContent='Falscher PIN.';
+    input.value='';
+    input.focus();
+    return;
+  }
+
+  document.getElementById('lockScreen').style.display='none';
+  document.getElementById('mainApp').style.display='block';
+  input.value='';
+}
+
+function lockNow(){
+  document.getElementById('mainApp').style.display='none';
+  document.getElementById('lockScreen').style.display='flex';
+  document.getElementById('pinInput').value='';
+  document.getElementById('lockError').textContent='';
+  setupLock();
+}
+
+function changePin(){
+  const el=document.getElementById('newPin');
+  const pin=(el.value||'').trim();
+  if(!/^[0-9]{4,6}$/.test(pin)){
+    alert('Bitte neuen PIN mit 4–6 Ziffern eingeben.');
+    return;
+  }
+  localStorage.setItem('frPin',pin);
+  frPin=pin;
+  el.value='';
+  alert('PIN geändert');
+}
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden && frPin){
+    sessionStorage.setItem('frShouldLock','1');
+  }else if(!document.hidden && frPin && sessionStorage.getItem('frShouldLock')==='1'){
+    sessionStorage.removeItem('frShouldLock');
+    lockNow();
+  }
+});
+
+setupLock();
+
 let docType='Rechnung';
 const H=['home','form','settings'];
 const units=['m²','lfm','Std.','Stk.','Pauschal','kg'];
