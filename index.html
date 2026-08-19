@@ -117,10 +117,14 @@ label{font-weight:700}
     <div id="items"></div>
     <button class="btn outline" type="button" onclick="addItem()">+ Position hinzufügen</button>
 
-    <div class="row">
-      <div><label>Zahlungsziel</label><select id="tage"><option>14</option><option>7</option><option>30</option></select></div>
-      <div><label>Skonto</label><select id="skonto"><option value="3">3% / 7 Tage</option><option value="0">Kein Skonto</option></select></div>
-    </div>
+    <label>Zahlungsbedingungen</label>
+    <select id="paymentCondition" onchange="applyPaymentCondition()">
+      <option value="7_3">7 Tage – 3% Skonto</option>
+      <option value="14_3" selected>14 Tage – 3% Skonto</option>
+      <option value="14_0">14 Tage netto – kein Skonto</option>
+    </select>
+    <input id="tage" type="hidden" value="14">
+    <input id="skonto" type="hidden" value="3">
 
     <button class="btn" onclick="saveInvoice()">Rechnung speichern</button>
     <button class="btn outline" onclick="sharePDF()">PDF senden / teilen</button>
@@ -130,7 +134,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v18 · PIN einmal</b></p>
+    <p class="small"><b>Version v20 · SEPA QR</b></p>
     <label>Logo auswählen</label>
     <input id="logoInput" type="file" accept="image/*">
     <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
@@ -152,6 +156,7 @@ label{font-weight:700}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 
@@ -243,6 +248,7 @@ function applyUrlInvoice(){
   if(p.has('skonto')){
     document.getElementById('skonto').value=(p.get('skonto')==='0')?'0':'3';
   }
+  setPaymentConditionFromValues();
 
   // Build positions from URL.
   document.getElementById('items').innerHTML='';
@@ -356,6 +362,23 @@ function showForm(t){
   if(document.querySelectorAll('.item').length===0)addItem();
 }
 function settings(){hide();document.getElementById('settings').classList.remove('hidden')}
+function applyPaymentCondition(){
+  const v=document.getElementById('paymentCondition').value;
+  const map={'7_3':['7','3'],'14_3':['14','3'],'14_0':['14','0']};
+  const a=map[v]||map['14_3'];
+  document.getElementById('tage').value=a[0];
+  document.getElementById('skonto').value=a[1];
+}
+function setPaymentConditionFromValues(){
+  const t=String(document.getElementById('tage').value||'14');
+  const s=String(document.getElementById('skonto').value||'0');
+  const el=document.getElementById('paymentCondition');
+  if(!el)return;
+  if(t==='7'&&s==='3')el.value='7_3';
+  else if(t==='14'&&s==='3')el.value='14_3';
+  else el.value='14_0';
+  applyPaymentCondition();
+}
 
 let logo=localStorage.getItem('frLogo')||'';
 function showLogo(){let i=document.getElementById('logoPreview');if(logo){i.src=logo;i.classList.remove('hidden')}else i.classList.add('hidden')}
@@ -461,7 +484,7 @@ function loadInvoice(i){
   document.getElementById('kundeEmail').value=x.email||'';document.getElementById('bau').value=x.bau||'';
   document.getElementById('typ').value=x.typ||'Firma';document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('nachricht').value=x.nachricht||'';document.getElementById('tage').value=x.tage||'14';
-  document.getElementById('skonto').value=x.skonto||'3';document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  document.getElementById('skonto').value=x.skonto||'3';setPaymentConditionFromValues();document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
   document.getElementById('items').innerHTML='';(x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
 }
 function togglePaid(i){let a=getInvoices();if(!a[i])return;a[i].paid=!a[i].paid;setInvoices(a);renderDashboard()}
@@ -469,6 +492,53 @@ function deleteInvoice(i){if(!confirm('Rechnung wirklich löschen?'))return;let 
 
 
 
+
+
+function epcPayload(amount,invoiceNr){
+  const eur=Number(amount||0).toFixed(2);
+  const purpose='Rechnung '+String(invoiceNr||'');
+  return [
+    'BCD',
+    '002',
+    '1',
+    'SCT',
+    'ASPKAT2LXXX',
+    'FR Fliesen Rechteck',
+    'AT092032032100672132',
+    'EUR'+eur,
+    '',
+    '',
+    purpose,
+    ''
+  ].join('\n');
+}
+
+function makeQrDataUrl(text,size=260){
+  return new Promise((resolve,reject)=>{
+    try{
+      const box=document.createElement('div');
+      box.style.position='fixed';
+      box.style.left='-9999px';
+      box.style.top='-9999px';
+      document.body.appendChild(box);
+      new QRCode(box,{
+        text,
+        width:size,
+        height:size,
+        correctLevel:QRCode.CorrectLevel.M
+      });
+      setTimeout(()=>{
+        try{
+          const canvas=box.querySelector('canvas');
+          const img=box.querySelector('img');
+          const url=canvas?canvas.toDataURL('image/png'):(img?img.src:null);
+          box.remove();
+          if(url) resolve(url); else reject(new Error('QR failed'));
+        }catch(e){box.remove();reject(e)}
+      },100);
+    }catch(e){reject(e)}
+  });
+}
 
 async function sharePDF(){
   const items=collectItems();
@@ -489,6 +559,7 @@ async function sharePDF(){
   const adresse=document.getElementById('adresse').value;
   const bau=document.getElementById('bau').value;
   const nachricht=document.getElementById('nachricht').value.trim();
+  const qrData=await makeQrDataUrl(epcPayload(total,docNr));
 
   const pdf=new jsPDF({unit:'mm',format:'a4'});
   const left=16,right=194;
@@ -593,6 +664,19 @@ async function sharePDF(){
     : `Zahlungsziel: ${dueDays} Tage.`;
   pdf.text(pdf.splitTextToSize(payText,175),left,y);
 
+  // SEPA / EPC QR-Code für Überweisung
+  try{
+    pdf.addImage(qrData,'PNG',16,222,42,42);
+    pdf.setFontSize(8);pdf.setFont(undefined,'bold');
+    pdf.text('Per Banking-App bezahlen',62,229);
+    pdf.setFont(undefined,'normal');
+    pdf.text('QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.',62,234);
+    pdf.text('Empfänger: FR Fliesen Rechteck',62,239);
+    pdf.text('IBAN: AT09 2032 0321 0067 2132',62,244);
+    pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),62,249);
+    pdf.text('Verwendung: Rechnung '+docNr,62,254);
+  }catch(e){}
+
   // Fester Firmen-Fußbereich am Seitenende
   pdf.setDrawColor(80);pdf.setLineWidth(.3);pdf.line(left,276,right,276);
   pdf.setFontSize(7.2);pdf.setFont(undefined,'normal');
@@ -657,6 +741,7 @@ Vielen Dank.
 Mit freundlichen Grüßen
 FR Fliesen Rechteck`);
   const mailTo=encodeURIComponent(customerEmail);
+  const epcText=epcPayload(total,docNr);
 
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${docType} ${esc(docNr)}</title>
   <style>
@@ -673,7 +758,7 @@ FR Fliesen Rechteck`);
   .sum div{display:flex;justify-content:space-between;padding:5px 0}
   .big{font-weight:800;font-size:18px;border-top:2px solid #222;margin-top:5px;padding-top:9px!important}
   .note{margin-top:22px}
-  .footer{margin-top:28px;line-height:1.5}.companyfooter{margin-top:42px;border-top:1px solid #555;padding-top:9px;text-align:center;font-size:10px;line-height:1.45}
+  .footer{margin-top:28px;line-height:1.5}.payqr{display:flex;gap:18px;align-items:center;margin-top:28px;padding-top:14px;border-top:1px solid #ddd}.payqr #payQr{width:120px;height:120px}.companyfooter{margin-top:42px;border-top:1px solid #555;padding-top:9px;text-align:center;font-size:10px;line-height:1.45}
   .printbtn{margin-top:25px;padding:12px 18px;border:0;border-radius:9px;background:#111;color:white;font-weight:700;margin-right:6px}
   @media print{.printbtn{display:none}body{padding:0}}
   </style></head><body>
@@ -689,10 +774,13 @@ FR Fliesen Rechteck`);
   <div class="sum"><div><span>Netto</span><span>${euro(net)}</span></div>${ust?`<div><span>USt. 20%</span><span>${euro(ust)}</span></div>`:''}<div class="big"><span>Zahlbetrag</span><span>${euro(total)}</span></div></div>
   ${steuerText}
   <div class="footer">${skontoText}</div>
+  <div class="payqr"><div id="payQr"></div><div><b>Per Banking-App bezahlen</b><br>QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.<br><b>IBAN:</b> AT09 2032 0321 0067 2132<br><b>Betrag:</b> ${euro(total)}<br><b>Verwendung:</b> Rechnung ${esc(docNr)}</div></div>
   <div class="companyfooter"><b>Adresse</b> Kamerlweg 58 · Wels · 4600 &nbsp;&nbsp; <b>Steuernummer (SN)</b> 54 347/6998 &nbsp;&nbsp; <b>Umsatzsteuer-ID (UID)</b> ATU79163806<br><b>E-Mail</b> office@fliesen-rechteck.at &nbsp;&nbsp; <b>Tel.</b> 06649277777 &nbsp;&nbsp; <b>Website</b> www.fliesen-rechteck.at &nbsp;&nbsp; <b>Bank</b> SPARKASSE<br><b>SWIFT/BIC</b> ASPKAT2LXXX &nbsp;&nbsp; <b>IBAN</b> AT09 2032 0321 0067 2132</div>
   <button class="printbtn" onclick="window.print()">PDF / Drucken</button>
   <button class="printbtn" onclick="location.href='mailto:${mailTo}?subject=${mailSubject}&body=${mailBody}'">E-Mail senden</button>
   <button class="printbtn" onclick="window.close()">← Zurück</button>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+  <script>new QRCode(document.getElementById('payQr'),{text:${JSON.stringify(epcText)},width:120,height:120,correctLevel:QRCode.CorrectLevel.M});<\/script>
   </body></html>`);
   w.document.close();
 }
