@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
@@ -127,9 +130,17 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
+    <p class="small"><b>Version v16 · Cloud</b></p>
     <label>Logo auswählen</label>
     <input id="logoInput" type="file" accept="image/*">
     <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
+    <hr style="border:0;border-top:1px solid #ddd;margin:20px 0">
+    <h3>Cloud Sync</h3>
+    <p id="cloudStatus" class="small">Nicht angemeldet</p>
+    <label>E-Mail</label><input id="cloudEmail" type="email" placeholder="name@email.at">
+    <button class="btn outline" onclick="cloudLogin()">Anmelden per E-Mail</button>
+    <button class="btn outline" onclick="syncCloud()">Cloud Sync</button>
+    <button class="btn outline" onclick="cloudLogout()">Abmelden</button>
     <hr style="border:0;border-top:1px solid #ddd;margin:20px 0">
     <h3>Sicherheit</h3>
     <label>Neuer PIN</label>
@@ -140,8 +151,41 @@ label{font-weight:700}
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
+
+const SUPABASE_URL='https://xvdrcbqnyxgugbhtrxgl.supabase.co';
+const SUPABASE_KEY='sb_publishable_SI2AWx0-d_Uj7uc75jrfVw_srMJPuB-';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let cloudUser=null;
+async function refreshCloudUser(){
+ const r=await sb.auth.getUser(); cloudUser=r.data&&r.data.user?r.data.user:null;
+ const s=document.getElementById('cloudStatus'); if(s)s.textContent=cloudUser?'Angemeldet: '+cloudUser.email:'Nicht angemeldet';
+}
+async function cloudLogin(){
+ const email=(document.getElementById('cloudEmail').value||'').trim(); if(!email)return alert('Bitte E-Mail eingeben.');
+ const r=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:'https://fliesen-rechteck-rechnung.vercel.app/'}});
+ if(r.error)return alert('Anmeldung Fehler: '+r.error.message); alert('E-Mail gesendet. Link in der E-Mail öffnen.');
+}
+async function cloudLogout(){await sb.auth.signOut();await refreshCloudUser();alert('Abgemeldet');}
+async function syncCloud(){
+ await refreshCloudUser(); if(!cloudUser)return alert('Bitte zuerst per E-Mail anmelden.');
+ let a=[];try{a=JSON.parse(localStorage.getItem('frInvoices')||localStorage.getItem('invoices')||'[]')}catch(e){}
+ for(const x of a){
+  const nr=x.nr||x.invoice_number||''; if(!nr)continue;
+  const row={user_id:cloudUser.id,invoice_number:nr,invoice_date:x.date||null,customer_name:x.kunde||'',customer_address:x.adresse||'',customer_email:x.email||'',baustelle:x.bau||'',nachricht:x.nachricht||'',material_cost:Number(x.material||0),payment_days:Number(x.tage||14),skonto:Number(x.skonto||0),steuer:x.steuer||'rc',footer:x.footer||'',items:x.items||[],total:Number(x.total||0),paid:!!x.paid,updated_at:new Date().toISOString()};
+  const q=await sb.from('invoices').select('id').eq('user_id',cloudUser.id).eq('invoice_number',nr).maybeSingle();
+  if(q.error)return alert('Cloud Fehler: '+q.error.message);
+  const z=q.data?await sb.from('invoices').update(row).eq('id',q.data.id):await sb.from('invoices').insert(row);
+  if(z.error)return alert('Cloud Fehler: '+z.error.message);
+ }
+ const d=await sb.from('invoices').select('*').order('created_at',{ascending:true});
+ if(d.error)return alert('Cloud Fehler: '+d.error.message);
+ alert('Cloud Sync fertig: '+(d.data||[]).length+' Rechnung(en)');
+}
+sb.auth.onAuthStateChange(()=>setTimeout(refreshCloudUser,0));setTimeout(refreshCloudUser,300);
+
 let frPin=localStorage.getItem('frPin')||'';
 
 
