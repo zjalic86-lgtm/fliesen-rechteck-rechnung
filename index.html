@@ -79,7 +79,9 @@ label{font-weight:700}
     <label>Adresse</label><input id="adresse">
     <label>E-Mail Kunde</label><input id="kundeEmail" type="email" placeholder="kunde@email.at">
     <label>Baustelle</label><input id="bau">
+    <label>Nachricht (optional)</label><textarea id="nachricht" rows="3"></textarea>
     <label>Materialkosten €</label><input id="materialCost" type="number" step="0.01" placeholder="z.B. 350">
+    <label>Fußzeile Rechnung</label><textarea id="invoiceFooter" rows="3">Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung</textarea>
 
     <div class="row">
       <div>
@@ -95,8 +97,6 @@ label{font-weight:700}
     <h3>Positionen</h3>
     <div id="items"></div>
     <button class="btn outline" type="button" onclick="addItem()">+ Position hinzufügen</button>
-
-    <label>Nachricht (optional)</label><textarea id="nachricht" rows="3"></textarea>
 
     <div class="row">
       <div><label>Zahlungsziel</label><select id="tage"><option>14</option><option>7</option><option>30</option></select></div>
@@ -200,6 +200,7 @@ function currentInvoiceData(){
     tage:document.getElementById('tage').value,
     skonto:document.getElementById('skonto').value,
     material:parseFloat(document.getElementById('materialCost').value)||0,
+    footer:document.getElementById('invoiceFooter').value,
     items, net, ust, total:net+ust, paid:false,
     savedAt:new Date().toISOString()
   }
@@ -238,7 +239,7 @@ function loadInvoice(i){
   document.getElementById('kundeEmail').value=x.email||'';document.getElementById('bau').value=x.bau||'';
   document.getElementById('typ').value=x.typ||'Firma';document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('nachricht').value=x.nachricht||'';document.getElementById('tage').value=x.tage||'14';
-  document.getElementById('skonto').value=x.skonto||'3';document.getElementById('materialCost').value=x.material||'';
+  document.getElementById('skonto').value=x.skonto||'3';document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
   document.getElementById('items').innerHTML='';(x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
 }
 function togglePaid(i){let a=getInvoices();if(!a[i])return;a[i].paid=!a[i].paid;setInvoices(a);renderDashboard()}
@@ -351,15 +352,23 @@ async function sharePDF(){
 
   y+=12;
   pdf.setFont(undefined,'normal');pdf.setFontSize(8.5);
-  if(st==='rc'){
-    pdf.text('Steuerschuldnerschaft des Leistungsempfängers gemäß § 19 Abs. 1a UStG.',left,y);
-    y+=7;
+  const footerText=document.getElementById('invoiceFooter').value.trim();
+  if(footerText){
+    pdf.text(pdf.splitTextToSize(footerText,175),left,y);
+    y+=12;
   }
   const skontoValue=total*sk/100;
   const payText=sk>0
     ? `Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue).replace(/\u00a0/g,' ')}) abgezogen werden.`
     : `Zahlungsziel: ${dueDays} Tage.`;
   pdf.text(pdf.splitTextToSize(payText,175),left,y);
+
+  // Fester Firmen-Fußbereich am Seitenende
+  pdf.setDrawColor(80);pdf.setLineWidth(.3);pdf.line(left,276,right,276);
+  pdf.setFontSize(7.2);pdf.setFont(undefined,'normal');
+  pdf.text('Adresse Kamerlweg 58 · Wels · 4600    Steuernummer (SN) 54 347/6998    Umsatzsteuer-ID (UID) ATU79163806',105,282,{align:'center'});
+  pdf.text('E-Mail office@fliesen-rechteck.at    Tel. 06649277777    Website www.fliesen-rechteck.at    Bank SPARKASSE',105,286,{align:'center'});
+  pdf.text('SWIFT/BIC ASPKAT2LXXX    IBAN AT09 2032 0321 0067 2132',105,290,{align:'center'});
 
   const blob=pdf.output('blob');
   const file=new File([blob],`${docType}_${docNr}.pdf`,{type:'application/pdf'});
@@ -405,7 +414,8 @@ function makeDoc(){
   const lg=logo?`<img src="${logo}" style="max-width:190px;max-height:95px">`:`<div style="font-size:25px;font-weight:800">FR Fliesen Rechteck</div>`;
   const rows=items.map(x=>`<tr><td>${esc(x.desc)}</td><td style="text-align:right">${num(x.qty)}</td><td>${esc(x.unit)}</td><td style="text-align:right">${euro(x.price)}</td><td style="text-align:right">${euro(x.sum)}</td></tr>`).join('');
 
-  const steuerText=st==='rc'?`<p class="note">Steuerschuldnerschaft des Leistungsempfängers gemäß § 19 Abs. 1a UStG.</p>`:'';
+  const footerText=esc(document.getElementById('invoiceFooter').value).replace(/\n/g,'<br>');
+  const steuerText=footerText?`<p class="note">${footerText}</p>`:'';
   const skontoText=sk>0?`<p>Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue)}) abgezogen werden.</p>`:`<p>Zahlungsziel: ${dueDays} Tage.</p>`;
   const mailSubject=encodeURIComponent(`${docType} ${docNr} - FR Fliesen Rechteck`);
   const mailBody=encodeURIComponent(`Guten Tag,
@@ -433,7 +443,7 @@ FR Fliesen Rechteck`);
   .sum div{display:flex;justify-content:space-between;padding:5px 0}
   .big{font-weight:800;font-size:18px;border-top:2px solid #222;margin-top:5px;padding-top:9px!important}
   .note{margin-top:22px}
-  .footer{margin-top:28px;line-height:1.5}
+  .footer{margin-top:28px;line-height:1.5}.companyfooter{margin-top:42px;border-top:1px solid #555;padding-top:9px;text-align:center;font-size:10px;line-height:1.45}
   .printbtn{margin-top:25px;padding:12px 18px;border:0;border-radius:9px;background:#111;color:white;font-weight:700;margin-right:6px}
   @media print{.printbtn{display:none}body{padding:0}}
   </style></head><body>
@@ -448,6 +458,7 @@ FR Fliesen Rechteck`);
   ${steuerText}
   ${document.getElementById('nachricht').value?`<p>${esc(document.getElementById('nachricht').value)}</p>`:''}
   <div class="footer">${skontoText}</div>
+  <div class="companyfooter"><b>Adresse</b> Kamerlweg 58 · Wels · 4600 &nbsp;&nbsp; <b>Steuernummer (SN)</b> 54 347/6998 &nbsp;&nbsp; <b>Umsatzsteuer-ID (UID)</b> ATU79163806<br><b>E-Mail</b> office@fliesen-rechteck.at &nbsp;&nbsp; <b>Tel.</b> 06649277777 &nbsp;&nbsp; <b>Website</b> www.fliesen-rechteck.at &nbsp;&nbsp; <b>Bank</b> SPARKASSE<br><b>SWIFT/BIC</b> ASPKAT2LXXX &nbsp;&nbsp; <b>IBAN</b> AT09 2032 0321 0067 2132</div>
   <button class="printbtn" onclick="window.print()">PDF / Drucken</button>
   <button class="printbtn" onclick="location.href='mailto:${mailTo}?subject=${mailSubject}&body=${mailBody}'">E-Mail senden</button>
   <button class="printbtn" onclick="window.close()">← Zurück</button>
