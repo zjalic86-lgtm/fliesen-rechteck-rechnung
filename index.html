@@ -150,7 +150,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v24 · Angebot → Rechnung</b></p>
+    <p class="small"><b>Version v25 · Rechnung kopieren</b></p>
     <label>Logo auswählen</label>
     <input id="logoInput" type="file" accept="image/*">
     <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
@@ -624,7 +624,7 @@ function renderDashboard(){
   document.getElementById('statOpenCount').textContent=arr.filter(x=>!x.paid).length;
   const box=document.getElementById('invoiceList');
   if(!arr.length){box.innerHTML='<p class="small">Noch keine Rechnungen gespeichert.</p>'}
-  else box.innerHTML=arr.map((x,i)=>`<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?'Bezahlt':'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`).join('');
+  else box.innerHTML=arr.map((x,i)=>`<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?'Bezahlt':'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="copyInvoice(${i})">Kopieren</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`).join('');
 
   const offers=getOffers();
   const ob=document.getElementById('offerList');
@@ -644,6 +644,30 @@ function loadInvoice(i){
   document.getElementById('skonto').value=x.skonto||'3';updateDueDate();document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
   document.getElementById('items').innerHTML='';(x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
 }
+
+function copyInvoice(i){
+  const x=getInvoices()[i];if(!x)return;
+  showForm('Rechnung');
+  document.getElementById('docNr').value='';
+  document.getElementById('docDate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('kunde').value=x.kunde||'';
+  document.getElementById('adresse').value=x.adresse||'';
+  document.getElementById('kundeUid').value=x.kundeUid||'';
+  document.getElementById('kundeEmail').value=x.email||'';
+  document.getElementById('bau').value=x.bau||'';
+  document.getElementById('typ').value=x.typ||'Firma';
+  document.getElementById('steuer').value=x.steuer||'rc';
+  document.getElementById('nachricht').value=x.nachricht||'';
+  document.getElementById('tage').value=x.tage||'14';
+  document.getElementById('skonto').value=x.skonto||'0';
+  document.getElementById('materialCost').value=x.material||'';
+  document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  document.getElementById('items').innerHTML='';
+  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
+  updateDueDate();
+  alert('Rechnung kopiert. Rechnungsnummer und gewünschte Menge ändern.');
+}
+
 function togglePaid(i){let a=getInvoices();if(!a[i])return;a[i].paid=!a[i].paid;setInvoices(a);renderDashboard()}
 function deleteInvoice(i){if(!confirm('Rechnung wirklich löschen?'))return;let a=getInvoices();a.splice(i,1);setInvoices(a);renderDashboard()}
 
