@@ -198,6 +198,28 @@ async function cloudLogin(){
  if(r.error)return alert('Anmeldung Fehler: '+r.error.message); alert('E-Mail gesendet. Link in der E-Mail öffnen.');
 }
 async function cloudLogout(){await sb.auth.signOut();await refreshCloudUser();alert('Abgemeldet');}
+function cloudInvoiceToLocal(x){
+ const items=Array.isArray(x.items)?x.items:[];
+ const net=items.reduce((s,it)=>s+(Number(it.sum)||((Number(it.qty)||0)*(Number(it.price)||0))),0);
+ const total=Number(x.total||net||0);
+ return {
+  id:x.invoice_number||x.id||('FR-'+Date.now()),type:'Rechnung',nr:x.invoice_number||'',date:x.invoice_date||'',
+  kunde:x.customer_name||'',adresse:x.customer_address||'',kundeUid:x.customer_uid||'',email:x.customer_email||'',
+  bau:x.baustelle||'',typ:'Firma',steuer:x.steuer||'rc',nachricht:x.nachricht||'',tage:String(x.payment_days||14),
+  skonto:String(x.skonto||0),material:Number(x.material_cost||0),footer:x.footer||'',items,net,
+  ust:(x.steuer==='20'?Math.max(0,total-net):0),total,paid:!!x.paid,savedAt:x.updated_at||x.created_at||new Date().toISOString()
+ };
+}
+async function pullCloudInvoices(showMessage=true){
+ if(!cloudUser)return false;
+ const d=await sb.from('invoices').select('*').eq('user_id',cloudUser.id).order('created_at',{ascending:false});
+ if(d.error){if(showMessage)alert('Cloud Fehler: '+d.error.message);return false}
+ const cloud=(d.data||[]).map(cloudInvoiceToLocal);
+ localStorage.setItem('frInvoices',JSON.stringify(cloud));
+ renderDashboard();
+ if(showMessage)alert('Cloud Sync fertig: '+cloud.length+' Rechnung(en)');
+ return true;
+}
 async function syncCloud(){
  await refreshCloudUser(); if(!cloudUser)return alert('Bitte zuerst per E-Mail anmelden.');
  let a=[];try{a=JSON.parse(localStorage.getItem('frInvoices')||localStorage.getItem('invoices')||'[]')}catch(e){}
@@ -209,11 +231,10 @@ async function syncCloud(){
   const z=q.data?await sb.from('invoices').update(row).eq('id',q.data.id):await sb.from('invoices').insert(row);
   if(z.error)return alert('Cloud Fehler: '+z.error.message);
  }
- const d=await sb.from('invoices').select('*').order('created_at',{ascending:true});
- if(d.error)return alert('Cloud Fehler: '+d.error.message);
- alert('Cloud Sync fertig: '+(d.data||[]).length+' Rechnung(en)');
+ await pullCloudInvoices(true);
 }
-sb.auth.onAuthStateChange(()=>setTimeout(refreshCloudUser,0));setTimeout(refreshCloudUser,300);
+sb.auth.onAuthStateChange(()=>setTimeout(async()=>{await refreshCloudUser();if(cloudUser)await pullCloudInvoices(false)},0));
+setTimeout(async()=>{await refreshCloudUser();if(cloudUser)await pullCloudInvoices(false)},300);
 
 let frPin=localStorage.getItem('frPin')||'';
 
