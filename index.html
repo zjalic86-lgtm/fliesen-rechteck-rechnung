@@ -84,6 +84,8 @@ label{font-weight:700}
     <button class="btn outline" onclick="showForm('Angebot')">+ Neues Angebot</button>
     <h3>Gespeicherte Rechnungen</h3>
     <div id="invoiceList"></div>
+    <h3>Gespeicherte Angebote</h3>
+    <div id="offerList"></div>
   </div>
 
   <div id="form" class="card hidden">
@@ -140,7 +142,7 @@ label{font-weight:700}
       </div>
     </div>
 
-    <button class="btn" onclick="saveInvoice()">Rechnung speichern</button>
+    <button class="btn" onclick="docType==='Angebot'?saveOffer():saveInvoice()">Speichern</button>
     <button class="btn outline" onclick="sharePDF()">PDF senden / teilen</button>
     <button class="btn outline" onclick="makeDoc()">PDF erstellen / Drucken</button>
     <button class="btn outline" onclick="home()">Zurück</button>
@@ -148,7 +150,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v23 · Datum & Fällig</b></p>
+    <p class="small"><b>Version v24 · Angebot → Rechnung</b></p>
     <label>Logo auswählen</label>
     <input id="logoInput" type="file" accept="image/*">
     <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
@@ -534,6 +536,80 @@ function saveInvoice(){
   if(i>=0){d.paid=arr[i].paid;arr[i]=d}else arr.unshift(d);
   setInvoices(arr);alert('Rechnung gespeichert');renderDashboard();
 }
+
+function getOffers(){
+  try{return JSON.parse(localStorage.getItem('frOffers')||'[]')}catch(e){return []}
+}
+function setOffers(v){localStorage.setItem('frOffers',JSON.stringify(v||[]))}
+function saveOffer(){
+  const d=currentInvoiceData();
+  d.type='Angebot';
+  d.status='Offen';
+  if(!d.nr){alert('Bitte Angebotsnummer eingeben.');return}
+  if(d.items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
+  let arr=getOffers();
+  const i=arr.findIndex(x=>x.nr===d.nr);
+  if(i>=0){
+    d.status=arr[i].status||'Offen';
+    arr[i]=d;
+  }else arr.unshift(d);
+  setOffers(arr);
+  alert('Angebot gespeichert');
+  renderDashboard();
+}
+function loadOffer(i){
+  const x=getOffers()[i];if(!x)return;
+  showForm('Angebot');
+  document.getElementById('docNr').value=x.nr||'';
+  document.getElementById('docDate').value=x.date||'';
+  document.getElementById('kunde').value=x.kunde||'';
+  document.getElementById('adresse').value=x.adresse||'';
+  document.getElementById('kundeUid').value=x.kundeUid||'';
+  document.getElementById('kundeEmail').value=x.email||'';
+  document.getElementById('bau').value=x.bau||'';
+  document.getElementById('typ').value=x.typ||'Firma';
+  document.getElementById('steuer').value=x.steuer||'rc';
+  document.getElementById('nachricht').value=x.nachricht||'';
+  document.getElementById('tage').value=x.tage||'14';
+  document.getElementById('skonto').value=x.skonto||'0';
+  updateDueDate();
+  document.getElementById('materialCost').value=x.material||'';
+  document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  document.getElementById('items').innerHTML='';
+  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
+}
+function setOfferStatus(i,status){
+  let a=getOffers();if(!a[i])return;
+  a[i].status=status;setOffers(a);renderDashboard();
+}
+function deleteOffer(i){
+  if(!confirm('Angebot wirklich löschen?'))return;
+  let a=getOffers();a.splice(i,1);setOffers(a);renderDashboard();
+}
+function offerToInvoice(i){
+  let a=getOffers();const x=a[i];if(!x)return;
+  x.status='Angenommen';setOffers(a);
+  showForm('Rechnung');
+  document.getElementById('docNr').value='';
+  document.getElementById('docDate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('kunde').value=x.kunde||'';
+  document.getElementById('adresse').value=x.adresse||'';
+  document.getElementById('kundeUid').value=x.kundeUid||'';
+  document.getElementById('kundeEmail').value=x.email||'';
+  document.getElementById('bau').value=x.bau||'';
+  document.getElementById('typ').value=x.typ||'Firma';
+  document.getElementById('steuer').value=x.steuer||'rc';
+  document.getElementById('nachricht').value=x.nachricht||'';
+  document.getElementById('tage').value=x.tage||'14';
+  document.getElementById('skonto').value=x.skonto||'0';
+  document.getElementById('materialCost').value=x.material||'';
+  document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  document.getElementById('items').innerHTML='';
+  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
+  updateDueDate();
+  alert('Angebot wurde als angenommen markiert. Bitte Rechnungsnummer eingeben und Rechnung speichern.');
+}
+
 function renderDashboard(){
   const arr=getInvoices();
   const total=arr.reduce((s,x)=>s+(Number(x.total)||0),0);
@@ -547,8 +623,15 @@ function renderDashboard(){
   document.getElementById('statProfit').textContent=euro(total-material);
   document.getElementById('statOpenCount').textContent=arr.filter(x=>!x.paid).length;
   const box=document.getElementById('invoiceList');
-  if(!arr.length){box.innerHTML='<p class="small">Noch keine Rechnungen gespeichert.</p>';return}
-  box.innerHTML=arr.map((x,i)=>`<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?'Bezahlt':'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`).join('');
+  if(!arr.length){box.innerHTML='<p class="small">Noch keine Rechnungen gespeichert.</p>'}
+  else box.innerHTML=arr.map((x,i)=>`<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?'Bezahlt':'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`).join('');
+
+  const offers=getOffers();
+  const ob=document.getElementById('offerList');
+  if(ob){
+    if(!offers.length) ob.innerHTML='<p class="small">Noch keine Angebote gespeichert.</p>';
+    else ob.innerHTML=offers.map((x,i)=>`<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${fmtDate(x.date)} · ${esc(x.bau||'')}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${esc(x.status||'Offen')}</span></div></div><div class="actions"><button onclick="loadOffer(${i})">Öffnen</button><button onclick="offerToInvoice(${i})">Angenommen → Rechnung</button><button onclick="setOfferStatus(${i},'Abgelehnt')">Abgelehnt</button><button onclick="deleteOffer(${i})">Löschen</button></div></div>`).join('');
+  }
 }
 function loadInvoice(i){
   const x=getInvoices()[i];if(!x)return;
