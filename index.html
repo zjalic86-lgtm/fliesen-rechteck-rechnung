@@ -94,9 +94,13 @@ label{font-weight:700}
       <div><label>Datum</label><input id="docDate" type="date"></div>
     </div>
 
-    <label>Kunde</label><input id="kunde">
+    <label>Kunde</label>
+    <input id="kunde" list="kundenListe" onchange="loadCustomerByName()" onblur="loadCustomerByName()" placeholder="z.B. HB - Fliesen">
+    <datalist id="kundenListe"></datalist>
     <label>Adresse</label><input id="adresse">
+    <label>UID Kunde</label><input id="kundeUid" placeholder="z.B. ATU12345678">
     <label>E-Mail Kunde</label><input id="kundeEmail" type="email" placeholder="kunde@email.at">
+    <button class="btn outline" type="button" onclick="saveCustomer()">Kunde speichern</button>
     <label>Baustelle</label><input id="bau">
     <label>Nachricht (optional)</label><textarea id="nachricht" rows="3"></textarea>
     <label>Materialkosten €</label><input id="materialCost" type="number" step="0.01" placeholder="z.B. 350">
@@ -143,7 +147,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v21 · Zahlungsziel</b></p>
+    <p class="small"><b>Version v22 · Kunden</b></p>
     <label>Logo auswählen</label>
     <input id="logoInput" type="file" accept="image/*">
     <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
@@ -242,6 +246,7 @@ function applyUrlInvoice(){
   set('docDate','date','doc_date');
   set('kunde','customer_name','kunde');
   set('adresse','address','adresse');
+  set('kundeUid','customer_uid','kunde_uid','uid');
   set('kundeEmail','email','customer_email');
   set('bau','baustelle','bau');
   set('materialCost','material','material_cost');
@@ -429,6 +434,47 @@ function collectItems(){
   }).filter(x=>x.desc||x.qty||x.price)
 }
 
+
+function getCustomers(){
+  try{return JSON.parse(localStorage.getItem('frCustomers')||'[]')}catch(e){return []}
+}
+function setCustomers(v){
+  localStorage.setItem('frCustomers',JSON.stringify(v||[]));
+  renderCustomerList();
+}
+function renderCustomerList(){
+  const el=document.getElementById('kundenListe');
+  if(!el)return;
+  el.innerHTML=getCustomers().map(c=>`<option value="${escAttr(c.name||'')}"></option>`).join('');
+}
+function saveCustomer(){
+  const c={
+    name:(document.getElementById('kunde').value||'').trim(),
+    adresse:(document.getElementById('adresse').value||'').trim(),
+    uid:(document.getElementById('kundeUid').value||'').trim(),
+    email:(document.getElementById('kundeEmail').value||'').trim(),
+    typ:document.getElementById('typ').value||'Firma',
+    steuer:document.getElementById('steuer').value||'rc'
+  };
+  if(!c.name){alert('Bitte Kundenname eingeben.');return}
+  let a=getCustomers();
+  const i=a.findIndex(x=>(x.name||'').toLowerCase()===c.name.toLowerCase());
+  if(i>=0)a[i]=c;else a.unshift(c);
+  setCustomers(a);
+  alert('Kunde gespeichert');
+}
+function loadCustomerByName(){
+  const n=(document.getElementById('kunde').value||'').trim().toLowerCase();
+  if(!n)return;
+  const c=getCustomers().find(x=>(x.name||'').toLowerCase()===n);
+  if(!c)return;
+  document.getElementById('adresse').value=c.adresse||'';
+  document.getElementById('kundeUid').value=c.uid||'';
+  document.getElementById('kundeEmail').value=c.email||'';
+  if(c.typ)document.getElementById('typ').value=c.typ;
+  if(c.steuer)document.getElementById('steuer').value=c.steuer;
+}
+
 function getInvoices(){
   try{return JSON.parse(localStorage.getItem('frInvoices')||'[]')}catch(e){return []}
 }
@@ -445,6 +491,7 @@ function currentInvoiceData(){
     date:document.getElementById('docDate').value,
     kunde:document.getElementById('kunde').value,
     adresse:document.getElementById('adresse').value,
+    kundeUid:document.getElementById('kundeUid').value,
     email:document.getElementById('kundeEmail').value,
     bau:document.getElementById('bau').value,
     typ:document.getElementById('typ').value,
@@ -489,7 +536,7 @@ function loadInvoice(i){
   showForm('Rechnung');
   document.getElementById('docNr').value=x.nr||'';document.getElementById('docDate').value=x.date||'';
   document.getElementById('kunde').value=x.kunde||'';document.getElementById('adresse').value=x.adresse||'';
-  document.getElementById('kundeEmail').value=x.email||'';document.getElementById('bau').value=x.bau||'';
+  document.getElementById('kundeUid').value=x.kundeUid||'';document.getElementById('kundeEmail').value=x.email||'';document.getElementById('bau').value=x.bau||'';
   document.getElementById('typ').value=x.typ||'Firma';document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('nachricht').value=x.nachricht||'';document.getElementById('tage').value=x.tage||'14';
   document.getElementById('skonto').value=x.skonto||'3';document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
@@ -565,6 +612,7 @@ async function sharePDF(){
   const docDate=document.getElementById('docDate').value;
   const kunde=document.getElementById('kunde').value;
   const adresse=document.getElementById('adresse').value;
+  const kundeUid=document.getElementById('kundeUid').value.trim();
   const bau=document.getElementById('bau').value;
   const nachricht=document.getElementById('nachricht').value.trim();
   const qrData=await makeQrDataUrl(epcPayload(total,docNr));
@@ -617,6 +665,7 @@ async function sharePDF(){
   pdf.setFont(undefined,'normal');pdf.text(kunde,left+15,y);
   y+=5;
   if(adresse){pdf.text(adresse,left,y);y+=5}
+  if(kundeUid){pdf.setFont(undefined,'bold');pdf.text('UID:',left,y);pdf.setFont(undefined,'normal');pdf.text(kundeUid,left+10,y);y+=5}
   pdf.setFont(undefined,'bold');pdf.text('Baustelle:',left,y);
   pdf.setFont(undefined,'normal');pdf.text(bau,left+20,y);
   y+=10;
@@ -773,7 +822,7 @@ FR Fliesen Rechteck`);
   <div class="top"><div>${lg}</div><div class="right">Kamerlweg 58 · 4600 Wels<br>UID ATU79163806 · StNr. 54 347/6998<br>office@fliesen-rechteck.at · 06649277777<br>IBAN AT09 2032 0321 0067 2132<br>BIC ASPKAT2LXXX</div></div>
   <hr class="redline">
   <div class="meta">
-    <div><b>Kunde:</b> ${esc(document.getElementById('kunde').value)}<br>${esc(document.getElementById('adresse').value)}<br><b>Baustelle:</b> ${esc(document.getElementById('bau').value)}</div>
+    <div><b>Kunde:</b> ${esc(document.getElementById('kunde').value)}<br>${esc(document.getElementById('adresse').value)}${document.getElementById('kundeUid').value?`<br><b>UID:</b> ${esc(document.getElementById('kundeUid').value)}`:''}<br><b>Baustelle:</b> ${esc(document.getElementById('bau').value)}</div>
     <div style="text-align:right;line-height:1.6"><b>Nr.:</b> ${esc(docNr)}<br><b>Datum:</b> ${fmtDate(docDate)}<br><b>Fällig:</b> ${due}</div>
   </div>
   <div class="title" style="margin-top:26px">${docType.toUpperCase()}</div>
@@ -792,6 +841,7 @@ FR Fliesen Rechteck`);
   </body></html>`);
   w.document.close();
 }
+renderCustomerList();
 renderDashboard();
 </script>
 </body>
