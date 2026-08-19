@@ -117,14 +117,23 @@ label{font-weight:700}
     <div id="items"></div>
     <button class="btn outline" type="button" onclick="addItem()">+ Position hinzufügen</button>
 
-    <label>Zahlungsbedingungen</label>
-    <select id="paymentCondition" onchange="applyPaymentCondition()">
-      <option value="7_3">7 Tage – 3% Skonto</option>
-      <option value="14_3" selected>14 Tage – 3% Skonto</option>
-      <option value="14_0">14 Tage netto – kein Skonto</option>
-    </select>
-    <input id="tage" type="hidden" value="14">
-    <input id="skonto" type="hidden" value="3">
+    <div class="row">
+      <div>
+        <label>Zahlungsziel</label>
+        <select id="tage">
+          <option value="7">7 Tage</option>
+          <option value="14" selected>14 Tage</option>
+          <option value="30">30 Tage</option>
+        </select>
+      </div>
+      <div>
+        <label>Skonto</label>
+        <select id="skonto">
+          <option value="3">3% Skonto</option>
+          <option value="0">Kein Skonto</option>
+        </select>
+      </div>
+    </div>
 
     <button class="btn" onclick="saveInvoice()">Rechnung speichern</button>
     <button class="btn outline" onclick="sharePDF()">PDF senden / teilen</button>
@@ -134,7 +143,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v20 · SEPA QR</b></p>
+    <p class="small"><b>Version v21 · Zahlungsziel</b></p>
     <label>Logo auswählen</label>
     <input id="logoInput" type="file" accept="image/*">
     <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
@@ -248,7 +257,6 @@ function applyUrlInvoice(){
   if(p.has('skonto')){
     document.getElementById('skonto').value=(p.get('skonto')==='0')?'0':'3';
   }
-  setPaymentConditionFromValues();
 
   // Build positions from URL.
   document.getElementById('items').innerHTML='';
@@ -484,7 +492,7 @@ function loadInvoice(i){
   document.getElementById('kundeEmail').value=x.email||'';document.getElementById('bau').value=x.bau||'';
   document.getElementById('typ').value=x.typ||'Firma';document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('nachricht').value=x.nachricht||'';document.getElementById('tage').value=x.tage||'14';
-  document.getElementById('skonto').value=x.skonto||'3';setPaymentConditionFromValues();document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  document.getElementById('skonto').value=x.skonto||'3';document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
   document.getElementById('items').innerHTML='';(x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
 }
 function togglePaid(i){let a=getInvoices();if(!a[i])return;a[i].paid=!a[i].paid;setInvoices(a);renderDashboard()}
