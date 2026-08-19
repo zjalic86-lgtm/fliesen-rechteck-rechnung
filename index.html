@@ -130,7 +130,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v16 · Cloud</b></p>
+    <p class="small"><b>Version v17 · Cloud Login</b></p>
     <label>Logo auswählen</label>
     <input id="logoInput" type="file" accept="image/*">
     <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
@@ -157,7 +157,15 @@ label{font-weight:700}
 
 const SUPABASE_URL='https://xvdrcbqnyxgugbhtrxgl.supabase.co';
 const SUPABASE_KEY='sb_publishable_SI2AWx0-d_Uj7uc75jrfVw_srMJPuB-';
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+  auth:{
+    persistSession:true,
+    autoRefreshToken:true,
+    detectSessionInUrl:true,
+    storage:window.localStorage,
+    storageKey:'fr-rechnung-auth'
+  }
+});
 let cloudUser=null;
 async function refreshCloudUser(){
  const r=await sb.auth.getUser(); cloudUser=r.data&&r.data.user?r.data.user:null;
