@@ -144,6 +144,82 @@ label{font-weight:700}
 <script>
 let frPin=localStorage.getItem('frPin')||'';
 
+
+function getUrlParams(){
+  try{return new URLSearchParams(window.location.search)}catch(e){return new URLSearchParams()}
+}
+
+function hasInvoiceParams(){
+  const p=getUrlParams();
+  const keys=['customer_name','kunde','baustelle','bau','email','adresse','payment_days',
+              'material','message','nachricht','wand_m2','wand_price','boden_m2','boden_price',
+              'p1_desc','p1_qty','p1_price'];
+  return keys.some(k=>p.has(k));
+}
+
+function applyUrlInvoice(){
+  const p=getUrlParams();
+  if(!hasInvoiceParams()) return;
+
+  showForm('Rechnung');
+
+  const set=(id,...keys)=>{
+    for(const k of keys){
+      if(p.has(k)){
+        document.getElementById(id).value=p.get(k)||'';
+        return;
+      }
+    }
+  };
+
+  set('docNr','number','doc_nr','rechnung_nr');
+  set('docDate','date','doc_date');
+  set('kunde','customer_name','kunde');
+  set('adresse','address','adresse');
+  set('kundeEmail','email','customer_email');
+  set('bau','baustelle','bau');
+  set('materialCost','material','material_cost');
+  set('nachricht','message','nachricht');
+  set('invoiceFooter','footer','fusszeile');
+  set('tage','payment_days','tage');
+
+  if(p.has('steuer')){
+    const v=(p.get('steuer')||'').toLowerCase();
+    document.getElementById('steuer').value = (v==='20'||v==='0'||v==='rc') ? v : 'rc';
+  }
+
+  if(p.has('skonto')){
+    document.getElementById('skonto').value=(p.get('skonto')==='0')?'0':'3';
+  }
+
+  // Build positions from URL.
+  document.getElementById('items').innerHTML='';
+
+  const addFrom=(desc,qty,unit,price)=>{
+    if(qty!==null && qty!=='' && Number(qty)!==0){
+      addItem(desc,qty,unit,price||'');
+    }
+  };
+
+  addFrom('Wandfliesen verlegen',p.get('wand_m2'),'m²',p.get('wand_price'));
+  addFrom('Bodenfliesen verlegen',p.get('boden_m2'),'m²',p.get('boden_price'));
+
+  for(let i=1;i<=10;i++){
+    const d=p.get(`p${i}_desc`);
+    const q=p.get(`p${i}_qty`);
+    const u=p.get(`p${i}_unit`)||'m²';
+    const pr=p.get(`p${i}_price`);
+    if(d||q||pr) addItem(d||'',q||'',u,pr||'');
+  }
+
+  if(document.querySelectorAll('.item').length===0) addItem();
+
+  // Remove URL params from address bar so PIN/app reload is cleaner.
+  try{
+    history.replaceState({},document.title,window.location.pathname);
+  }catch(e){}
+}
+
 function setupLock(){
   const title=document.getElementById('lockTitle');
   const info=document.getElementById('lockInfo');
@@ -180,6 +256,11 @@ function unlockApp(){
   document.getElementById('lockScreen').style.display='none';
   document.getElementById('mainApp').style.display='block';
   input.value='';
+
+  if(!sessionStorage.getItem('frUrlPrefillDone') && hasInvoiceParams()){
+    sessionStorage.setItem('frUrlPrefillDone','1');
+    setTimeout(applyUrlInvoice,50);
+  }
 }
 
 function lockNow(){
