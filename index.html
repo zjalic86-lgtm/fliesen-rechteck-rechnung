@@ -209,6 +209,8 @@ function makeDoc(){
   ${document.getElementById('nachricht').value?`<p>${esc(document.getElementById('nachricht').value)}</p>`:''}
   <div class="footer">${skontoText}</div>
   <button class="printbtn" onclick="window.print()">PDF / Drucken</button>
+  <button class="printbtn" onclick="location.href='mailto:?subject=Rechnung'">E-Mail senden</button>
+<button class="printbtn" onclick="window.close()">← Zurück</button>
   </body></html>`);
   w.document.close();
 }
