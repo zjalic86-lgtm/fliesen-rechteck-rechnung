@@ -91,8 +91,9 @@ label{font-weight:700}
 
     <div class="row">
       <div><label>Nummer</label><input id="docNr" placeholder="z.B. 2026-001"></div>
-      <div><label>Datum</label><input id="docDate" type="date"></div>
+      <div><label>Rechnungsdatum</label><input id="docDate" type="date" onchange="updateDueDate()"></div>
     </div>
+    <label>Fälligkeitsdatum</label><input id="dueDate" type="date" readonly>
 
     <label>Kunde</label>
     <input id="kunde" list="kundenListe" onchange="loadCustomerByName()" onblur="loadCustomerByName()" placeholder="z.B. HB - Fliesen">
@@ -124,7 +125,7 @@ label{font-weight:700}
     <div class="row">
       <div>
         <label>Zahlungsziel</label>
-        <select id="tage">
+        <select id="tage" onchange="updateDueDate()">
           <option value="7">7 Tage</option>
           <option value="14" selected>14 Tage</option>
           <option value="30">30 Tage</option>
@@ -147,7 +148,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v22 · Kunden</b></p>
+    <p class="small"><b>Version v23 · Datum & Fällig</b></p>
     <label>Logo auswählen</label>
     <input id="logoInput" type="file" accept="image/*">
     <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
@@ -262,6 +263,7 @@ function applyUrlInvoice(){
   if(p.has('skonto')){
     document.getElementById('skonto').value=(p.get('skonto')==='0')?'0':'3';
   }
+  updateDueDate();
 
   // Build positions from URL.
   document.getElementById('items').innerHTML='';
@@ -372,9 +374,26 @@ function showForm(t){
   docType=t;hide();document.getElementById('form').classList.remove('hidden');
   document.getElementById('formTitle').textContent=t==='Rechnung'?'Neue Rechnung':'Neues Angebot';
   if(!document.getElementById('docDate').value)document.getElementById('docDate').value=new Date().toISOString().slice(0,10);
+  updateDueDate();
   if(document.querySelectorAll('.item').length===0)addItem();
 }
 function settings(){hide();document.getElementById('settings').classList.remove('hidden')}
+function calcDueDate(dateValue,daysValue){
+  if(!dateValue)return '';
+  const p=dateValue.split('-');
+  if(p.length!==3)return '';
+  const d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]));
+  d.setDate(d.getDate()+(parseInt(daysValue)||14));
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function updateDueDate(){
+  const el=document.getElementById('dueDate');
+  if(!el)return;
+  el.value=calcDueDate(document.getElementById('docDate').value,document.getElementById('tage').value);
+}
 function applyPaymentCondition(){
   const v=document.getElementById('paymentCondition').value;
   const map={'7_3':['7','3'],'14_3':['14','3'],'14_0':['14','0']};
@@ -539,7 +558,7 @@ function loadInvoice(i){
   document.getElementById('kundeUid').value=x.kundeUid||'';document.getElementById('kundeEmail').value=x.email||'';document.getElementById('bau').value=x.bau||'';
   document.getElementById('typ').value=x.typ||'Firma';document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('nachricht').value=x.nachricht||'';document.getElementById('tage').value=x.tage||'14';
-  document.getElementById('skonto').value=x.skonto||'3';document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  document.getElementById('skonto').value=x.skonto||'3';updateDueDate();document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
   document.getElementById('items').innerHTML='';(x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
 }
 function togglePaid(i){let a=getInvoices();if(!a[i])return;a[i].paid=!a[i].paid;setInvoices(a);renderDashboard()}
@@ -610,6 +629,7 @@ async function sharePDF(){
   const dueDays=parseInt(document.getElementById('tage').value)||14;
   const docNr=document.getElementById('docNr').value||'ohne-nummer';
   const docDate=document.getElementById('docDate').value;
+  const dueDateValue=calcDueDate(docDate,document.getElementById('tage').value);
   const kunde=document.getElementById('kunde').value;
   const adresse=document.getElementById('adresse').value;
   const kundeUid=document.getElementById('kundeUid').value.trim();
@@ -657,9 +677,10 @@ async function sharePDF(){
   }
   pdf.setFontSize(9);pdf.setFont(undefined,'normal');
   pdf.text('Nr.: '+docNr,right,y-2,{align:'right'});
-  pdf.text('Datum: '+fmtDate(docDate),right,y+3,{align:'right'});
+  pdf.text('Rechnungsdatum: '+fmtDate(docDate),right,y+3,{align:'right'});
+  pdf.text('Fälligkeitsdatum: '+fmtDate(dueDateValue),right,y+8,{align:'right'});
 
-  y+=10;
+  y+=15;
   pdf.setFontSize(9.5);
   pdf.setFont(undefined,'bold');pdf.text('Kunde:',left,y);
   pdf.setFont(undefined,'normal');pdf.text(kunde,left+15,y);
@@ -823,7 +844,7 @@ FR Fliesen Rechteck`);
   <hr class="redline">
   <div class="meta">
     <div><b>Kunde:</b> ${esc(document.getElementById('kunde').value)}<br>${esc(document.getElementById('adresse').value)}${document.getElementById('kundeUid').value?`<br><b>UID:</b> ${esc(document.getElementById('kundeUid').value)}`:''}<br><b>Baustelle:</b> ${esc(document.getElementById('bau').value)}</div>
-    <div style="text-align:right;line-height:1.6"><b>Nr.:</b> ${esc(docNr)}<br><b>Datum:</b> ${fmtDate(docDate)}<br><b>Fällig:</b> ${due}</div>
+    <div style="text-align:right;line-height:1.6"><b>Nr.:</b> ${esc(docNr)}<br><b>Rechnungsdatum:</b> ${fmtDate(docDate)}<br><b>Fälligkeitsdatum:</b> ${due}</div>
   </div>
   <div class="title" style="margin-top:26px">${docType.toUpperCase()}</div>
   ${document.getElementById('nachricht').value?`<div style="margin:0 0 22px;white-space:pre-line">${esc(document.getElementById('nachricht').value)}</div>`:''}
