@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FR Fliesen Rechteck</title>
 <link rel="apple-touch-icon" href="fr-icon.png">
- <!-- V3 PDF Share --> 
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
 .app{max-width:760px;margin:auto;padding:16px}
@@ -434,7 +433,140 @@ FR Fliesen Rechteck`);
   .footer{margin-top:28px;line-height:1.5}
   .printbtn{margin-top:25px;padding:12px 18px;border:0;border-radius:9px;background:#111;color:white;font-weight:700;margin-right:6px}
   @media print{.printbtn{display:none}body{padding:0}}
-  </style></head><body>
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+  async function sharePDFHere(){
+    try{
+      const {jsPDF}=window.jspdf||{};
+      if(!jsPDF){alert('PDF-Modul konnte nicht geladen werden.');return}
+
+      const docType=${JSON.stringify(docType)};
+      const docNr=${JSON.stringify(docNr||'ohne-nummer')};
+      const docDate=${JSON.stringify(docDate)};
+      const kunde=${JSON.stringify(document.getElementById('kunde').value)};
+      const adresse=${JSON.stringify(document.getElementById('adresse').value)};
+      const bau=${JSON.stringify(document.getElementById('bau').value)};
+      const steuer=${JSON.stringify(st)};
+      const dueDays=${JSON.stringify(dueDays)};
+      const skontoPct=${JSON.stringify(sk)};
+      const items=${JSON.stringify(items)};
+      const net=${JSON.stringify(net)};
+      const ust=${JSON.stringify(ust)};
+      const total=${JSON.stringify(total)};
+
+      const pdf=new jsPDF({unit:'mm',format:'a4'});
+      const left=16,right=194;
+      let y=18;
+
+      pdf.setFontSize(17);pdf.setFont(undefined,'bold');
+      pdf.text('FR Fliesen Rechteck',left,y+7);
+
+      pdf.setFontSize(8.5);pdf.setFont(undefined,'normal');
+      const company=[
+        'Kamerlweg 58 · 4600 Wels',
+        'UID ATU79163806 · StNr. 54 347/6998',
+        'office@fliesen-rechteck.at · 06649277777',
+        'IBAN AT09 2032 0321 0067 2132',
+        'BIC ASPKAT2LXXX'
+      ];
+      company.forEach((t,i)=>pdf.text(t,right,y+2+i*4,{align:'right'}));
+
+      y=42;
+      pdf.setDrawColor(201,45,41);pdf.setLineWidth(.6);pdf.line(left,y,right,y);
+      y+=10;
+
+      pdf.setTextColor(34,34,34);pdf.setFontSize(18);pdf.setFont(undefined,'bold');
+      pdf.text(String(docType).toUpperCase(),left,y);
+      pdf.setFontSize(9);pdf.setFont(undefined,'normal');
+      pdf.text('Nr.: '+docNr,right,y-2,{align:'right'});
+      pdf.text('Datum: '+fmtDateLocal(docDate),right,y+3,{align:'right'});
+
+      y+=10;
+      pdf.setFontSize(9.5);
+      pdf.setFont(undefined,'bold');pdf.text('Kunde:',left,y);
+      pdf.setFont(undefined,'normal');pdf.text(kunde,left+15,y);
+      y+=5;
+      if(adresse){pdf.text(adresse,left,y);y+=5}
+      pdf.setFont(undefined,'bold');pdf.text('Baustelle:',left,y);
+      pdf.setFont(undefined,'normal');pdf.text(bau,left+20,y);
+      y+=10;
+
+      pdf.setFillColor(243,243,243);pdf.rect(left,y,right-left,7,'F');
+      pdf.setFont(undefined,'bold');pdf.setFontSize(8.5);
+      pdf.text('Beschreibung',left+2,y+4.8);
+      pdf.text('Menge',118,y+4.8,{align:'right'});
+      pdf.text('Einheit',126,y+4.8);
+      pdf.text('Preis',164,y+4.8,{align:'right'});
+      pdf.text('Summe',192,y+4.8,{align:'right'});
+      y+=8;
+
+      pdf.setFont(undefined,'normal');
+      for(const x of items){
+        if(y>260){pdf.addPage();y=18}
+        const lines=pdf.splitTextToSize(x.desc||'',78);
+        const rowH=Math.max(7,lines.length*4.2+2);
+        pdf.text(lines,left+2,y+4);
+        pdf.text(numLocal(x.qty),118,y+4,{align:'right'});
+        pdf.text(x.unit||'',126,y+4);
+        pdf.text(euroLocal(x.price),164,y+4,{align:'right'});
+        pdf.text(euroLocal(x.sum),192,y+4,{align:'right'});
+        pdf.setDrawColor(220);pdf.line(left,y+rowH,right,y+rowH);
+        y+=rowH;
+      }
+
+      y+=8;
+      pdf.setFontSize(10);
+      pdf.text('Netto',150,y);
+      pdf.text(euroLocal(net),192,y,{align:'right'});
+      if(Number(ust)>0){
+        y+=5;
+        pdf.text('USt. 20%',150,y);
+        pdf.text(euroLocal(ust),192,y,{align:'right'});
+      }
+
+      y+=7;
+      pdf.setLineWidth(.5);pdf.setDrawColor(34);pdf.line(148,y-4,right,y-4);
+      pdf.setFont(undefined,'bold');pdf.setFontSize(12);
+      pdf.text('Zahlbetrag',150,y);
+      pdf.text(euroLocal(total),192,y,{align:'right'});
+
+      y+=12;
+      pdf.setFont(undefined,'normal');pdf.setFontSize(8.5);
+      if(steuer==='rc'){
+        pdf.text('Steuerschuldnerschaft des Leistungsempfängers gemäß § 19 Abs. 1a UStG.',left,y);
+        y+=7;
+      }
+
+      const skontoValue=Number(total)*Number(skontoPct)/100;
+      const payText=Number(skontoPct)>0
+        ? 'Zahlungsziel: '+dueDays+' Tage. Bei Zahlung innerhalb 7 Tagen können '+skontoPct+'% Skonto ('+euroLocal(skontoValue)+') abgezogen werden.'
+        : 'Zahlungsziel: '+dueDays+' Tage.';
+      pdf.text(pdf.splitTextToSize(payText,175),left,y);
+
+      const blob=pdf.output('blob');
+      const file=new File([blob],String(docType)+'_'+String(docNr)+'.pdf',{type:'application/pdf'});
+      const shareData={
+        title:String(docType)+' '+String(docNr)+' - FR Fliesen Rechteck',
+        text:'Guten Tag,\n\nanbei erhalten Sie die '+String(docType).toLowerCase()+' '+String(docNr)+'.\n\nVielen Dank.\n\nMit freundlichen Grüßen\nFR Fliesen Rechteck',
+        files:[file]
+      };
+
+      if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+        await navigator.share(shareData);
+      }else{
+        pdf.save(String(docType)+'_'+String(docNr)+'.pdf');
+      }
+    }catch(e){
+      if(e && e.name==='AbortError') return;
+      alert('PDF teilen funktioniert hier nicht. Bitte PDF / Drucken verwenden.');
+    }
+  }
+
+  function euroLocal(n){return new Intl.NumberFormat('de-AT',{style:'currency',currency:'EUR'}).format(Number(n||0)).replace(/\u00a0/g,' ')}
+  function numLocal(n){return new Intl.NumberFormat('de-AT',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0))}
+  function fmtDateLocal(v){if(!v)return '';const p=String(v).split('-');return p.length===3?p[2]+'.'+p[1]+'.'+p[0]:v}
+  </script></head><body>
   <div class="top"><div>${lg}</div><div class="right">Kamerlweg 58 · 4600 Wels<br>UID ATU79163806 · StNr. 54 347/6998<br>office@fliesen-rechteck.at · 06649277777<br>IBAN AT09 2032 0321 0067 2132<br>BIC ASPKAT2LXXX</div></div>
   <hr class="redline">
   <div class="meta">
@@ -447,7 +579,7 @@ FR Fliesen Rechteck`);
   ${document.getElementById('nachricht').value?`<p>${esc(document.getElementById('nachricht').value)}</p>`:''}
   <div class="footer">${skontoText}</div>
   <button class="printbtn" onclick="window.print()">PDF / Drucken</button>
-  <button class="printbtn" onclick="window.opener.sharePDF()">PDF teilen / senden</button>
+  <button class="printbtn" onclick="sharePDFHere()">PDF teilen / senden</button>
   <button class="printbtn" onclick="location.href='mailto:${mailTo}?subject=${mailSubject}&body=${mailBody}'">E-Mail senden</button>
   <button class="printbtn" onclick="window.close()">← Zurück</button>
   </body></html>`);
