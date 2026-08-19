@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FR Fliesen Rechteck</title>
+<link rel="apple-touch-icon" href="fr-icon.png">
+<style>
+body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
+.app{max-width:760px;margin:auto;padding:16px}
+.card{background:#fff;border-radius:20px;padding:20px;margin-bottom:14px}
+.head{border-top:6px solid #c92d29}
+.btn{width:100%;padding:16px;border:0;border-radius:14px;background:#c92d29;color:#fff;font-size:18px;font-weight:700;margin:7px 0}
+.outline{background:#fff;color:#c92d29;border:2px solid #c92d29}
+.tabs{display:flex;gap:8px;overflow:auto;margin-bottom:14px}
+.tab{white-space:nowrap;background:#fff;border:0;border-radius:12px;padding:12px;color:#1680ff;font-weight:700}
+.hidden{display:none}
+input,select,textarea{box-sizing:border-box;width:100%;padding:12px;margin:5px 0 12px;border:1px solid #ccc;border-radius:10px;font-size:16px}
+label{font-weight:700}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.small{color:#666}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.stat{background:#f7f7f8;border-radius:14px;padding:14px}
+.stat b{display:block;font-size:20px;margin-top:5px}
+.invoice{border:1px solid #e1e1e1;border-radius:14px;padding:12px;margin:10px 0}
+.invoice-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.badge{display:inline-block;padding:5px 9px;border-radius:999px;background:#eee;font-size:12px;font-weight:700}
+.actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:10px}
+.actions button{padding:10px;border-radius:10px;border:1px solid #ccc;background:#fff;font-weight:700}
+@media(max-width:620px){.stats{grid-template-columns:1fr 1fr}.actions{grid-template-columns:1fr}}
+.logo{max-width:180px;max-height:90px;display:block;margin-bottom:10px}
+.item{border:1px solid #e1e1e1;border-radius:14px;padding:12px;margin:10px 0}
+.itemline{display:grid;grid-template-columns:1.4fr .7fr .9fr .9fr auto;gap:8px;align-items:end}
+.itemline input,.itemline select{margin-bottom:0}
+.remove{border:0;background:#eee;border-radius:10px;padding:12px;font-weight:700}
+@media(max-width:620px){.row,.itemline{grid-template-columns:1fr 1fr}.itemline .wide{grid-column:1/-1}}
+
+.lockScreen{position:fixed;inset:0;background:#f4f5f7;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+.lockBox{width:min(420px,100%);background:#fff;border-radius:22px;padding:24px;box-shadow:0 8px 30px rgba(0,0,0,.08)}
+.lockBox h2{margin-top:0}
+.lockBox input{font-size:22px;text-align:center;letter-spacing:8px}
+.lockError{color:#b00020;font-weight:700;min-height:20px}
+
+</style>
+</head>
+<body>
+<div id="lockScreen" class="lockScreen">
+  <div class="lockBox">
+    <h2 id="lockTitle">FR Fliesen Rechteck</h2>
+    <p id="lockInfo" class="small">PIN eingeben</p>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••">
+    <div id="lockError" class="lockError"></div>
+    <button class="btn" onclick="unlockApp()">Öffnen</button>
+  </div>
+</div>
+<div class="app" id="mainApp" style="display:none">
+  <div class="card head">
+    <img id="logoPreview" class="logo hidden">
+    <h1>FR Fliesen Rechteck</h1>
+    <div class="small">Rechnung App</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab" onclick="home()">Übersicht</button>
+    <button class="tab" onclick="showForm('Angebot')">Angebote</button>
+    <button class="tab" onclick="showForm('Rechnung')">Rechnungen</button>
+    <button class="tab" onclick="settings()">Einstellungen</button>
+  </div>
+
+  <div id="home" class="card">
+    <h2>Übersicht</h2>
+    <div class="stats">
+      <div class="stat">Rechnungen gesamt<b id="statTotal">0,00 €</b></div>
+      <div class="stat">Bezahlt<b id="statPaid">0,00 €</b></div>
+      <div class="stat">Offen<b id="statOpen">0,00 €</b></div>
+      <div class="stat">Material gesamt<b id="statMaterial">0,00 €</b></div>
+      <div class="stat">Übrig nach Material<b id="statProfit">0,00 €</b></div>
+      <div class="stat">Offene Rechnungen<b id="statOpenCount">0</b></div>
+    </div>
+    <button class="btn" onclick="showForm('Rechnung')">+ Neue Rechnung</button>
+    <button class="btn outline" onclick="showForm('Angebot')">+ Neues Angebot</button>
+    <h3>Gespeicherte Rechnungen</h3>
+    <div id="invoiceList"></div>
+  </div>
+
+  <div id="form" class="card hidden">
+    <h2 id="formTitle">Neue Rechnung</h2>
+
+    <div class="row">
+      <div><label>Nummer</label><input id="docNr" placeholder="z.B. 2026-001"></div>
+      <div><label>Datum</label><input id="docDate" type="date"></div>
+    </div>
+
+    <label>Kunde</label><input id="kunde">
+    <label>Adresse</label><input id="adresse">
+    <label>E-Mail Kunde</label><input id="kundeEmail" type="email" placeholder="kunde@email.at">
+    <label>Baustelle</label><input id="bau">
+    <label>Nachricht (optional)</label><textarea id="nachricht" rows="3"></textarea>
+    <label>Materialkosten €</label><input id="materialCost" type="number" step="0.01" placeholder="z.B. 350">
+    <label>Fußzeile Rechnung</label><textarea id="invoiceFooter" rows="3">Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung</textarea>
+
+    <div class="row">
+      <div>
+        <label>Kundentyp</label>
+        <select id="typ"><option>Firma</option><option>Privatkunde</option></select>
+      </div>
+      <div>
+        <label>Steuer</label>
+        <select id="steuer"><option value="rc">Reverse Charge</option><option value="20">20% USt.</option><option value="0">0% USt.</option></select>
+      </div>
+    </div>
+
+    <h3>Positionen</h3>
+    <div id="items"></div>
+    <button class="btn outline" type="button" onclick="addItem()">+ Position hinzufügen</button>
+
+    <div class="row">
+      <div><label>Zahlungsziel</label><select id="tage"><option>14</option><option>7</option><option>30</option></select></div>
+      <div><label>Skonto</label><select id="skonto"><option value="3">3% / 7 Tage</option><option value="0">Kein Skonto</option></select></div>
+    </div>
+
+    <button class="btn" onclick="saveInvoice()">Rechnung speichern</button>
+    <button class="btn outline" onclick="sharePDF()">PDF senden / teilen</button>
+    <button class="btn outline" onclick="makeDoc()">PDF erstellen / Drucken</button>
+    <button class="btn outline" onclick="home()">Zurück</button>
+  </div>
+
+  <div id="settings" class="card hidden">
+    <h2>Einstellungen · Firma</h2>
+    <label>Logo auswählen</label>
+    <input id="logoInput" type="file" accept="image/*">
+    <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
+    <hr style="border:0;border-top:1px solid #ddd;margin:20px 0">
+    <h3>Cloud Sync</h3>
+    <p id="cloudStatus" class="small">Nicht angemeldet</p>
+    <label>E-Mail</label><input id="cloudEmail" type="email" placeholder="name@email.at">
+    <button class="btn outline" onclick="cloudLogin()">Anmelden per E-Mail</button>
+    <button class="btn outline" onclick="syncCloud()">Cloud Sync</button>
+    <button class="btn outline" onclick="cloudLogout()">Abmelden</button>
+    <hr style="border:0;border-top:1px solid #ddd;margin:20px 0">
+    <h3>Sicherheit</h3>
+    <label>Neuer PIN</label>
+    <input id="newPin" type="password" inputmode="numeric" maxlength="6" placeholder="4–6 Ziffern">
+    <button class="btn outline" onclick="changePin()">PIN ändern</button>
+    <button class="btn outline" onclick="lockNow()">Jetzt sperren</button>
+    <button class="btn outline" onclick="home()">Zurück</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+
+const SUPABASE_URL='https://xvdrcbqnyxgugbhtrxgl.supabase.co';
+const SUPABASE_KEY='sb_publishable_SI2AWx0-d_Uj7uc75jrfVw_srMJPuB-';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let cloudUser=null;
+async function refreshCloudUser(){
+ const r=await sb.auth.getUser(); cloudUser=r.data&&r.data.user?r.data.user:null;
+ const s=document.getElementById('cloudStatus'); if(s)s.textContent=cloudUser?'Angemeldet: '+cloudUser.email:'Nicht angemeldet';
+}
+async function cloudLogin(){
+ const email=(document.getElementById('cloudEmail').value||'').trim(); if(!email)return alert('Bitte E-Mail eingeben.');
+ const r=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:'https://fliesen-rechteck-rechnung.vercel.app/'}});
+ if(r.error)return alert('Anmeldung Fehler: '+r.error.message); alert('E-Mail gesendet. Link in der E-Mail öffnen.');
+}
+async function cloudLogout(){await sb.auth.signOut();await refreshCloudUser();alert('Abgemeldet');}
+async function syncCloud(){
+ await refreshCloudUser(); if(!cloudUser)return alert('Bitte zuerst per E-Mail anmelden.');
+ let a=[];try{a=JSON.parse(localStorage.getItem('frInvoices')||localStorage.getItem('invoices')||'[]')}catch(e){}
+ for(const x of a){
+  const nr=x.nr||x.invoice_number||''; if(!nr)continue;
+  const row={user_id:cloudUser.id,invoice_number:nr,invoice_date:x.date||null,customer_name:x.kunde||'',customer_address:x.adresse||'',customer_email:x.email||'',baustelle:x.bau||'',nachricht:x.nachricht||'',material_cost:Number(x.material||0),payment_days:Number(x.tage||14),skonto:Number(x.skonto||0),steuer:x.steuer||'rc',footer:x.footer||'',items:x.items||[],total:Number(x.total||0),paid:!!x.paid,updated_at:new Date().toISOString()};
+  const q=await sb.from('invoices').select('id').eq('user_id',cloudUser.id).eq('invoice_number',nr).maybeSingle();
+  if(q.error)return alert('Cloud Fehler: '+q.error.message);
+  const z=q.data?await sb.from('invoices').update(row).eq('id',q.data.id):await sb.from('invoices').insert(row);
+  if(z.error)return alert('Cloud Fehler: '+z.error.message);
+ }
+ const d=await sb.from('invoices').select('*').order('created_at',{ascending:true});
+ if(d.error)return alert('Cloud Fehler: '+d.error.message);
+ alert('Cloud Sync fertig: '+(d.data||[]).length+' Rechnung(en)');
+}
+sb.auth.onAuthStateChange(()=>setTimeout(refreshCloudUser,0));setTimeout(refreshCloudUser,300);
+
+let frPin=localStorage.getItem('frPin')||'';
+
+
+function getUrlParams(){
+  try{return new URLSearchParams(window.location.search)}catch(e){return new URLSearchParams()}
+}
+
+function hasInvoiceParams(){
+  const p=getUrlParams();
+  const keys=['customer_name','kunde','baustelle','bau','email','adresse','payment_days',
+              'material','message','nachricht','wand_m2','wand_price','boden_m2','boden_price',
+              'p1_desc','p1_qty','p1_price'];
+  return keys.some(k=>p.has(k));
+}
+
+function applyUrlInvoice(){
+  const p=getUrlParams();
+  if(!hasInvoiceParams()) return;
+
+  showForm('Rechnung');
+
+  const set=(id,...keys)=>{
+    for(const k of keys){
+      if(p.has(k)){
+        document.getElementById(id).value=p.get(k)||'';
+        return;
+      }
+    }
+  };
+
+  set('docNr','number','doc_nr','rechnung_nr');
+  set('docDate','date','doc_date');
+  set('kunde','customer_name','kunde');
+  set('adresse','address','adresse');
+  set('kundeEmail','email','customer_email');
+  set('bau','baustelle','bau');
+  set('materialCost','material','material_cost');
+  set('nachricht','message','nachricht');
+  set('invoiceFooter','footer','fusszeile');
+  set('tage','payment_days','tage');
+
+  if(p.has('steuer')){
+    const v=(p.get('steuer')||'').toLowerCase();
+    document.getElementById('steuer').value = (v==='20'||v==='0'||v==='rc') ? v : 'rc';
+  }
+
+  if(p.has('skonto')){
+    document.getElementById('skonto').value=(p.get('skonto')==='0')?'0':'3';
+  }
+
+  // Build positions from URL.
+  document.getElementById('items').innerHTML='';
+
+  const addFrom=(desc,qty,unit,price)=>{
+    if(qty!==null && qty!=='' && Number(qty)!==0){
+      addItem(desc,qty,unit,price||'');
+    }
+  };
+
+  addFrom('Wandfliesen verlegen',p.get('wand_m2'),'m²',p.get('wand_price'));
+  addFrom('Bodenfliesen verlegen',p.get('boden_m2'),'m²',p.get('boden_price'));
+
+  for(let i=1;i<=10;i++){
+    const d=p.get(`p${i}_desc`);
+    const q=p.get(`p${i}_qty`);
+    const u=p.get(`p${i}_unit`)||'m²';
+    const pr=p.get(`p${i}_price`);
+    if(d||q||pr) addItem(d||'',q||'',u,pr||'');
+  }
+
+  if(document.querySelectorAll('.item').length===0) addItem();
+
+  // Remove URL params from address bar so PIN/app reload is cleaner.
+  try{
+    history.replaceState({},document.title,window.location.pathname);
+  }catch(e){}
+}
+
+function setupLock(){
+  const title=document.getElementById('lockTitle');
+  const info=document.getElementById('lockInfo');
+  if(!frPin){
+    title.textContent='PIN erstellen';
+    info.textContent='Erstelle einen PIN mit 4–6 Ziffern.';
+  }else{
+    title.textContent='FR Fliesen Rechteck';
+    info.textContent='PIN eingeben';
+  }
+  setTimeout(()=>document.getElementById('pinInput').focus(),150);
+}
+
+function unlockApp(){
+  const input=document.getElementById('pinInput');
+  const pin=(input.value||'').trim();
+  const err=document.getElementById('lockError');
+  err.textContent='';
+
+  if(!frPin){
+    if(!/^[0-9]{4,6}$/.test(pin)){
+      err.textContent='Bitte 4–6 Ziffern eingeben.';
+      return;
+    }
+    localStorage.setItem('frPin',pin);
+    frPin=pin;
+  }else if(pin!==frPin){
+    err.textContent='Falscher PIN.';
+    input.value='';
+    input.focus();
+    return;
+  }
+
+  document.getElementById('lockScreen').style.display='none';
+  document.getElementById('mainApp').style.display='block';
+  input.value='';
+
+  if(!sessionStorage.getItem('frUrlPrefillDone') && hasInvoiceParams()){
+    sessionStorage.setItem('frUrlPrefillDone','1');
+    setTimeout(applyUrlInvoice,50);
+  }
+}
+
+function lockNow(){
+  document.getElementById('mainApp').style.display='none';
+  document.getElementById('lockScreen').style.display='flex';
+  document.getElementById('pinInput').value='';
+  document.getElementById('lockError').textContent='';
+  setupLock();
+}
+
+function changePin(){
+  const el=document.getElementById('newPin');
+  const pin=(el.value||'').trim();
+  if(!/^[0-9]{4,6}$/.test(pin)){
+    alert('Bitte neuen PIN mit 4–6 Ziffern eingeben.');
+    return;
+  }
+  localStorage.setItem('frPin',pin);
+  frPin=pin;
+  el.value='';
+  alert('PIN geändert');
+}
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden && frPin){
+    sessionStorage.setItem('frShouldLock','1');
+  }else if(!document.hidden && frPin && sessionStorage.getItem('frShouldLock')==='1'){
+    sessionStorage.removeItem('frShouldLock');
+    lockNow();
+  }
+});
+
+setupLock();
+
+let docType='Rechnung';
+const H=['home','form','settings'];
+const units=['m²','lfm','Std.','Stk.','Pauschal','kg'];
+let itemCount=0;
+
+function hide(){H.forEach(x=>document.getElementById(x).classList.add('hidden'))}
+function home(){hide();document.getElementById('home').classList.remove('hidden');renderDashboard()}
+function showForm(t){
+  docType=t;hide();document.getElementById('form').classList.remove('hidden');
+  document.getElementById('formTitle').textContent=t==='Rechnung'?'Neue Rechnung':'Neues Angebot';
+  if(!document.getElementById('docDate').value)document.getElementById('docDate').value=new Date().toISOString().slice(0,10);
+  if(document.querySelectorAll('.item').length===0)addItem();
+}
+function settings(){hide();document.getElementById('settings').classList.remove('hidden')}
+
+let logo=localStorage.getItem('frLogo')||'';
+function showLogo(){let i=document.getElementById('logoPreview');if(logo){i.src=logo;i.classList.remove('hidden')}else i.classList.add('hidden')}
+showLogo();
+
+document.getElementById('logoInput').addEventListener('change',e=>{
+  let f=e.target.files[0];if(!f)return;
+  let r=new FileReader();
+  r.onload=()=>{logo=r.result;localStorage.setItem('frLogo',logo);showLogo();alert('Logo gespeichert')};
+  r.readAsDataURL(f)
+});
+
+function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function escAttr(s){return esc(s).replace(/'/g,'&#39;')}
+
+function addItem(desc='',qty='',unit='m²',price=''){
+  itemCount++;
+  const box=document.createElement('div');
+  box.className='item';
+  box.innerHTML=`
+    <div class="itemline">
+      <div class="wide"><label>Beschreibung</label><input class="i-desc" value="${escAttr(desc)}" placeholder="z.B. Bodenfliesen verlegen"></div>
+      <div><label>Menge</label><input class="i-qty" type="number" step="0.01" value="${qty}"></div>
+      <div><label>Einheit</label><select class="i-unit">${units.map(u=>`<option ${u===unit?'selected':''}>${u}</option>`).join('')}</select></div>
+      <div><label>Preis €</label><input class="i-price" type="number" step="0.01" value="${price}"></div>
+      <button type="button" class="remove" onclick="this.closest('.item').remove()">✕</button>
+    </div>`;
+  document.getElementById('items').appendChild(box);
+}
+
+function euro(n){return new Intl.NumberFormat('de-AT',{style:'currency',currency:'EUR'}).format(Number(n||0))}
+function num(n){return new Intl.NumberFormat('de-AT',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0))}
+function fmtDate(v){if(!v)return '';const [y,m,d]=v.split('-');return d+'.'+m+'.'+y}
+
+function collectItems(){
+  return [...document.querySelectorAll('.item')].map(el=>{
+    const q=parseFloat(el.querySelector('.i-qty').value)||0;
+    const p=parseFloat(el.querySelector('.i-price').value)||0;
+    return {desc:el.querySelector('.i-desc').value,qty:q,unit:el.querySelector('.i-unit').value,price:p,sum:q*p}
+  }).filter(x=>x.desc||x.qty||x.price)
+}
+
+function getInvoices(){
+  try{return JSON.parse(localStorage.getItem('frInvoices')||'[]')}catch(e){return []}
+}
+function setInvoices(v){localStorage.setItem('frInvoices',JSON.stringify(v))}
+function currentInvoiceData(){
+  const items=collectItems();
+  const net=items.reduce((a,b)=>a+b.sum,0);
+  const st=document.getElementById('steuer').value;
+  const ust=st==='20'?net*.2:0;
+  return {
+    id:document.getElementById('docNr').value||('FR-'+Date.now()),
+    type:docType,
+    nr:document.getElementById('docNr').value,
+    date:document.getElementById('docDate').value,
+    kunde:document.getElementById('kunde').value,
+    adresse:document.getElementById('adresse').value,
+    email:document.getElementById('kundeEmail').value,
+    bau:document.getElementById('bau').value,
+    typ:document.getElementById('typ').value,
+    steuer:st,
+    nachricht:document.getElementById('nachricht').value,
+    tage:document.getElementById('tage').value,
+    skonto:document.getElementById('skonto').value,
+    material:parseFloat(document.getElementById('materialCost').value)||0,
+    footer:document.getElementById('invoiceFooter').value,
+    items, net, ust, total:net+ust, paid:false,
+    savedAt:new Date().toISOString()
+  }
+}
+function saveInvoice(){
+  if(docType!=='Rechnung'){alert('Angebot wird noch nicht in Rechnungen gespeichert.');return}
+  const d=currentInvoiceData();
+  if(!d.nr){alert('Bitte Rechnungsnummer eingeben.');return}
+  if(d.items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
+  let arr=getInvoices();
+  const i=arr.findIndex(x=>x.nr===d.nr);
+  if(i>=0){d.paid=arr[i].paid;arr[i]=d}else arr.unshift(d);
+  setInvoices(arr);alert('Rechnung gespeichert');renderDashboard();
+}
+function renderDashboard(){
+  const arr=getInvoices();
+  const total=arr.reduce((s,x)=>s+(Number(x.total)||0),0);
+  const paid=arr.filter(x=>x.paid).reduce((s,x)=>s+(Number(x.total)||0),0);
+  const material=arr.reduce((s,x)=>s+(Number(x.material)||0),0);
+  const open=total-paid;
+  document.getElementById('statTotal').textContent=euro(total);
+  document.getElementById('statPaid').textContent=euro(paid);
+  document.getElementById('statOpen').textContent=euro(open);
+  document.getElementById('statMaterial').textContent=euro(material);
+  document.getElementById('statProfit').textContent=euro(total-material);
+  document.getElementById('statOpenCount').textContent=arr.filter(x=>!x.paid).length;
+  const box=document.getElementById('invoiceList');
+  if(!arr.length){box.innerHTML='<p class="small">Noch keine Rechnungen gespeichert.</p>';return}
+  box.innerHTML=arr.map((x,i)=>`<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?'Bezahlt':'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`).join('');
+}
+function loadInvoice(i){
+  const x=getInvoices()[i];if(!x)return;
+  showForm('Rechnung');
+  document.getElementById('docNr').value=x.nr||'';document.getElementById('docDate').value=x.date||'';
+  document.getElementById('kunde').value=x.kunde||'';document.getElementById('adresse').value=x.adresse||'';
+  document.getElementById('kundeEmail').value=x.email||'';document.getElementById('bau').value=x.bau||'';
+  document.getElementById('typ').value=x.typ||'Firma';document.getElementById('steuer').value=x.steuer||'rc';
+  document.getElementById('nachricht').value=x.nachricht||'';document.getElementById('tage').value=x.tage||'14';
+  document.getElementById('skonto').value=x.skonto||'3';document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  document.getElementById('items').innerHTML='';(x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
+}
+function togglePaid(i){let a=getInvoices();if(!a[i])return;a[i].paid=!a[i].paid;setInvoices(a);renderDashboard()}
+function deleteInvoice(i){if(!confirm('Rechnung wirklich löschen?'))return;let a=getInvoices();a.splice(i,1);setInvoices(a);renderDashboard()}
+
+
+
+
+async function sharePDF(){
+  const items=collectItems();
+  if(items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
+
+  const {jsPDF}=window.jspdf||{};
+  if(!jsPDF){alert('PDF-Modul konnte nicht geladen werden. Bitte Internetverbindung prüfen.');return}
+
+  const net=items.reduce((a,b)=>a+b.sum,0);
+  const st=document.getElementById('steuer').value;
+  const ust=st==='20'?net*.2:0;
+  const total=net+ust;
+  const sk=parseFloat(document.getElementById('skonto').value)||0;
+  const dueDays=parseInt(document.getElementById('tage').value)||14;
+  const docNr=document.getElementById('docNr').value||'ohne-nummer';
+  const docDate=document.getElementById('docDate').value;
+  const kunde=document.getElementById('kunde').value;
+  const adresse=document.getElementById('adresse').value;
+  const bau=document.getElementById('bau').value;
+  const nachricht=document.getElementById('nachricht').value.trim();
+
+  const pdf=new jsPDF({unit:'mm',format:'a4'});
+  const left=16,right=194;
+  let y=18;
+
+  if(logo){
+    try{
+      const format = logo.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+      pdf.addImage(logo,format,left,y,36,18,'','FAST');
+    }catch(e){
+      pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text('FR Fliesen Rechteck',left,y+7);
+    }
+  }else{
+    pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text('FR Fliesen Rechteck',left,y+7);
+  }
+
+  pdf.setFontSize(8.5);pdf.setFont(undefined,'normal');
+  const company=[
+    'Kamerlweg 58 · 4600 Wels',
+    'UID ATU79163806 · StNr. 54 347/6998',
+    'office@fliesen-rechteck.at · 06649277777',
+    'IBAN AT09 2032 0321 0067 2132',
+    'BIC ASPKAT2LXXX'
+  ];
+  company.forEach((t,i)=>pdf.text(t,right,y+2+i*4,{align:'right'}));
+
+  y=42;
+  pdf.setDrawColor(201,45,41);pdf.setLineWidth(.6);pdf.line(left,y,right,y);
+  y+=10;
+
+  pdf.setTextColor(34,34,34);pdf.setFontSize(18);pdf.setFont(undefined,'bold');
+  pdf.text(docType.toUpperCase(),left,y);
+  y+=7;
+  if(nachricht){
+    pdf.setTextColor(34,34,34);pdf.setFontSize(9.5);pdf.setFont(undefined,'normal');
+    const msgLines=pdf.splitTextToSize(nachricht,105);
+    pdf.text(msgLines,left,y);
+    y+=msgLines.length*4.5+2;
+  }
+  pdf.setFontSize(9);pdf.setFont(undefined,'normal');
+  pdf.text('Nr.: '+docNr,right,y-2,{align:'right'});
+  pdf.text('Datum: '+fmtDate(docDate),right,y+3,{align:'right'});
+
+  y+=10;
+  pdf.setFontSize(9.5);
+  pdf.setFont(undefined,'bold');pdf.text('Kunde:',left,y);
+  pdf.setFont(undefined,'normal');pdf.text(kunde,left+15,y);
+  y+=5;
+  if(adresse){pdf.text(adresse,left,y);y+=5}
+  pdf.setFont(undefined,'bold');pdf.text('Baustelle:',left,y);
+  pdf.setFont(undefined,'normal');pdf.text(bau,left+20,y);
+  y+=10;
+
+  pdf.setFillColor(243,243,243);pdf.rect(left,y,right-left,7,'F');
+  pdf.setFont(undefined,'bold');pdf.setFontSize(8.5);
+  pdf.text('Beschreibung',left+2,y+4.8);
+  pdf.text('Menge',118,y+4.8,{align:'right'});
+  pdf.text('Einheit',126,y+4.8);
+  pdf.text('Preis',164,y+4.8,{align:'right'});
+  pdf.text('Summe',192,y+4.8,{align:'right'});
+  y+=8;
+
+  pdf.setFont(undefined,'normal');
+  for(const x of items){
+    if(y>260){pdf.addPage();y=18}
+    const lines=pdf.splitTextToSize(x.desc||'',78);
+    const rowH=Math.max(7,lines.length*4.2+2);
+    pdf.text(lines,left+2,y+4);
+    pdf.text(num(x.qty),118,y+4,{align:'right'});
+    pdf.text(x.unit||'',126,y+4);
+    pdf.text(euro(x.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
+    pdf.text(euro(x.sum).replace(/\u00a0/g,' '),192,y+4,{align:'right'});
+    pdf.setDrawColor(220);pdf.line(left,y+rowH,right,y+rowH);
+    y+=rowH;
+  }
+
+  y+=8;
+  pdf.setFontSize(10);
+  pdf.text('Netto',150,y);
+  pdf.text(euro(net).replace(/\u00a0/g,' '),192,y,{align:'right'});
+  if(ust){
+    y+=5;
+    pdf.text('USt. 20%',150,y);
+    pdf.text(euro(ust).replace(/\u00a0/g,' '),192,y,{align:'right'});
+  }
+  y+=7;
+  pdf.setLineWidth(.5);pdf.setDrawColor(34);pdf.line(148,y-4,right,y-4);
+  pdf.setFont(undefined,'bold');pdf.setFontSize(12);
+  pdf.text('Zahlbetrag',150,y);
+  pdf.text(euro(total).replace(/\u00a0/g,' '),192,y,{align:'right'});
+
+  y+=12;
+  pdf.setFont(undefined,'normal');pdf.setFontSize(8.5);
+  const footerText=document.getElementById('invoiceFooter').value.trim();
+  if(footerText){
+    pdf.text(pdf.splitTextToSize(footerText,175),left,y);
+    y+=12;
+  }
+  const skontoValue=total*sk/100;
+  const payText=sk>0
+    ? `Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue).replace(/\u00a0/g,' ')}) abgezogen werden.`
+    : `Zahlungsziel: ${dueDays} Tage.`;
+  pdf.text(pdf.splitTextToSize(payText,175),left,y);
+
+  // Fester Firmen-Fußbereich am Seitenende
+  pdf.setDrawColor(80);pdf.setLineWidth(.3);pdf.line(left,276,right,276);
+  pdf.setFontSize(7.2);pdf.setFont(undefined,'normal');
+  pdf.text('Adresse Kamerlweg 58 · Wels · 4600    Steuernummer (SN) 54 347/6998    Umsatzsteuer-ID (UID) ATU79163806',105,282,{align:'center'});
+  pdf.text('E-Mail office@fliesen-rechteck.at    Tel. 06649277777    Website www.fliesen-rechteck.at    Bank SPARKASSE',105,286,{align:'center'});
+  pdf.text('SWIFT/BIC ASPKAT2LXXX    IBAN AT09 2032 0321 0067 2132',105,290,{align:'center'});
+
+  const blob=pdf.output('blob');
+  const file=new File([blob],`${docType}_${docNr}.pdf`,{type:'application/pdf'});
+  const shareData={
+    title:`${docType} ${docNr} - FR Fliesen Rechteck`,
+    text:`Guten Tag,\n\nanbei erhalten Sie die ${docType.toLowerCase()} ${docNr}.\n\nVielen Dank.\n\nMit freundlichen Grüßen\nFR Fliesen Rechteck`,
+    files:[file]
+  };
+
+  if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+    try{
+      await navigator.share(shareData);
+      return;
+    }catch(e){
+      if(e && e.name==='AbortError') return;
+    }
+  }
+
+  pdf.save(`${docType}_${docNr}.pdf`);
+}
+
+function makeDoc(){
+  const items=collectItems();
+  if(items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
+
+  const net=items.reduce((a,b)=>a+b.sum,0);
+  const st=document.getElementById('steuer').value;
+  const ust=st==='20'?net*.2:0;
+  const total=net+ust;
+  const sk=parseFloat(document.getElementById('skonto').value)||0;
+  const skontoValue=total*sk/100;
+  const docNr=document.getElementById('docNr').value;
+  const docDate=document.getElementById('docDate').value;
+  const dueDays=parseInt(document.getElementById('tage').value)||14;
+  const dueDate=new Date(docDate||new Date());
+  dueDate.setDate(dueDate.getDate()+dueDays);
+  const due=String(dueDate.getDate()).padStart(2,'0')+'.'+String(dueDate.getMonth()+1).padStart(2,'0')+'.'+dueDate.getFullYear();
+  const customerEmail=document.getElementById('kundeEmail').value.trim();
+
+  let w=window.open('','_blank');
+  if(!w){alert('Popup blockiert. Bitte Popups erlauben.');return}
+
+  const lg=logo?`<img src="${logo}" style="max-width:190px;max-height:95px">`:`<div style="font-size:25px;font-weight:800">FR Fliesen Rechteck</div>`;
+  const rows=items.map(x=>`<tr><td>${esc(x.desc)}</td><td style="text-align:right">${num(x.qty)}</td><td>${esc(x.unit)}</td><td style="text-align:right">${euro(x.price)}</td><td style="text-align:right">${euro(x.sum)}</td></tr>`).join('');
+
+  const footerText=esc(document.getElementById('invoiceFooter').value).replace(/\n/g,'<br>');
+  const steuerText=footerText?`<p class="note">${footerText}</p>`:'';
+  const skontoText=sk>0?`<p>Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue)}) abgezogen werden.</p>`:`<p>Zahlungsziel: ${dueDays} Tage.</p>`;
+  const mailSubject=encodeURIComponent(`${docType} ${docNr} - FR Fliesen Rechteck`);
+  const mailBody=encodeURIComponent(`Guten Tag,
+
+anbei erhalten Sie die ${docType.toLowerCase()} ${docNr}.
+
+Vielen Dank.
+
+Mit freundlichen Grüßen
+FR Fliesen Rechteck`);
+  const mailTo=encodeURIComponent(customerEmail);
+
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${docType} ${esc(docNr)}</title>
+  <style>
+  body{font-family:Arial,sans-serif;padding:28px 34px;color:#222;font-size:13px}
+  .top{display:flex;justify-content:space-between;gap:30px;align-items:flex-start}
+  .right{text-align:right;font-size:11px;line-height:1.5}
+  .redline{border:0;border-top:2px solid #c92d29;margin:18px 0}
+  .meta{display:flex;justify-content:space-between;gap:20px}
+  .title{font-size:26px;font-weight:800;margin:6px 0 16px}
+  table{width:100%;border-collapse:collapse;margin-top:22px}
+  th{background:#f3f3f3;font-weight:700}
+  th,td{padding:9px;border-bottom:1px solid #ddd;text-align:left}
+  .sum{margin-left:auto;width:310px;margin-top:20px}
+  .sum div{display:flex;justify-content:space-between;padding:5px 0}
+  .big{font-weight:800;font-size:18px;border-top:2px solid #222;margin-top:5px;padding-top:9px!important}
+  .note{margin-top:22px}
+  .footer{margin-top:28px;line-height:1.5}.companyfooter{margin-top:42px;border-top:1px solid #555;padding-top:9px;text-align:center;font-size:10px;line-height:1.45}
+  .printbtn{margin-top:25px;padding:12px 18px;border:0;border-radius:9px;background:#111;color:white;font-weight:700;margin-right:6px}
+  @media print{.printbtn{display:none}body{padding:0}}
+  </style></head><body>
+  <div class="top"><div>${lg}</div><div class="right">Kamerlweg 58 · 4600 Wels<br>UID ATU79163806 · StNr. 54 347/6998<br>office@fliesen-rechteck.at · 06649277777<br>IBAN AT09 2032 0321 0067 2132<br>BIC ASPKAT2LXXX</div></div>
+  <hr class="redline">
+  <div class="meta">
+    <div><b>Kunde:</b> ${esc(document.getElementById('kunde').value)}<br>${esc(document.getElementById('adresse').value)}<br><b>Baustelle:</b> ${esc(document.getElementById('bau').value)}</div>
+    <div style="text-align:right;line-height:1.6"><b>Nr.:</b> ${esc(docNr)}<br><b>Datum:</b> ${fmtDate(docDate)}<br><b>Fällig:</b> ${due}</div>
+  </div>
+  <div class="title" style="margin-top:26px">${docType.toUpperCase()}</div>
+  ${document.getElementById('nachricht').value?`<div style="margin:0 0 22px;white-space:pre-line">${esc(document.getElementById('nachricht').value)}</div>`:''}
+  <table><tr><th>Beschreibung</th><th style="text-align:right">Menge</th><th>Einheit</th><th style="text-align:right">Preis</th><th style="text-align:right">Summe</th></tr>${rows}</table>
+  <div class="sum"><div><span>Netto</span><span>${euro(net)}</span></div>${ust?`<div><span>USt. 20%</span><span>${euro(ust)}</span></div>`:''}<div class="big"><span>Zahlbetrag</span><span>${euro(total)}</span></div></div>
+  ${steuerText}
+  <div class="footer">${skontoText}</div>
+  <div class="companyfooter"><b>Adresse</b> Kamerlweg 58 · Wels · 4600 &nbsp;&nbsp; <b>Steuernummer (SN)</b> 54 347/6998 &nbsp;&nbsp; <b>Umsatzsteuer-ID (UID)</b> ATU79163806<br><b>E-Mail</b> office@fliesen-rechteck.at &nbsp;&nbsp; <b>Tel.</b> 06649277777 &nbsp;&nbsp; <b>Website</b> www.fliesen-rechteck.at &nbsp;&nbsp; <b>Bank</b> SPARKASSE<br><b>SWIFT/BIC</b> ASPKAT2LXXX &nbsp;&nbsp; <b>IBAN</b> AT09 2032 0321 0067 2132</div>
+  <button class="printbtn" onclick="window.print()">PDF / Drucken</button>
+  <button class="printbtn" onclick="location.href='mailto:${mailTo}?subject=${mailSubject}&body=${mailBody}'">E-Mail senden</button>
+  <button class="printbtn" onclick="window.close()">← Zurück</button>
+  </body></html>`);
+  w.document.close();
+}
+renderDashboard();
+</script>
+</body>
+</html>
