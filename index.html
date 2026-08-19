@@ -266,6 +266,7 @@ async function sharePDF(){
   const kunde=document.getElementById('kunde').value;
   const adresse=document.getElementById('adresse').value;
   const bau=document.getElementById('bau').value;
+  const nachricht=document.getElementById('nachricht').value.trim();
 
   const pdf=new jsPDF({unit:'mm',format:'a4'});
   const left=16,right=194;
@@ -295,6 +296,13 @@ async function sharePDF(){
   y=42;
   pdf.setDrawColor(201,45,41);pdf.setLineWidth(.6);pdf.line(left,y,right,y);
   y+=10;
+
+  if(nachricht){
+    pdf.setTextColor(34,34,34);pdf.setFontSize(9.5);pdf.setFont(undefined,'normal');
+    const msgLines=pdf.splitTextToSize(nachricht,105);
+    pdf.text(msgLines,left,y);
+    y+=msgLines.length*4.5+7;
+  }
 
   pdf.setTextColor(34,34,34);pdf.setFontSize(18);pdf.setFont(undefined,'bold');
   pdf.text(docType.toUpperCase(),left,y);
@@ -450,13 +458,14 @@ FR Fliesen Rechteck`);
   <div class="top"><div>${lg}</div><div class="right">Kamerlweg 58 · 4600 Wels<br>UID ATU79163806 · StNr. 54 347/6998<br>office@fliesen-rechteck.at · 06649277777<br>IBAN AT09 2032 0321 0067 2132<br>BIC ASPKAT2LXXX</div></div>
   <hr class="redline">
   <div class="meta">
-    <div><div class="title">${docType.toUpperCase()}</div><b>Kunde:</b> ${esc(document.getElementById('kunde').value)}<br>${esc(document.getElementById('adresse').value)}<br><b>Baustelle:</b> ${esc(document.getElementById('bau').value)}</div>
+    <div><b>Kunde:</b> ${esc(document.getElementById('kunde').value)}<br>${esc(document.getElementById('adresse').value)}<br><b>Baustelle:</b> ${esc(document.getElementById('bau').value)}</div>
     <div style="text-align:right;line-height:1.6"><b>Nr.:</b> ${esc(docNr)}<br><b>Datum:</b> ${fmtDate(docDate)}<br><b>Fällig:</b> ${due}</div>
   </div>
+  ${document.getElementById('nachricht').value?`<div style="margin-top:28px;white-space:pre-line">${esc(document.getElementById('nachricht').value)}</div>`:''}
+  <div class="title" style="margin-top:26px">${docType.toUpperCase()}</div>
   <table><tr><th>Beschreibung</th><th style="text-align:right">Menge</th><th>Einheit</th><th style="text-align:right">Preis</th><th style="text-align:right">Summe</th></tr>${rows}</table>
   <div class="sum"><div><span>Netto</span><span>${euro(net)}</span></div>${ust?`<div><span>USt. 20%</span><span>${euro(ust)}</span></div>`:''}<div class="big"><span>Zahlbetrag</span><span>${euro(total)}</span></div></div>
   ${steuerText}
-  ${document.getElementById('nachricht').value?`<p>${esc(document.getElementById('nachricht').value)}</p>`:''}
   <div class="footer">${skontoText}</div>
   <div class="companyfooter"><b>Adresse</b> Kamerlweg 58 · Wels · 4600 &nbsp;&nbsp; <b>Steuernummer (SN)</b> 54 347/6998 &nbsp;&nbsp; <b>Umsatzsteuer-ID (UID)</b> ATU79163806<br><b>E-Mail</b> office@fliesen-rechteck.at &nbsp;&nbsp; <b>Tel.</b> 06649277777 &nbsp;&nbsp; <b>Website</b> www.fliesen-rechteck.at &nbsp;&nbsp; <b>Bank</b> SPARKASSE<br><b>SWIFT/BIC</b> ASPKAT2LXXX &nbsp;&nbsp; <b>IBAN</b> AT09 2032 0321 0067 2132</div>
   <button class="printbtn" onclick="window.print()">PDF / Drucken</button>
