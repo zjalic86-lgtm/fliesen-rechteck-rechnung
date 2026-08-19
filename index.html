@@ -19,6 +19,15 @@ input,select,textarea{box-sizing:border-box;width:100%;padding:12px;margin:5px 0
 label{font-weight:700}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .small{color:#666}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.stat{background:#f7f7f8;border-radius:14px;padding:14px}
+.stat b{display:block;font-size:20px;margin-top:5px}
+.invoice{border:1px solid #e1e1e1;border-radius:14px;padding:12px;margin:10px 0}
+.invoice-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.badge{display:inline-block;padding:5px 9px;border-radius:999px;background:#eee;font-size:12px;font-weight:700}
+.actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:10px}
+.actions button{padding:10px;border-radius:10px;border:1px solid #ccc;background:#fff;font-weight:700}
+@media(max-width:620px){.stats{grid-template-columns:1fr 1fr}.actions{grid-template-columns:1fr}}
 .logo{max-width:180px;max-height:90px;display:block;margin-bottom:10px}
 .item{border:1px solid #e1e1e1;border-radius:14px;padding:12px;margin:10px 0}
 .itemline{display:grid;grid-template-columns:1.4fr .7fr .9fr .9fr auto;gap:8px;align-items:end}
@@ -44,8 +53,18 @@ label{font-weight:700}
 
   <div id="home" class="card">
     <h2>Übersicht</h2>
+    <div class="stats">
+      <div class="stat">Rechnungen gesamt<b id="statTotal">0,00 €</b></div>
+      <div class="stat">Bezahlt<b id="statPaid">0,00 €</b></div>
+      <div class="stat">Offen<b id="statOpen">0,00 €</b></div>
+      <div class="stat">Material gesamt<b id="statMaterial">0,00 €</b></div>
+      <div class="stat">Übrig nach Material<b id="statProfit">0,00 €</b></div>
+      <div class="stat">Offene Rechnungen<b id="statOpenCount">0</b></div>
+    </div>
     <button class="btn" onclick="showForm('Rechnung')">+ Neue Rechnung</button>
     <button class="btn outline" onclick="showForm('Angebot')">+ Neues Angebot</button>
+    <h3>Gespeicherte Rechnungen</h3>
+    <div id="invoiceList"></div>
   </div>
 
   <div id="form" class="card hidden">
@@ -58,7 +77,9 @@ label{font-weight:700}
 
     <label>Kunde</label><input id="kunde">
     <label>Adresse</label><input id="adresse">
+    <label>E-Mail Kunde</label><input id="kundeEmail" type="email" placeholder="kunde@email.at">
     <label>Baustelle</label><input id="bau">
+    <label>Materialkosten €</label><input id="materialCost" type="number" step="0.01" placeholder="z.B. 350">
 
     <div class="row">
       <div>
@@ -82,7 +103,8 @@ label{font-weight:700}
       <div><label>Skonto</label><select id="skonto"><option value="3">3% / 7 Tage</option><option value="0">Kein Skonto</option></select></div>
     </div>
 
-    <button class="btn" onclick="makeDoc()">PDF erstellen / Drucken</button>
+    <button class="btn" onclick="saveInvoice()">Rechnung speichern</button>
+    <button class="btn outline" onclick="makeDoc()">PDF erstellen / Drucken</button>
     <button class="btn outline" onclick="home()">Zurück</button>
   </div>
 
@@ -102,7 +124,7 @@ const units=['m²','lfm','Std.','Stk.','Pauschal','kg'];
 let itemCount=0;
 
 function hide(){H.forEach(x=>document.getElementById(x).classList.add('hidden'))}
-function home(){hide();document.getElementById('home').classList.remove('hidden')}
+function home(){hide();document.getElementById('home').classList.remove('hidden');renderDashboard()}
 function showForm(t){
   docType=t;hide();document.getElementById('form').classList.remove('hidden');
   document.getElementById('formTitle').textContent=t==='Rechnung'?'Neue Rechnung':'Neues Angebot';
@@ -152,6 +174,74 @@ function collectItems(){
   }).filter(x=>x.desc||x.qty||x.price)
 }
 
+function getInvoices(){
+  try{return JSON.parse(localStorage.getItem('frInvoices')||'[]')}catch(e){return []}
+}
+function setInvoices(v){localStorage.setItem('frInvoices',JSON.stringify(v))}
+function currentInvoiceData(){
+  const items=collectItems();
+  const net=items.reduce((a,b)=>a+b.sum,0);
+  const st=document.getElementById('steuer').value;
+  const ust=st==='20'?net*.2:0;
+  return {
+    id:document.getElementById('docNr').value||('FR-'+Date.now()),
+    type:docType,
+    nr:document.getElementById('docNr').value,
+    date:document.getElementById('docDate').value,
+    kunde:document.getElementById('kunde').value,
+    adresse:document.getElementById('adresse').value,
+    email:document.getElementById('kundeEmail').value,
+    bau:document.getElementById('bau').value,
+    typ:document.getElementById('typ').value,
+    steuer:st,
+    nachricht:document.getElementById('nachricht').value,
+    tage:document.getElementById('tage').value,
+    skonto:document.getElementById('skonto').value,
+    material:parseFloat(document.getElementById('materialCost').value)||0,
+    items, net, ust, total:net+ust, paid:false,
+    savedAt:new Date().toISOString()
+  }
+}
+function saveInvoice(){
+  if(docType!=='Rechnung'){alert('Angebot wird noch nicht in Rechnungen gespeichert.');return}
+  const d=currentInvoiceData();
+  if(!d.nr){alert('Bitte Rechnungsnummer eingeben.');return}
+  if(d.items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
+  let arr=getInvoices();
+  const i=arr.findIndex(x=>x.nr===d.nr);
+  if(i>=0){d.paid=arr[i].paid;arr[i]=d}else arr.unshift(d);
+  setInvoices(arr);alert('Rechnung gespeichert');renderDashboard();
+}
+function renderDashboard(){
+  const arr=getInvoices();
+  const total=arr.reduce((s,x)=>s+(Number(x.total)||0),0);
+  const paid=arr.filter(x=>x.paid).reduce((s,x)=>s+(Number(x.total)||0),0);
+  const material=arr.reduce((s,x)=>s+(Number(x.material)||0),0);
+  const open=total-paid;
+  document.getElementById('statTotal').textContent=euro(total);
+  document.getElementById('statPaid').textContent=euro(paid);
+  document.getElementById('statOpen').textContent=euro(open);
+  document.getElementById('statMaterial').textContent=euro(material);
+  document.getElementById('statProfit').textContent=euro(total-material);
+  document.getElementById('statOpenCount').textContent=arr.filter(x=>!x.paid).length;
+  const box=document.getElementById('invoiceList');
+  if(!arr.length){box.innerHTML='<p class="small">Noch keine Rechnungen gespeichert.</p>';return}
+  box.innerHTML=arr.map((x,i)=>`<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?'Bezahlt':'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`).join('');
+}
+function loadInvoice(i){
+  const x=getInvoices()[i];if(!x)return;
+  showForm('Rechnung');
+  document.getElementById('docNr').value=x.nr||'';document.getElementById('docDate').value=x.date||'';
+  document.getElementById('kunde').value=x.kunde||'';document.getElementById('adresse').value=x.adresse||'';
+  document.getElementById('kundeEmail').value=x.email||'';document.getElementById('bau').value=x.bau||'';
+  document.getElementById('typ').value=x.typ||'Firma';document.getElementById('steuer').value=x.steuer||'rc';
+  document.getElementById('nachricht').value=x.nachricht||'';document.getElementById('tage').value=x.tage||'14';
+  document.getElementById('skonto').value=x.skonto||'3';document.getElementById('materialCost').value=x.material||'';
+  document.getElementById('items').innerHTML='';(x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
+}
+function togglePaid(i){let a=getInvoices();if(!a[i])return;a[i].paid=!a[i].paid;setInvoices(a);renderDashboard()}
+function deleteInvoice(i){if(!confirm('Rechnung wirklich löschen?'))return;let a=getInvoices();a.splice(i,1);setInvoices(a);renderDashboard()}
+
 function makeDoc(){
   const items=collectItems();
   if(items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
@@ -168,6 +258,7 @@ function makeDoc(){
   const dueDate=new Date(docDate||new Date());
   dueDate.setDate(dueDate.getDate()+dueDays);
   const due=String(dueDate.getDate()).padStart(2,'0')+'.'+String(dueDate.getMonth()+1).padStart(2,'0')+'.'+dueDate.getFullYear();
+  const customerEmail=document.getElementById('kundeEmail').value.trim();
 
   let w=window.open('','_blank');
   if(!w){alert('Popup blockiert. Bitte Popups erlauben.');return}
@@ -177,6 +268,16 @@ function makeDoc(){
 
   const steuerText=st==='rc'?`<p class="note">Steuerschuldnerschaft des Leistungsempfängers gemäß § 19 Abs. 1a UStG.</p>`:'';
   const skontoText=sk>0?`<p>Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue)}) abgezogen werden.</p>`:`<p>Zahlungsziel: ${dueDays} Tage.</p>`;
+  const mailSubject=encodeURIComponent(`${docType} ${docNr} - FR Fliesen Rechteck`);
+  const mailBody=encodeURIComponent(`Guten Tag,
+
+anbei erhalten Sie die ${docType.toLowerCase()} ${docNr}.
+
+Vielen Dank.
+
+Mit freundlichen Grüßen
+FR Fliesen Rechteck`);
+  const mailTo=encodeURIComponent(customerEmail);
 
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${docType} ${esc(docNr)}</title>
   <style>
@@ -194,7 +295,7 @@ function makeDoc(){
   .big{font-weight:800;font-size:18px;border-top:2px solid #222;margin-top:5px;padding-top:9px!important}
   .note{margin-top:22px}
   .footer{margin-top:28px;line-height:1.5}
-  .printbtn{margin-top:25px;padding:12px 18px;border:0;border-radius:9px;background:#111;color:white;font-weight:700}
+  .printbtn{margin-top:25px;padding:12px 18px;border:0;border-radius:9px;background:#111;color:white;font-weight:700;margin-right:6px}
   @media print{.printbtn{display:none}body{padding:0}}
   </style></head><body>
   <div class="top"><div>${lg}</div><div class="right">Kamerlweg 58 · 4600 Wels<br>UID ATU79163806 · StNr. 54 347/6998<br>office@fliesen-rechteck.at · 06649277777<br>IBAN AT09 2032 0321 0067 2132<br>BIC ASPKAT2LXXX</div></div>
@@ -209,11 +310,12 @@ function makeDoc(){
   ${document.getElementById('nachricht').value?`<p>${esc(document.getElementById('nachricht').value)}</p>`:''}
   <div class="footer">${skontoText}</div>
   <button class="printbtn" onclick="window.print()">PDF / Drucken</button>
-<button class="printbtn" onclick="location.href='mailto:?subject='+encodeURIComponent('Rechnung ${docNr} - FR Fliesen Rechteck')+'&body='+encodeURIComponent('Guten Tag,\n\nanbei erhalten Sie die Rechnung ${docNr}.\n\nVielen Dank.\n\nMit freundlichen Grüßen\nFR Fliesen Rechteck')">E-Mail senden</button>
-<button class="printbtn" onclick="window.close()">← Zurück</button>
+  <button class="printbtn" onclick="location.href='mailto:${mailTo}?subject=${mailSubject}&body=${mailBody}'">E-Mail senden</button>
+  <button class="printbtn" onclick="window.close()">← Zurück</button>
   </body></html>`);
   w.document.close();
 }
+renderDashboard();
 </script>
 </body>
 </html>
