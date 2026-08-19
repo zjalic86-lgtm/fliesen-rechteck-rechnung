@@ -92,8 +92,8 @@ label{font-weight:700}
     <h2 id="formTitle">Neue Rechnung</h2>
 
     <div class="row">
-      <div><label>Nummer</label><input id="docNr" placeholder="z.B. 2026-001"></div>
-      <div><label>Rechnungsdatum</label><input id="docDate" type="date" onchange="updateDueDate()"></div>
+      <div><label>Nummer</label><input id="docNr" placeholder="automatisch"></div>
+      <div><label>Rechnungsdatum</label><input id="docDate" type="date" onchange="updateDueDate();updateAutoNumberForDate()"></div>
     </div>
     <label>Fälligkeitsdatum</label><input id="dueDate" type="date" readonly>
 
@@ -150,7 +150,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v25 · Rechnung kopieren</b></p>
+    <p class="small"><b>Version v26 · Auto Nummer</b></p>
     <label>Logo auswählen</label>
     <input id="logoInput" type="file" accept="image/*">
     <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
@@ -372,11 +372,43 @@ let itemCount=0;
 
 function hide(){H.forEach(x=>document.getElementById(x).classList.add('hidden'))}
 function home(){hide();document.getElementById('home').classList.remove('hidden');renderDashboard()}
+
+function nextDocNumber(type,dateValue){
+  const raw=dateValue||new Date().toISOString().slice(0,10);
+  const p=raw.split('-');
+  const y=p[0]||String(new Date().getFullYear());
+  const m=p[1]||String(new Date().getMonth()+1).padStart(2,'0');
+  const isOffer=type==='Angebot';
+  const prefix=isOffer?`A-${y}-${m}-`:`${y}-${m}-`;
+  const list=isOffer?getOffers():getInvoices();
+  let max=0;
+  (list||[]).forEach(x=>{
+    const n=String(x.nr||'');
+    if(n.startsWith(prefix)){
+      const tail=parseInt(n.slice(prefix.length),10);
+      if(Number.isFinite(tail)&&tail>max)max=tail;
+    }
+  });
+  return prefix+String(max+1).padStart(3,'0');
+}
+function assignNextDocNumber(){
+  const el=document.getElementById('docNr');
+  if(!el)return;
+  el.value=nextDocNumber(docType,document.getElementById('docDate').value);
+}
+function updateAutoNumberForDate(){
+  const el=document.getElementById('docNr');
+  if(!el)return;
+  const n=(el.value||'').trim();
+  if(!n || /^(A-)?\d{4}-\d{2}-\d{3}$/.test(n)) assignNextDocNumber();
+}
+
 function showForm(t){
   docType=t;hide();document.getElementById('form').classList.remove('hidden');
   document.getElementById('formTitle').textContent=t==='Rechnung'?'Neue Rechnung':'Neues Angebot';
   if(!document.getElementById('docDate').value)document.getElementById('docDate').value=new Date().toISOString().slice(0,10);
   updateDueDate();
+  if(!document.getElementById('docNr').value)assignNextDocNumber();
   if(document.querySelectorAll('.item').length===0)addItem();
 }
 function settings(){hide();document.getElementById('settings').classList.remove('hidden')}
@@ -592,6 +624,8 @@ function offerToInvoice(i){
   showForm('Rechnung');
   document.getElementById('docNr').value='';
   document.getElementById('docDate').value=new Date().toISOString().slice(0,10);
+  assignNextDocNumber();
+  assignNextDocNumber();
   document.getElementById('kunde').value=x.kunde||'';
   document.getElementById('adresse').value=x.adresse||'';
   document.getElementById('kundeUid').value=x.kundeUid||'';
@@ -607,7 +641,7 @@ function offerToInvoice(i){
   document.getElementById('items').innerHTML='';
   (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
   updateDueDate();
-  alert('Angebot wurde als angenommen markiert. Bitte Rechnungsnummer eingeben und Rechnung speichern.');
+  alert('Angebot wurde übernommen. Rechnungsnummer wurde automatisch erstellt.');
 }
 
 function renderDashboard(){
@@ -665,7 +699,7 @@ function copyInvoice(i){
   document.getElementById('items').innerHTML='';
   (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
   updateDueDate();
-  alert('Rechnung kopiert. Rechnungsnummer und gewünschte Menge ändern.');
+  alert('Rechnung kopiert. Neue Rechnungsnummer wurde automatisch erstellt. Jetzt nur gewünschte Menge ändern.');
 }
 
 function togglePaid(i){let a=getInvoices();if(!a[i])return;a[i].paid=!a[i].paid;setInvoices(a);renderDashboard()}
