@@ -150,7 +150,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v29 · PDF Vorschau</b></p>
+    <p class="small"><b>Version v30 · ChatGPT Import</b></p>
     <label>Logo auswählen</label>
     <input id="logoInput" type="file" accept="image/*">
     <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
@@ -289,10 +289,25 @@ function applyUrlInvoice(){
 
   if(document.querySelectorAll('.item').length===0) addItem();
 
+  // Optional one-tap ChatGPT import: add &autosave=1 to the import URL.
+  // The invoice is stored on this device without Cloud Sync.
+  const autoSave = p.get('autosave') === '1';
+
   // Remove URL params from address bar so PIN/app reload is cleaner.
   try{
     history.replaceState({},document.title,window.location.pathname);
   }catch(e){}
+
+  if(autoSave){
+    setTimeout(()=>{
+      try{
+        saveInvoice();
+        home();
+      }catch(e){
+        alert('ChatGPT Import Fehler: '+(e&&e.message?e.message:e));
+      }
+    },150);
+  }
 }
 
 function setupLock(){
