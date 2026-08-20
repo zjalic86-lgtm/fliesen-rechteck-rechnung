@@ -150,7 +150,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v27 · PDF direkt</b></p>
+    <p class="small"><b>Version v28 · PDF sofort</b></p>
     <label>Logo auswählen</label>
     <input id="logoInput" type="file" accept="image/*">
     <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
@@ -682,9 +682,126 @@ function loadInvoice(i){
 
 async function pdfInvoice(i){
   const x=getInvoices()[i];if(!x)return;
-  loadInvoice(i);
-  await new Promise(r=>setTimeout(r,60));
-  await sharePDF();
+  const {jsPDF}=window.jspdf||{};
+  if(!jsPDF){alert('PDF-Modul konnte nicht geladen werden. Bitte Internetverbindung prüfen.');return}
+
+  const items=(x.items||[]).map(it=>({
+    desc:it.desc||'',qty:Number(it.qty)||0,unit:it.unit||'',
+    price:Number(it.price)||0,sum:(Number(it.qty)||0)*(Number(it.price)||0)
+  }));
+  if(!items.length){alert('Diese Rechnung hat keine Positionen.');return}
+
+  const net=Number(x.net)||items.reduce((a,b)=>a+b.sum,0);
+  const ust=Number(x.ust)||0;
+  const total=Number(x.total)||(net+ust);
+  const sk=parseFloat(x.skonto)||0;
+  const dueDays=parseInt(x.tage)||14;
+  const docNr=x.nr||'ohne-nummer';
+  const docDate=x.date||new Date().toISOString().slice(0,10);
+  const dueDateValue=calcDueDate(docDate,dueDays);
+  const qrData=await makeQrDataUrl(epcPayload(total,docNr));
+
+  const pdf=new jsPDF({unit:'mm',format:'a4'});
+  const left=16,right=194;
+  let y=18;
+
+  if(logo){
+    try{
+      const format=logo.startsWith('data:image/jpeg')?'JPEG':'PNG';
+      pdf.addImage(logo,format,left,y,36,18,'','FAST');
+    }catch(e){
+      pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text('FR Fliesen Rechteck',left,y+7);
+    }
+  }else{
+    pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text('FR Fliesen Rechteck',left,y+7);
+  }
+
+  pdf.setFontSize(8.5);pdf.setFont(undefined,'normal');
+  [
+    'Kamerlweg 58 · 4600 Wels',
+    'UID ATU79163806 · StNr. 54 347/6998',
+    'office@fliesen-rechteck.at · 06649277777',
+    'IBAN AT09 2032 0321 0067 2132',
+    'BIC ASPKAT2LXXX'
+  ].forEach((t,k)=>pdf.text(t,right,y+2+k*4,{align:'right'}));
+
+  y=42;
+  pdf.setDrawColor(201,45,41);pdf.setLineWidth(.6);pdf.line(left,y,right,y);
+  y+=10;
+  pdf.setTextColor(34,34,34);pdf.setFontSize(18);pdf.setFont(undefined,'bold');
+  pdf.text('RECHNUNG',left,y);
+  y+=7;
+
+  const nachricht=(x.nachricht||'').trim();
+  if(nachricht){
+    pdf.setFontSize(9.5);pdf.setFont(undefined,'normal');
+    const msgLines=pdf.splitTextToSize(nachricht,105);
+    pdf.text(msgLines,left,y);
+    y+=msgLines.length*4.5+2;
+  }
+
+  pdf.setFontSize(9);pdf.setFont(undefined,'normal');
+  pdf.text('Nr.: '+docNr,right,y-2,{align:'right'});
+  pdf.text('Rechnungsdatum: '+fmtDate(docDate),right,y+3,{align:'right'});
+  pdf.text('Fälligkeitsdatum: '+fmtDate(dueDateValue),right,y+8,{align:'right'});
+  y+=15;
+
+  pdf.setFontSize(9.5);pdf.setFont(undefined,'bold');pdf.text('Kunde:',left,y);
+  pdf.setFont(undefined,'normal');pdf.text(x.kunde||'',left+15,y);y+=5;
+  if(x.adresse){pdf.text(x.adresse,left,y);y+=5}
+  if(x.kundeUid){pdf.setFont(undefined,'bold');pdf.text('UID:',left,y);pdf.setFont(undefined,'normal');pdf.text(x.kundeUid,left+10,y);y+=5}
+  pdf.setFont(undefined,'bold');pdf.text('Baustelle:',left,y);pdf.setFont(undefined,'normal');pdf.text(x.bau||'',left+20,y);y+=10;
+
+  pdf.setFillColor(243,243,243);pdf.rect(left,y,right-left,7,'F');
+  pdf.setFont(undefined,'bold');pdf.setFontSize(8.5);
+  pdf.text('Beschreibung',left+2,y+4.8);pdf.text('Menge',118,y+4.8,{align:'right'});
+  pdf.text('Einheit',126,y+4.8);pdf.text('Preis',164,y+4.8,{align:'right'});pdf.text('Summe',192,y+4.8,{align:'right'});
+  y+=8;pdf.setFont(undefined,'normal');
+
+  for(const it of items){
+    if(y>205){pdf.addPage();y=18}
+    const lines=pdf.splitTextToSize(it.desc,78);
+    const rowH=Math.max(7,lines.length*4.2+2);
+    pdf.text(lines,left+2,y+4);pdf.text(num(it.qty),118,y+4,{align:'right'});
+    pdf.text(it.unit,126,y+4);pdf.text(euro(it.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
+    pdf.text(euro(it.sum).replace(/\u00a0/g,' '),192,y+4,{align:'right'});
+    pdf.setDrawColor(220);pdf.line(left,y+rowH,right,y+rowH);y+=rowH;
+  }
+
+  y+=8;pdf.setFontSize(10);
+  pdf.text('Netto',150,y);pdf.text(euro(net).replace(/\u00a0/g,' '),192,y,{align:'right'});
+  if(ust){y+=5;pdf.text('USt. 20%',150,y);pdf.text(euro(ust).replace(/\u00a0/g,' '),192,y,{align:'right'})}
+  y+=7;pdf.setDrawColor(34);pdf.line(148,y-4,right,y-4);
+  pdf.setFont(undefined,'bold');pdf.setFontSize(12);pdf.text('Zahlbetrag',150,y);pdf.text(euro(total).replace(/\u00a0/g,' '),192,y,{align:'right'});
+
+  y+=12;pdf.setFont(undefined,'normal');pdf.setFontSize(8.5);
+  const footerText=(x.footer||'').trim();
+  if(footerText){const fl=pdf.splitTextToSize(footerText,175);pdf.text(fl,left,y);y+=fl.length*4+4}
+  const skontoValue=total*sk/100;
+  const payText=sk>0?`Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue).replace(/\u00a0/g,' ')}) abgezogen werden.`:`Zahlungsziel: ${dueDays} Tage.`;
+  pdf.text(pdf.splitTextToSize(payText,175),left,y);
+
+  try{
+    pdf.addImage(qrData,'PNG',16,222,42,42);
+    pdf.setFontSize(8);pdf.setFont(undefined,'bold');pdf.text('Per Banking-App bezahlen',62,229);
+    pdf.setFont(undefined,'normal');
+    pdf.text('QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.',62,234);
+    pdf.text('Empfänger: FR Fliesen Rechteck',62,239);pdf.text('IBAN: AT09 2032 0321 0067 2132',62,244);
+    pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),62,249);pdf.text('Verwendung: Rechnung '+docNr,62,254);
+  }catch(e){}
+
+  pdf.setDrawColor(80);pdf.setLineWidth(.3);pdf.line(left,276,right,276);
+  pdf.setFontSize(7.2);pdf.setFont(undefined,'normal');
+  pdf.text('Adresse Kamerlweg 58 · Wels · 4600    Steuernummer (SN) 54 347/6998    Umsatzsteuer-ID (UID) ATU79163806',105,282,{align:'center'});
+  pdf.text('E-Mail office@fliesen-rechteck.at    Tel. 06649277777    Website www.fliesen-rechteck.at    Bank SPARKASSE',105,286,{align:'center'});
+  pdf.text('SWIFT/BIC ASPKAT2LXXX    IBAN AT09 2032 0321 0067 2132',105,290,{align:'center'});
+
+  const blob=pdf.output('blob');
+  const file=new File([blob],`Rechnung_${docNr}.pdf`,{type:'application/pdf'});
+  if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+    try{await navigator.share({title:`Rechnung ${docNr} - FR Fliesen Rechteck`,files:[file]});return}catch(e){if(e&&e.name==='AbortError')return}
+  }
+  pdf.save(`Rechnung_${docNr}.pdf`);
 }
 
 function copyInvoice(i){
