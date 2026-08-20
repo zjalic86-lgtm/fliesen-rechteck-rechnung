@@ -150,7 +150,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v26 · Auto Nummer</b></p>
+    <p class="small"><b>Version v27 · PDF direkt</b></p>
     <label>Logo auswählen</label>
     <input id="logoInput" type="file" accept="image/*">
     <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
@@ -198,28 +198,6 @@ async function cloudLogin(){
  if(r.error)return alert('Anmeldung Fehler: '+r.error.message); alert('E-Mail gesendet. Link in der E-Mail öffnen.');
 }
 async function cloudLogout(){await sb.auth.signOut();await refreshCloudUser();alert('Abgemeldet');}
-function cloudInvoiceToLocal(x){
- const items=Array.isArray(x.items)?x.items:[];
- const net=items.reduce((s,it)=>s+(Number(it.sum)||((Number(it.qty)||0)*(Number(it.price)||0))),0);
- const total=Number(x.total||net||0);
- return {
-  id:x.invoice_number||x.id||('FR-'+Date.now()),type:'Rechnung',nr:x.invoice_number||'',date:x.invoice_date||'',
-  kunde:x.customer_name||'',adresse:x.customer_address||'',kundeUid:x.customer_uid||'',email:x.customer_email||'',
-  bau:x.baustelle||'',typ:'Firma',steuer:x.steuer||'rc',nachricht:x.nachricht||'',tage:String(x.payment_days||14),
-  skonto:String(x.skonto||0),material:Number(x.material_cost||0),footer:x.footer||'',items,net,
-  ust:(x.steuer==='20'?Math.max(0,total-net):0),total,paid:!!x.paid,savedAt:x.updated_at||x.created_at||new Date().toISOString()
- };
-}
-async function pullCloudInvoices(showMessage=true){
- if(!cloudUser)return false;
- const d=await sb.from('invoices').select('*').eq('user_id',cloudUser.id).order('created_at',{ascending:false});
- if(d.error){if(showMessage)alert('Cloud Fehler: '+d.error.message);return false}
- const cloud=(d.data||[]).map(cloudInvoiceToLocal);
- localStorage.setItem('frInvoices',JSON.stringify(cloud));
- renderDashboard();
- if(showMessage)alert('Cloud Sync fertig: '+cloud.length+' Rechnung(en)');
- return true;
-}
 async function syncCloud(){
  await refreshCloudUser(); if(!cloudUser)return alert('Bitte zuerst per E-Mail anmelden.');
  let a=[];try{a=JSON.parse(localStorage.getItem('frInvoices')||localStorage.getItem('invoices')||'[]')}catch(e){}
@@ -231,10 +209,11 @@ async function syncCloud(){
   const z=q.data?await sb.from('invoices').update(row).eq('id',q.data.id):await sb.from('invoices').insert(row);
   if(z.error)return alert('Cloud Fehler: '+z.error.message);
  }
- await pullCloudInvoices(true);
+ const d=await sb.from('invoices').select('*').order('created_at',{ascending:true});
+ if(d.error)return alert('Cloud Fehler: '+d.error.message);
+ alert('Cloud Sync fertig: '+(d.data||[]).length+' Rechnung(en)');
 }
-sb.auth.onAuthStateChange(()=>setTimeout(async()=>{await refreshCloudUser();if(cloudUser)await pullCloudInvoices(false)},0));
-setTimeout(async()=>{await refreshCloudUser();if(cloudUser)await pullCloudInvoices(false)},300);
+sb.auth.onAuthStateChange(()=>setTimeout(refreshCloudUser,0));setTimeout(refreshCloudUser,300);
 
 let frPin=localStorage.getItem('frPin')||'';
 
@@ -679,7 +658,7 @@ function renderDashboard(){
   document.getElementById('statOpenCount').textContent=arr.filter(x=>!x.paid).length;
   const box=document.getElementById('invoiceList');
   if(!arr.length){box.innerHTML='<p class="small">Noch keine Rechnungen gespeichert.</p>'}
-  else box.innerHTML=arr.map((x,i)=>`<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?'Bezahlt':'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="copyInvoice(${i})">Kopieren</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`).join('');
+  else box.innerHTML=arr.map((x,i)=>`<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?'Bezahlt':'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="pdfInvoice(${i})">PDF</button><button onclick="copyInvoice(${i})">Kopieren</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`).join('');
 
   const offers=getOffers();
   const ob=document.getElementById('offerList');
@@ -698,6 +677,14 @@ function loadInvoice(i){
   document.getElementById('nachricht').value=x.nachricht||'';document.getElementById('tage').value=x.tage||'14';
   document.getElementById('skonto').value=x.skonto||'3';updateDueDate();document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
   document.getElementById('items').innerHTML='';(x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
+}
+
+
+async function pdfInvoice(i){
+  const x=getInvoices()[i];if(!x)return;
+  loadInvoice(i);
+  await new Promise(r=>setTimeout(r,60));
+  await sharePDF();
 }
 
 function copyInvoice(i){
