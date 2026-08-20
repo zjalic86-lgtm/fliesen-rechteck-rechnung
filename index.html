@@ -150,7 +150,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v28 · PDF sofort</b></p>
+    <p class="small"><b>Version v29 · PDF Vorschau</b></p>
     <label>Logo auswählen</label>
     <input id="logoInput" type="file" accept="image/*">
     <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
@@ -796,12 +796,15 @@ async function pdfInvoice(i){
   pdf.text('E-Mail office@fliesen-rechteck.at    Tel. 06649277777    Website www.fliesen-rechteck.at    Bank SPARKASSE',105,286,{align:'center'});
   pdf.text('SWIFT/BIC ASPKAT2LXXX    IBAN AT09 2032 0321 0067 2132',105,290,{align:'center'});
 
+  // PDF zuerst zur Ansicht öffnen. Teilen erfolgt danach über den iPhone-PDF-Viewer.
   const blob=pdf.output('blob');
-  const file=new File([blob],`Rechnung_${docNr}.pdf`,{type:'application/pdf'});
-  if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
-    try{await navigator.share({title:`Rechnung ${docNr} - FR Fliesen Rechteck`,files:[file]});return}catch(e){if(e&&e.name==='AbortError')return}
+  const url=URL.createObjectURL(blob);
+  const w=window.open(url,'_blank');
+  if(!w){
+    // Falls Safari das neue Fenster blockiert, PDF im aktuellen Tab öffnen.
+    window.location.href=url;
   }
-  pdf.save(`Rechnung_${docNr}.pdf`);
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
 }
 
 function copyInvoice(i){
