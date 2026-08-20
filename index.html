@@ -150,7 +150,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v34 · Auto Cloud Sync</b></p>
+    <p class="small"><b>Version v35 · iPhone Cloud Login</b></p>
     <div style="margin:18px 0;padding:16px;border:1px solid #ddd;border-radius:14px">
       <h3 style="margin-top:0">ChatGPT Import API</h3>
       <p class="small">Ohne Cloud-Sync-Anmeldung. Der Import-Schlüssel wird nur auf diesem Gerät gespeichert.</p>
@@ -170,8 +170,11 @@ label{font-weight:700}
     <p id="cloudStatus" class="small">Nicht angemeldet</p>
     <label>E-Mail</label><input id="cloudEmail" type="email" placeholder="name@email.at">
     <button class="btn outline" onclick="cloudLogin()">Anmelden per E-Mail</button>
+    <button class="btn outline" onclick="copyCloudSession()">Cloud Login kopieren</button>
+    <button class="btn outline" onclick="pasteCloudSession()">Cloud Login einfügen</button>
     <button class="btn outline" onclick="syncCloud()">Cloud Sync</button>
     <button class="btn outline" onclick="cloudLogout()">Abmelden</button>
+    <p class="small">iPhone: Wenn der E-Mail-Link nur Safari öffnet, dort „Cloud Login kopieren“ drücken. Danach FR-App vom Home-Bildschirm öffnen und „Cloud Login einfügen“ drücken.</p>
     <hr style="border:0;border-top:1px solid #ddd;margin:20px 0">
     <h3>Sicherheit</h3>
     <label>Neuer PIN</label>
@@ -209,6 +212,59 @@ async function cloudLogin(){
  if(r.error)return alert('Anmeldung Fehler: '+r.error.message); alert('E-Mail gesendet. Link in der E-Mail öffnen.');
 }
 async function cloudLogout(){await sb.auth.signOut();await refreshCloudUser();alert('Abgemeldet');}
+async function copyCloudSession(){
+  try{
+    const r=await sb.auth.getSession();
+    const s=r&&r.data?r.data.session:null;
+    if(!s||!s.access_token||!s.refresh_token){
+      alert('Bitte zuerst per E-Mail anmelden.');
+      return;
+    }
+    const payload=JSON.stringify({
+      access_token:s.access_token,
+      refresh_token:s.refresh_token
+    });
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(payload);
+      alert('Cloud Login kopiert. Jetzt FR-App öffnen und „Cloud Login einfügen“ drücken.');
+    }else{
+      prompt('Cloud Login kopieren:',payload);
+    }
+  }catch(e){
+    alert('Kopieren Fehler: '+(e&&e.message?e.message:e));
+  }
+}
+
+async function pasteCloudSession(){
+  try{
+    let payload='';
+    if(navigator.clipboard&&navigator.clipboard.readText){
+      try{ payload=await navigator.clipboard.readText(); }catch(e){}
+    }
+    if(!payload){
+      payload=prompt('Cloud Login hier einfügen:')||'';
+    }
+    if(!payload) return;
+    let obj;
+    try{ obj=JSON.parse(payload); }
+    catch(e){ alert('Cloud Login ist ungültig.'); return; }
+    if(!obj.access_token||!obj.refresh_token){
+      alert('Cloud Login ist unvollständig.');
+      return;
+    }
+    const r=await sb.auth.setSession({
+      access_token:obj.access_token,
+      refresh_token:obj.refresh_token
+    });
+    if(r.error) throw r.error;
+    await refreshCloudUser();
+    await syncCloud(false);
+    alert('Cloud Login übernommen. Auto Sync ist jetzt aktiv.');
+  }catch(e){
+    alert('Cloud Login Fehler: '+(e&&e.message?e.message:e));
+  }
+}
+
 function invoiceToCloudRow(x){
   const nr=x.nr||x.invoice_number||'';
   return {
@@ -1359,7 +1415,7 @@ FR Fliesen Rechteck`);
 renderCustomerList();
 renderDashboard();
 
-// v34: ChatGPT Import + Cloud Sync automatisch beim Öffnen der App
+// v35: ChatGPT Import + Cloud Sync + iPhone Session Transfer
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
