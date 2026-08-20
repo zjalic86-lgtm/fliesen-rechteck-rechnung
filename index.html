@@ -150,7 +150,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v32 · ChatGPT API</b></p>
+    <p class="small"><b>Version v33 · ChatGPT API</b></p>
     <div style="margin:18px 0;padding:16px;border:1px solid #ddd;border-radius:14px">
       <h3 style="margin-top:0">ChatGPT Import API</h3>
       <p class="small">Ohne Cloud-Sync-Anmeldung. Der Import-Schlüssel wird nur auf diesem Gerät gespeichert.</p>
@@ -1288,6 +1288,23 @@ FR Fliesen Rechteck`);
 }
 renderCustomerList();
 renderDashboard();
+
+// v33: ChatGPT Import automatisch beim Öffnen der App
+let frLastAutoImport=0;
+async function autoPullChatgptInvoices(){
+  const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
+  if(!token) return;
+  const now=Date.now();
+  if(now-frLastAutoImport<15000) return;
+  frLastAutoImport=now;
+  await pullChatgptInvoices(false);
+}
+
+loadChatgptImportToken();
+setTimeout(autoPullChatgptInvoices,500);
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible') setTimeout(autoPullChatgptInvoices,300);
+});
 </script>
 </body>
 </html>
