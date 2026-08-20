@@ -150,7 +150,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v31 · ChatGPT API</b></p>
+    <p class="small"><b>Version v32 · ChatGPT API</b></p>
     <div style="margin:18px 0;padding:16px;border:1px solid #ddd;border-radius:14px">
       <h3 style="margin-top:0">ChatGPT Import API</h3>
       <p class="small">Ohne Cloud-Sync-Anmeldung. Der Import-Schlüssel wird nur auf diesem Gerät gespeichert.</p>
@@ -343,31 +343,107 @@ function updateChatgptImportStatus(msg){
 }
 async function pullChatgptInvoices(showMessage){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
-  if(!token){ if(showMessage)alert('Bitte zuerst Import-Schlüssel speichern.'); return; }
+  if(!token){
+    if(showMessage) alert('Bitte zuerst Import-Schlüssel speichern.');
+    return;
+  }
+
   try{
     const r=await fetch('/api/import?mode=pull&token='+encodeURIComponent(token),{cache:'no-store'});
     const d=await r.json();
     if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+
     const remote=Array.isArray(d.invoices)?d.invoices:[];
-    const local=getInvoices();
-    const byNr=new Map(local.map(x=>[String(x.nr||''),x]));
-    for(const row of remote){
-      const x={
-        id:row.invoice_number||('FR-'+Date.now()), type:'Rechnung', nr:row.invoice_number||'',
-        date:row.invoice_date||new Date().toISOString().slice(0,10), kunde:row.customer_name||'',
-        adresse:row.customer_address||'', kundeUid:row.customer_uid||'', email:row.customer_email||'',
-        bau:row.baustelle||'', typ:row.customer_type||'Privat', steuer:row.steuer||'20',
-        nachricht:row.nachricht||'', tage:String(row.payment_days||14), skonto:String(row.skonto||0),
-        material:Number(row.material_cost||0), footer:row.footer||'', items:Array.isArray(row.items)?row.items:[],
-        net:Number(row.net||0), ust:Number(row.ust||0), total:Number(row.total||0), paid:!!row.paid,
-        savedAt:row.updated_at||row.created_at||new Date().toISOString(), source:'chatgpt-api'
-      };
-      if(x.nr) byNr.set(x.nr,x);
+    let local=getInvoices();
+
+    function nextInvoiceNumber(dateValue){
+      const date=dateValue ? new Date(dateValue) : new Date();
+      const year=date.getFullYear();
+      const month=String(date.getMonth()+1).padStart(2,'0');
+      const prefix=year+'-'+month+'-';
+      let max=0;
+      for(const inv of local){
+        const nr=String(inv.nr||'');
+        if(nr.startsWith(prefix)){
+          const n=parseInt(nr.slice(prefix.length),10);
+          if(!isNaN(n) && n>max) max=n;
+        }
+      }
+      return prefix+String(max+1).padStart(2,'0');
     }
-    setInvoices(Array.from(byNr.values()).sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||''))));
+
+    let imported=0;
+
+    for(const row of remote){
+      const sourceCreatedAt=String(row.created_at||'');
+      const alreadyExists=local.some(inv => sourceCreatedAt && String(inv.sourceCreatedAt||'')===sourceCreatedAt);
+      if(alreadyExists) continue;
+
+      const date=row.invoice_date||new Date().toISOString().slice(0,10);
+      const invoiceNumber=row.invoice_number||nextInvoiceNumber(date);
+      const items=[];
+
+      if(Number(row.wand_m2||0)>0){
+        const qty=Number(row.wand_m2||0);
+        const price=Number(row.wand_price||0);
+        items.push({desc:'Wandfliesen verlegen',qty,unit:'m²',price,sum:qty*price});
+      }
+
+      if(Number(row.boden_m2||0)>0){
+        const qty=Number(row.boden_m2||0);
+        const price=Number(row.boden_price||0);
+        items.push({desc:'Bodenfliesen verlegen',qty,unit:'m²',price,sum:qty*price});
+      }
+
+      if(Array.isArray(row.items)){
+        for(const item of row.items){
+          const qty=Number(item.qty||0);
+          const price=Number(item.price||0);
+          items.push({desc:item.desc||'',qty,unit:item.unit||'m²',price,sum:qty*price});
+        }
+      }
+
+      const net=items.reduce((sum,item)=>sum+Number(item.sum||0),0);
+      const steuer=String(row.steuer||'20');
+      const ust=steuer==='20'?net*0.20:0;
+      const total=net+ust;
+
+      const x={
+        id:invoiceNumber,
+        type:'Rechnung',
+        nr:invoiceNumber,
+        date,
+        kunde:row.customer_name||'',
+        adresse:row.customer_address||'',
+        kundeUid:row.customer_uid||'',
+        email:row.customer_email||'',
+        bau:row.baustelle||'',
+        typ:row.customer_type||'Privat',
+        steuer,
+        nachricht:row.nachricht||'',
+        tage:String(row.payment_days||14),
+        skonto:String(row.skonto||0),
+        material:Number(row.material_cost||0),
+        footer:row.footer||'',
+        items,
+        net,
+        ust,
+        total,
+        paid:false,
+        savedAt:row.updated_at||row.created_at||new Date().toISOString(),
+        source:'chatgpt-api',
+        sourceCreatedAt
+      };
+
+      local.unshift(x);
+      imported++;
+    }
+
+    local.sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||'')));
+    setInvoices(local);
     renderDashboard();
-    updateChatgptImportStatus('Importiert: '+remote.length+' Rechnung(en).');
-    if(showMessage) alert('ChatGPT Import fertig: '+remote.length+' Rechnung(en)');
+    updateChatgptImportStatus('Importiert: '+imported+' Rechnung(en).');
+    if(showMessage) alert('ChatGPT Import fertig: '+imported+' Rechnung(en)');
   }catch(e){
     updateChatgptImportStatus('Fehler: '+(e&&e.message?e.message:e));
     if(showMessage) alert('ChatGPT Import Fehler: '+(e&&e.message?e.message:e));
