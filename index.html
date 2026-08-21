@@ -114,68 +114,28 @@ label{font-weight:700}
 
   <div id="messen" class="card hidden">
     <h2>📐 Messen</h2>
-    <p class="small">Wähle automatische oder manuelle Messung.</p>
+    <p class="small">Messart auswählen.</p>
 
     <div id="measureChoice">
-      <button class="btn" type="button" onclick="openAutoMeasure()">📷 Automatisch scannen</button>
-      <button class="btn outline" type="button" onclick="openManualMeasure()">📏 Manuell messen</button>
+      <button class="btn" type="button" onclick="openMeasureType('wand')">🧱 Wand / Raum</button>
+      <button class="btn outline" type="button" onclick="openMeasureType('boden')">⬜ Boden / Raum</button>
+      <button class="btn outline" type="button" onclick="openMeasureType('stufen')">🪜 Stufen</button>
+      <button class="btn outline" type="button" onclick="openMeasureType('sockel')">📏 Sockel</button>
+      <button class="btn outline" type="button" onclick="openMeasureType('schiene')">📐 Schiene</button>
+      <button class="btn outline" type="button" onclick="openMeasureType('silikon')">〰️ Silikon</button>
+      <button class="btn outline" type="button" onclick="openMeasureType('regie')">⏱️ Regie</button>
       <button class="btn outline" type="button" onclick="home()">Zurück</button>
     </div>
 
-    <div id="autoMeasure" class="hidden">
+    <div id="measureForm" class="hidden">
       <button class="settings-back" type="button" onclick="backToMeasureChoice()">‹ Messen</button>
-      <h2>📷 Automatisch scannen</h2>
-      <p class="small">Foto aufnehmen. Für eine echte automatische m²-Messung ohne bekannte Maße ist LiDAR/AR in einer iPhone-App nötig. Diese Web-App kann das Foto speichern, aber nicht zuverlässig echte Meter aus nur einem Foto berechnen.</p>
-
-      <label>Wand fotografieren</label>
-      <input id="autoWallPhoto" type="file" accept="image/*" capture="environment" onchange="previewAutoWallPhoto(event)">
-      <img id="autoWallPhotoPreview" class="measure-preview">
-
-      <div class="measure-card">
-        <b>Nächster Schritt</b>
-        <p class="small">Später kann hier die native LiDAR-Messung angebunden werden. Bis dahin kannst du direkt zur manuellen Messung wechseln.</p>
-      </div>
-
-      <button class="btn" type="button" onclick="openManualMeasure()">📏 Jetzt manuell messen</button>
-      <button class="btn outline" type="button" onclick="backToMeasureChoice()">Zurück</button>
-    </div>
-
-    <div id="manualMeasure" class="hidden">
-      <button class="settings-back" type="button" onclick="backToMeasureChoice()">‹ Messen</button>
-      <h2>📏 Schnell messen</h2>
-      <p class="small">Maße aus der iPhone-App Messen eintragen. m² wird sofort automatisch berechnet.</p>
-      <button class="btn outline" type="button" onclick="clearMeasure()">Neue Messung</button>
-
-      <label>Foto</label>
-      <input id="wallPhoto" type="file" accept="image/*" capture="environment" onchange="previewWallPhoto(event)">
-      <img id="wallPhotoPreview" class="measure-preview">
-
-      <div class="measure-card">
-        <h3>Wand</h3>
-        <div class="row">
-          <div><label>Breite m</label><input id="wallWidth" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 4.20" oninput="calcWallArea()"></div>
-          <div><label>Höhe m</label><input id="wallHeight" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 2.60" oninput="calcWallArea()"></div>
-        </div>
-        <p class="small">Breite × Höhe = Wandfläche</p>
-      </div>
-
-      <div class="measure-card">
-        <h3>Tür / Fenster abziehen</h3>
-        <div class="row">
-          <div><label>Breite m</label><input id="openingWidth" type="number" inputmode="decimal" step="0.01" placeholder="0.00" oninput="calcWallArea()"></div>
-          <div><label>Höhe m</label><input id="openingHeight" type="number" inputmode="decimal" step="0.01" placeholder="0.00" oninput="calcWallArea()"></div>
-        </div>
-        <label>Anzahl</label>
-        <input id="openingCount" type="number" inputmode="numeric" step="1" min="0" value="1" oninput="calcWallArea()">
-      </div>
-
-      <div class="measure-result"><span id="wallAreaResult">0,00</span> m²</div>
-
-      <label>Preis €/m²</label>
-      <input id="wallMeasurePrice" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 40">
-
-      <button class="btn" type="button" onclick="messenToOffer()">In Angebot übernehmen</button>
-      <button class="btn outline" type="button" onclick="messenToInvoice()">In Rechnung übernehmen</button>
+      <h2 id="measureTypeTitle">Messen</h2>
+      <div id="measureFields"></div>
+      <div class="measure-result"><span id="genericMeasureResult">0,00</span> <span id="genericMeasureUnit">m²</span></div>
+      <label>Preis € / <span id="genericPriceUnit">m²</span></label>
+      <input id="genericMeasurePrice" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 40">
+      <button class="btn" type="button" onclick="genericToDoc('Angebot')">In Angebot übernehmen</button>
+      <button class="btn outline" type="button" onclick="genericToDoc('Rechnung')">In Rechnung übernehmen</button>
       <button class="btn outline" type="button" onclick="backToMeasureChoice()">Zurück</button>
     </div>
   </div>
@@ -250,7 +210,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v46 · Schnell messen</b></p>
+      <p class="small"><b>Version v47 · Messen Menü</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1744,135 +1704,101 @@ FR Fliesen Rechteck`);
   w.document.close();
 }
 
-let measuredWallArea=0;
+let genericMeasureType='wand';
+let genericMeasureValue=0;
+
+const measureTypes={
+  wand:{title:'🧱 Wand / Raum',unit:'m²',desc:'Wandfliesen verlegen'},
+  boden:{title:'⬜ Boden / Raum',unit:'m²',desc:'Bodenfliesen verlegen'},
+  stufen:{title:'🪜 Stufen',unit:'lfm',desc:'Stufen verlegen'},
+  sockel:{title:'📏 Sockel',unit:'lfm',desc:'Sockel verlegen'},
+  schiene:{title:'📐 Schiene',unit:'lfm',desc:'Schiene verlegen'},
+  silikon:{title:'〰️ Silikon',unit:'lfm',desc:'Silikon'},
+  regie:{title:'⏱️ Regie',unit:'Std.',desc:'Regie'}
+};
 
 function showMessen(){
   hide();
-  const panel=document.getElementById('messen');
-  if(!panel){alert('Messen konnte nicht geöffnet werden.');return}
-  panel.classList.remove('hidden');
+  const p=document.getElementById('messen');
+  if(p)p.classList.remove('hidden');
   backToMeasureChoice();
 }
-
 function backToMeasureChoice(){
-  const choice=document.getElementById('measureChoice');
-  const auto=document.getElementById('autoMeasure');
-  const manual=document.getElementById('manualMeasure');
-  if(choice)choice.classList.remove('hidden');
-  if(auto)auto.classList.add('hidden');
-  if(manual)manual.classList.add('hidden');
+  document.getElementById('measureChoice').classList.remove('hidden');
+  document.getElementById('measureForm').classList.add('hidden');
 }
+function openMeasureType(type){
+  genericMeasureType=type;
+  const cfg=measureTypes[type];
+  document.getElementById('measureChoice').classList.add('hidden');
+  document.getElementById('measureForm').classList.remove('hidden');
+  document.getElementById('measureTypeTitle').textContent=cfg.title;
+  document.getElementById('genericMeasureUnit').textContent=cfg.unit;
+  document.getElementById('genericPriceUnit').textContent=cfg.unit;
+  const box=document.getElementById('measureFields');
 
-function openAutoMeasure(){
-  const choice=document.getElementById('measureChoice');
-  const auto=document.getElementById('autoMeasure');
-  const manual=document.getElementById('manualMeasure');
-  if(choice)choice.classList.add('hidden');
-  if(manual)manual.classList.add('hidden');
-  if(auto)auto.classList.remove('hidden');
-}
-
-function openManualMeasure(){
-  const choice=document.getElementById('measureChoice');
-  const auto=document.getElementById('autoMeasure');
-  const manual=document.getElementById('manualMeasure');
-  if(choice)choice.classList.add('hidden');
-  if(auto)auto.classList.add('hidden');
-  if(manual)manual.classList.remove('hidden');
-  calcWallArea();
-}
-
-function previewAutoWallPhoto(event){
-  const file=event.target.files&&event.target.files[0];
-  const img=document.getElementById('autoWallPhotoPreview');
-  if(!file){img.style.display='none';img.removeAttribute('src');return}
-  const reader=new FileReader();
-  reader.onload=function(e){
-    img.src=e.target.result;
-    img.style.display='block';
-  };
-  reader.readAsDataURL(file);
-}
-
-function previewWallPhoto(event){
-  const file=event.target.files && event.target.files[0];
-  const img=document.getElementById('wallPhotoPreview');
-  if(!file){img.style.display='none';img.removeAttribute('src');return}
-  const reader=new FileReader();
-  reader.onload=function(e){
-    img.src=e.target.result;
-    img.style.display='block';
-  };
-  reader.readAsDataURL(file);
-}
-
-function wallNumber(id){
-  const el=document.getElementById(id);
-  const raw=String(el && el.value || '').replace(',','.');
-  return Math.max(0,parseFloat(raw)||0);
-}
-
-function clearMeasure(){
-  ['wallWidth','wallHeight','openingWidth','openingHeight','wallMeasurePrice'].forEach(id=>{
-    const el=document.getElementById(id); if(el)el.value='';
-  });
-  const count=document.getElementById('openingCount'); if(count)count.value='1';
-  const photo=document.getElementById('wallPhoto'); if(photo)photo.value='';
-  const preview=document.getElementById('wallPhotoPreview');
-  if(preview){preview.style.display='none';preview.removeAttribute('src');}
-  calcWallArea();
-  const width=document.getElementById('wallWidth'); if(width)width.focus();
-}
-
-function calcWallArea(){
-  const width=wallNumber('wallWidth');
-  const height=wallNumber('wallHeight');
-  const openingWidth=wallNumber('openingWidth');
-  const openingHeight=wallNumber('openingHeight');
-  const countEl=document.getElementById('openingCount');
-  const openingCount=Math.max(0,parseInt(countEl && countEl.value || '0',10)||0);
-
-  measuredWallArea=Math.max(0,(width*height)-(openingWidth*openingHeight*openingCount));
-
-  const out=document.getElementById('wallAreaResult');
-  if(out){
-    out.textContent=new Intl.NumberFormat('de-AT',{
-      minimumFractionDigits:2,
-      maximumFractionDigits:2
-    }).format(measuredWallArea);
+  if(type==='wand'){
+    box.innerHTML=`<div class="measure-card"><div class="row">
+      <div><label>Breite m</label><input id="gmA" type="number" step="0.01" oninput="calcGenericMeasure()"></div>
+      <div><label>Höhe m</label><input id="gmB" type="number" step="0.01" oninput="calcGenericMeasure()"></div>
+    </div></div>
+    <div class="measure-card"><h3>Tür / Fenster abziehen</h3><div class="row">
+      <div><label>Breite m</label><input id="gmC" type="number" step="0.01" oninput="calcGenericMeasure()"></div>
+      <div><label>Höhe m</label><input id="gmD" type="number" step="0.01" oninput="calcGenericMeasure()"></div>
+    </div><label>Anzahl</label><input id="gmN" type="number" value="1" min="0" step="1" oninput="calcGenericMeasure()"></div>`;
+  }else if(type==='boden'){
+    box.innerHTML=`<div class="measure-card"><div class="row">
+      <div><label>Länge m</label><input id="gmA" type="number" step="0.01" oninput="calcGenericMeasure()"></div>
+      <div><label>Breite m</label><input id="gmB" type="number" step="0.01" oninput="calcGenericMeasure()"></div>
+    </div></div>`;
+  }else if(type==='stufen'){
+    box.innerHTML=`<div class="measure-card"><div class="row">
+      <div><label>Anzahl Stufen</label><input id="gmN" type="number" step="1" min="0" oninput="calcGenericMeasure()"></div>
+      <div><label>Breite je Stufe m</label><input id="gmA" type="number" step="0.01" oninput="calcGenericMeasure()"></div>
+    </div></div>`;
+  }else if(type==='regie'){
+    box.innerHTML=`<div class="measure-card"><label>Stunden</label><input id="gmA" type="number" step="0.25" oninput="calcGenericMeasure()"></div>`;
+  }else{
+    box.innerHTML=`<div class="measure-card"><label>Länge m</label><input id="gmA" type="number" step="0.01" oninput="calcGenericMeasure()"></div>`;
   }
-  return measuredWallArea;
+  document.getElementById('genericMeasurePrice').value='';
+  calcGenericMeasure();
 }
-
-function insertMeasuredWall(targetType){
-  const area=calcWallArea();
-  if(area<=0){
-    alert('Bitte Breite und Höhe eingeben.');
-    return;
-  }
-  const price=wallNumber('wallMeasurePrice');
-
-  showForm(targetType);
-
-  // Remove a completely empty auto-created position.
+function gm(id){
+  const e=document.getElementById(id);
+  return Math.max(0,parseFloat(String(e&&e.value||'').replace(',','.'))||0);
+}
+function calcGenericMeasure(){
+  let v=0;
+  if(genericMeasureType==='wand') v=Math.max(0,gm('gmA')*gm('gmB')-(gm('gmC')*gm('gmD')*gm('gmN')));
+  else if(genericMeasureType==='boden') v=gm('gmA')*gm('gmB');
+  else if(genericMeasureType==='stufen') v=gm('gmN')*gm('gmA');
+  else v=gm('gmA');
+  genericMeasureValue=v;
+  const out=document.getElementById('genericMeasureResult');
+  if(out)out.textContent=new Intl.NumberFormat('de-AT',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v);
+  return v;
+}
+function genericToDoc(type){
+  const v=calcGenericMeasure();
+  if(v<=0){alert('Bitte Maße eingeben.');return}
+  const cfg=measureTypes[genericMeasureType];
+  const price=gm('genericMeasurePrice');
+  showForm(type);
   const empty=[...document.querySelectorAll('.item')].find(el=>{
     const d=el.querySelector('.i-desc').value.trim();
     const q=el.querySelector('.i-qty').value;
     const p=el.querySelector('.i-price').value;
-    return !d && !q && !p;
+    return !d&&!q&&!p;
   });
-  if(empty) empty.remove();
-
-  addItem('Wandfliesen verlegen',area.toFixed(2),'m²',price ? price.toFixed(2) : '');
+  if(empty)empty.remove();
+  addItem(cfg.desc,v.toFixed(2),cfg.unit,price?price.toFixed(2):'');
 }
-
-function messenToOffer(){ insertMeasuredWall('Angebot'); }
-function messenToInvoice(){ insertMeasuredWall('Rechnung'); }
 
 renderCustomerList();
 renderDashboard();
 
-// v46: Schnell messen + Papierkorb + compact settings menu
+// v47: Messen Menü + Papierkorb + compact settings menu
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
