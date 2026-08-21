@@ -75,6 +75,21 @@ label{font-weight:700}
 .material-suggestion-meta{font-size:13px;color:#666;text-align:right;white-space:nowrap}
 .material-search-empty{padding:13px;color:#666;font-size:14px}
 
+
+.measure-group{margin-top:10px}
+.measure-group-title{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:10px 0 6px;font-weight:800}
+.measure-repeat-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin:8px 0;padding:10px;border:1px solid #e5e5e5;border-radius:12px;background:#fff}
+.measure-repeat-row.opening{grid-template-columns:1.05fr 1fr 1fr .8fr auto}
+.measure-repeat-row.floor-cut{grid-template-columns:1.1fr 1fr 1fr .8fr auto}
+.measure-repeat-row label{margin-top:0}
+.measure-mini-btn{border:1px solid #d6d6d6;background:#fff;border-radius:10px;padding:10px 12px;font-weight:700;cursor:pointer}
+.measure-remove{border:0;background:#f1f1f1;border-radius:10px;width:40px;height:40px;font-size:18px;cursor:pointer}
+.measure-breakdown{font-size:13px;line-height:1.45;color:#555;text-align:center;margin-top:4px}
+@media(max-width:620px){
+  .measure-repeat-row,.measure-repeat-row.opening,.measure-repeat-row.floor-cut{grid-template-columns:1fr 1fr}
+  .measure-repeat-row .measure-remove{grid-column:2;justify-self:end}
+}
+
 </style>
 </head>
 <body>
@@ -135,29 +150,52 @@ label{font-weight:700}
 
     <div class="measure-card">
       <h3>🧱 Wand</h3>
-      <div class="row">
-        <div><label>Breite m</label><input id="roomWallWidth" type="number" step="0.01" oninput="calcRoomMeasures()"></div>
-        <div><label>Höhe m</label><input id="roomWallHeight" type="number" step="0.01" oninput="calcRoomMeasures()"></div>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Wände einzeln messen</span>
+          <button class="measure-mini-btn" type="button" onclick="addWallMeasureRow()">+ Wand</button>
+        </div>
+        <div id="wallMeasureRows"></div>
       </div>
-      <div class="row">
-        <div><label>Tür/Fenster Breite m</label><input id="roomOpenWidth" type="number" step="0.01" oninput="calcRoomMeasures()"></div>
-        <div><label>Tür/Fenster Höhe m</label><input id="roomOpenHeight" type="number" step="0.01" oninput="calcRoomMeasures()"></div>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Tür / Fenster abziehen</span>
+          <button class="measure-mini-btn" type="button" onclick="addOpeningMeasureRow()">+ Tür / Fenster</button>
+        </div>
+        <div id="openingMeasureRows"></div>
       </div>
-      <div class="row">
-        <div><label>Anzahl Öffnungen</label><input id="roomOpenCount" type="number" min="0" step="1" value="0" oninput="calcRoomMeasures()"></div>
-        <div><label>Preis €/m²</label><input id="roomWallPrice" type="number" step="0.01"></div>
-      </div>
+
+      <label>Preis €/m²</label>
+      <input id="roomWallPrice" type="number" step="0.01">
       <div class="measure-result"><span id="roomWallResult">0,00</span> m²</div>
+      <div id="roomWallBreakdown" class="measure-breakdown">Wände 0,00 m² · Türen/Fenster −0,00 m²</div>
     </div>
 
     <div class="measure-card">
       <h3>⬜ Boden</h3>
-      <div class="row">
-        <div><label>Länge m</label><input id="roomFloorLength" type="number" step="0.01" oninput="calcRoomMeasures()"></div>
-        <div><label>Breite m</label><input id="roomFloorWidth" type="number" step="0.01" oninput="calcRoomMeasures()"></div>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Bodenflächen einzeln messen</span>
+          <button class="measure-mini-btn" type="button" onclick="addFloorMeasureRow()">+ Bodenfläche</button>
+        </div>
+        <div id="floorMeasureRows"></div>
       </div>
-      <label>Preis €/m²</label><input id="roomFloorPrice" type="number" step="0.01">
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Dusche / Badewanne abziehen</span>
+          <button class="measure-mini-btn" type="button" onclick="addFloorCutMeasureRow()">+ Dusche / Badewanne</button>
+        </div>
+        <div id="floorCutMeasureRows"></div>
+      </div>
+
+      <label>Preis €/m²</label>
+      <input id="roomFloorPrice" type="number" step="0.01">
       <div class="measure-result"><span id="roomFloorResult">0,00</span> m²</div>
+      <div id="roomFloorBreakdown" class="measure-breakdown">Boden 0,00 m² · Dusche/Badewanne −0,00 m²</div>
     </div>
 
     <div class="measure-card">
@@ -293,7 +331,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v55 · Face ID + PIN · Alle Materialien · Sonstige · +40% Netto</b></p>
+      <p class="small"><b>Version v56 · Einzelwände · Türen/Fenster · Dusche/Badewanne · Material</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -2229,17 +2267,122 @@ function roomNum(id){
   const e=document.getElementById(id);
   return Math.max(0,parseFloat(String(e&&e.value||'').replace(',','.'))||0);
 }
+let wallMeasureSeq=0;
+let openingMeasureSeq=0;
+let floorMeasureSeq=0;
+let floorCutMeasureSeq=0;
+
+function measureInput(value, cls, placeholder=''){
+  return `<input class="${cls}" type="number" min="0" step="0.01" value="${value||''}" placeholder="${placeholder}" oninput="calcRoomMeasures()">`;
+}
+function addWallMeasureRow(width='',height=''){
+  wallMeasureSeq++;
+  const box=document.getElementById('wallMeasureRows');
+  if(!box)return;
+  const row=document.createElement('div');
+  row.className='measure-repeat-row wall-measure-row';
+  row.innerHTML=`
+    <div><label>Breite m</label>${measureInput(width,'wall-width')}</div>
+    <div><label>Höhe m</label>${measureInput(height,'wall-height')}</div>
+    <button class="measure-remove" type="button" aria-label="Wand löschen" onclick="removeMeasureRow(this,'wall')">✕</button>`;
+  box.appendChild(row);
+  calcRoomMeasures();
+}
+function addOpeningMeasureRow(type='Tür',width='',height='',count='1'){
+  openingMeasureSeq++;
+  const box=document.getElementById('openingMeasureRows');
+  if(!box)return;
+  const row=document.createElement('div');
+  row.className='measure-repeat-row opening opening-measure-row';
+  row.innerHTML=`
+    <div><label>Art</label><select class="opening-type" onchange="calcRoomMeasures()">
+      <option ${type==='Tür'?'selected':''}>Tür</option>
+      <option ${type==='Fenster'?'selected':''}>Fenster</option>
+      <option ${type==='Sonstige'?'selected':''}>Sonstige</option>
+    </select></div>
+    <div><label>Breite m</label>${measureInput(width,'opening-width')}</div>
+    <div><label>Höhe m</label>${measureInput(height,'opening-height')}</div>
+    <div><label>Anzahl</label><input class="opening-count" type="number" min="1" step="1" value="${count||1}" oninput="calcRoomMeasures()"></div>
+    <button class="measure-remove" type="button" aria-label="Öffnung löschen" onclick="removeMeasureRow(this,'opening')">✕</button>`;
+  box.appendChild(row);
+  calcRoomMeasures();
+}
+function addFloorMeasureRow(length='',width=''){
+  floorMeasureSeq++;
+  const box=document.getElementById('floorMeasureRows');
+  if(!box)return;
+  const row=document.createElement('div');
+  row.className='measure-repeat-row floor-measure-row';
+  row.innerHTML=`
+    <div><label>Länge m</label>${measureInput(length,'floor-length')}</div>
+    <div><label>Breite m</label>${measureInput(width,'floor-width')}</div>
+    <button class="measure-remove" type="button" aria-label="Bodenfläche löschen" onclick="removeMeasureRow(this,'floor')">✕</button>`;
+  box.appendChild(row);
+  calcRoomMeasures();
+}
+function addFloorCutMeasureRow(type='Dusche',length='',width='',count='1'){
+  floorCutMeasureSeq++;
+  const box=document.getElementById('floorCutMeasureRows');
+  if(!box)return;
+  const row=document.createElement('div');
+  row.className='measure-repeat-row floor-cut floor-cut-measure-row';
+  row.innerHTML=`
+    <div><label>Art</label><select class="floor-cut-type" onchange="calcRoomMeasures()">
+      <option ${type==='Dusche'?'selected':''}>Dusche</option>
+      <option ${type==='Badewanne'?'selected':''}>Badewanne</option>
+      <option ${type==='Sonstige'?'selected':''}>Sonstige</option>
+    </select></div>
+    <div><label>Länge m</label>${measureInput(length,'floor-cut-length')}</div>
+    <div><label>Breite m</label>${measureInput(width,'floor-cut-width')}</div>
+    <div><label>Anzahl</label><input class="floor-cut-count" type="number" min="1" step="1" value="${count||1}" oninput="calcRoomMeasures()"></div>
+    <button class="measure-remove" type="button" aria-label="Aussparung löschen" onclick="removeMeasureRow(this,'floorCut')">✕</button>`;
+  box.appendChild(row);
+  calcRoomMeasures();
+}
+function removeMeasureRow(btn,kind){
+  btn.closest('.measure-repeat-row')?.remove();
+  // Mindestens eine Wand- und Bodenzeile stehen lassen.
+  if(kind==='wall' && !document.querySelector('.wall-measure-row'))addWallMeasureRow();
+  if(kind==='floor' && !document.querySelector('.floor-measure-row'))addFloorMeasureRow();
+  calcRoomMeasures();
+}
+function rowNumber(row,selector){
+  return Math.max(0,parseFloat(row.querySelector(selector)?.value)||0);
+}
 function calcRoomMeasures(){
-  const wall=Math.max(0,
-    roomNum('roomWallWidth')*roomNum('roomWallHeight') -
-    roomNum('roomOpenWidth')*roomNum('roomOpenHeight')*roomNum('roomOpenCount')
-  );
-  const floor=roomNum('roomFloorLength')*roomNum('roomFloorWidth');
+  let wallGross=0;
+  document.querySelectorAll('.wall-measure-row').forEach(row=>{
+    wallGross+=rowNumber(row,'.wall-width')*rowNumber(row,'.wall-height');
+  });
+
+  let openings=0;
+  document.querySelectorAll('.opening-measure-row').forEach(row=>{
+    openings+=rowNumber(row,'.opening-width')*rowNumber(row,'.opening-height')*Math.max(1,rowNumber(row,'.opening-count')||1);
+  });
+
+  let floorGross=0;
+  document.querySelectorAll('.floor-measure-row').forEach(row=>{
+    floorGross+=rowNumber(row,'.floor-length')*rowNumber(row,'.floor-width');
+  });
+
+  let floorCuts=0;
+  document.querySelectorAll('.floor-cut-measure-row').forEach(row=>{
+    floorCuts+=rowNumber(row,'.floor-cut-length')*rowNumber(row,'.floor-cut-width')*Math.max(1,rowNumber(row,'.floor-cut-count')||1);
+  });
+
+  const wall=Math.max(0,wallGross-openings);
+  const floor=Math.max(0,floorGross-floorCuts);
+
   const wr=document.getElementById('roomWallResult');
   const fr=document.getElementById('roomFloorResult');
+  const wb=document.getElementById('roomWallBreakdown');
+  const fb=document.getElementById('roomFloorBreakdown');
   if(wr)wr.textContent=num(wall);
   if(fr)fr.textContent=num(floor);
-  return {wall,floor};
+  if(wb)wb.textContent=`Wände ${num(wallGross)} m² · Türen/Fenster −${num(openings)} m²`;
+  if(fb)fb.textContent=`Boden ${num(floorGross)} m² · Dusche/Badewanne −${num(floorCuts)} m²`;
+
+  return {wall,floor,wallGross,openings,floorGross,floorCuts};
 }
 function addRoomToList(){
   const room=(document.getElementById('measureRoomName').value||'').trim();
@@ -2258,22 +2401,34 @@ function addRoomToList(){
   push('Stufen verlegen',roomNum('roomStufen'),'lfm',roomNum('roomStufenPrice'));
   push('Regie',roomNum('roomRegie'),'Std.',roomNum('roomRegiePrice'));
   if(!items.length){alert('Bitte mindestens eine Menge eingeben.');return}
-  measurementList.push({room,items});
+  measurementList.push({
+    room,items,
+    detail:{
+      wallGross:a.wallGross,openings:a.openings,
+      floorGross:a.floorGross,floorCuts:a.floorCuts
+    }
+  });
   clearRoomInputs();
   renderMeasureList();
+}
+function resetRepeatMeasureRows(){
+  const ids=['wallMeasureRows','openingMeasureRows','floorMeasureRows','floorCutMeasureRows'];
+  ids.forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=''});
+  addWallMeasureRow();
+  addFloorMeasureRow();
+  calcRoomMeasures();
 }
 function clearRoomInputs(){
   document.getElementById('measureRoomName').value='';
   [
-    'roomWallWidth','roomWallHeight','roomOpenWidth','roomOpenHeight','roomWallPrice',
-    'roomFloorLength','roomFloorWidth','roomFloorPrice',
+    'roomWallPrice','roomFloorPrice',
     'roomSockel','roomSockelPrice','roomSchiene','roomSchienePrice',
     'roomSilikon','roomSilikonPrice','roomStufen','roomStufenPrice',
     'roomRegie','roomRegiePrice'
   ].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});
-  const c=document.getElementById('roomOpenCount');if(c)c.value='0';
-  calcRoomMeasures();
+  resetRepeatMeasureRows();
 }
+
 function renderMeasureList(){
   const box=document.getElementById('measureList');
   if(!box)return;
@@ -2319,6 +2474,7 @@ function measureListToDoc(type){
   if(measureMode&&formMode)formMode.value=measureMode.value||'on';
 }
 
+resetRepeatMeasureRows();
 renderCustomerList();
 renderDashboard();
 
