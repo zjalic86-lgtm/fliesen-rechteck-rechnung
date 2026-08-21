@@ -67,6 +67,7 @@ label{font-weight:700}
     <button class="tab" onclick="home()">Übersicht</button>
     <button class="tab" onclick="showForm('Angebot')">Angebote</button>
     <button class="tab" onclick="showForm('Rechnung')">Rechnungen</button>
+    <button class="tab" onclick="showTrash()">Papierkorb</button>
     <button class="tab" onclick="settings()">Einstellungen</button>
   </div>
 
@@ -86,6 +87,13 @@ label{font-weight:700}
     <div id="invoiceList"></div>
     <h3>Gespeicherte Angebote</h3>
     <div id="offerList"></div>
+  </div>
+
+  <div id="trash" class="card hidden">
+    <h2>Papierkorb</h2>
+    <p class="small">Gelöschte Rechnungen bleiben hier, bis du sie selbst endgültig löschst.</p>
+    <div id="trashList"></div>
+    <button class="btn outline" onclick="emptyTrash()">Papierkorb leeren</button>
   </div>
 
   <div id="form" class="card hidden">
@@ -150,7 +158,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v39 · Clean Reset</b></p>
+    <p class="small"><b>Version v40 · Papierkorb</b></p>
     <div style="margin:18px 0;padding:16px;border:1px solid #ddd;border-radius:14px">
       <h3 style="margin-top:0">ChatGPT Import API</h3>
       <p class="small">Ohne Cloud-Sync-Anmeldung. Der Import-Schlüssel wird nur auf diesem Gerät gespeichert.</p>
@@ -343,9 +351,11 @@ async function deleteAllInvoicesEverywhere(){
       if(x&&x.nr) markInvoiceDeleted(x.nr);
     }
 
-    // Clear local invoices immediately.
+    // Clear local invoices and trash immediately.
     setInvoices([]);
+    setTrash([]);
     renderDashboard();
+    renderTrash();
 
     // Clear ChatGPT import queue too, otherwise old test invoices would return.
     const importToken=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
@@ -884,6 +894,15 @@ function getInvoices(){
   try{return JSON.parse(localStorage.getItem('frInvoices')||'[]')}catch(e){return []}
 }
 function setInvoices(v){localStorage.setItem('frInvoices',JSON.stringify(v))}
+function getTrash(){try{return JSON.parse(localStorage.getItem('frInvoiceTrash')||'[]')}catch(e){return[]}}
+function setTrash(v){localStorage.setItem('frInvoiceTrash',JSON.stringify(v||[]))}
+function addToTrash(x){
+  if(!x)return;
+  const t=getTrash().filter(z=>String(z.nr||'')!==String(x.nr||''));
+  t.unshift({...x,trashedAt:new Date().toISOString()});
+  setTrash(t);
+}
+
 function currentInvoiceData(){
   const items=collectItems();
   const net=items.reduce((a,b)=>a+b.sum,0);
@@ -995,6 +1014,88 @@ function offerToInvoice(i){
   (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
   updateDueDate();
   alert('Angebot wurde übernommen. Rechnungsnummer wurde automatisch erstellt.');
+}
+
+
+function showTrash(){
+  hide();
+  const el=document.getElementById('trash');
+  if(el)el.classList.remove('hidden');
+  renderTrash();
+}
+
+function renderTrash(){
+  const box=document.getElementById('trashList');
+  if(!box)return;
+  const arr=getTrash();
+  if(!arr.length){
+    box.innerHTML='<p class="small">Papierkorb ist leer.</p>';
+    return;
+  }
+  box.innerHTML=arr.map((x,i)=>`<div class="invoice">
+    <div class="invoice-top">
+      <div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br>
+      <span class="small">${fmtDate(x.date)} · gelöscht ${x.trashedAt?fmtDate(String(x.trashedAt).slice(0,10)):''}</span></div>
+      <div style="text-align:right"><b>${euro(x.total||0)}</b></div>
+    </div>
+    <div class="actions">
+      <button onclick="restoreInvoice(${i})">Wiederherstellen</button>
+      <button onclick="deleteTrashInvoiceForever(${i})">Endgültig löschen</button>
+    </div>
+  </div>`).join('');
+}
+
+async function restoreInvoice(i){
+  const t=getTrash();
+  const x=t[i];
+  if(!x)return;
+  let a=getInvoices();
+  if(a.some(z=>String(z.nr||'')===String(x.nr||''))){
+    alert('Diese Rechnungsnummer ist bereits vorhanden.');
+    return;
+  }
+  t.splice(i,1);
+  setTrash(t);
+  if(x.nr)unmarkInvoiceDeleted(x.nr);
+  x.savedAt=new Date().toISOString();
+  delete x.trashedAt;
+  a.unshift(x);
+  setInvoices(a);
+  renderTrash();
+  renderDashboard();
+  try{
+    if(x.nr)await cloudUpsertInvoice(x);
+    await autoCloudSync();
+  }catch(e){}
+  alert('Rechnung wurde wiederhergestellt.');
+}
+
+async function deleteTrashInvoiceForever(i){
+  const t=getTrash();
+  const x=t[i];
+  if(!x)return;
+  if(!confirm('Rechnung endgültig löschen?'))return;
+  if(x.nr)markInvoiceDeleted(x.nr);
+  t.splice(i,1);
+  setTrash(t);
+  renderTrash();
+  try{
+    if(x.nr)await cloudDeleteInvoice(x.nr);
+  }catch(e){}
+}
+
+async function emptyTrash(){
+  const t=getTrash();
+  if(!t.length)return;
+  if(!confirm('Papierkorb wirklich vollständig leeren?'))return;
+  for(const x of t){
+    if(x&&x.nr)markInvoiceDeleted(x.nr);
+  }
+  setTrash([]);
+  renderTrash();
+  try{
+    await autoCloudSync();
+  }catch(e){}
 }
 
 function renderDashboard(){
@@ -1185,11 +1286,22 @@ function copyInvoice(i){
 
 function togglePaid(i){let a=getInvoices();if(!a[i])return;a[i].paid=!a[i].paid;a[i].savedAt=new Date().toISOString();setInvoices(a);renderDashboard();cloudUpsertInvoice(a[i]).catch(()=>{})}
 async function deleteInvoice(i){
-  if(!confirm('Rechnung wirklich löschen?'))return;
-  let a=getInvoices();const nr=a[i]&&a[i].nr;
+  if(!confirm('Rechnung in den Papierkorb verschieben?'))return;
+  let a=getInvoices();
+  const x=a[i];
+  if(!x)return;
+  const nr=x.nr;
+  addToTrash(x);
   if(nr)markInvoiceDeleted(nr);
-  a.splice(i,1);setInvoices(a);renderDashboard();
-  if(nr){try{await cloudDeleteInvoice(nr);await autoCloudSync()}catch(e){}}
+  a.splice(i,1);
+  setInvoices(a);
+  renderDashboard();
+  if(nr){
+    try{
+      await cloudDeleteInvoice(nr);
+      await autoCloudSync();
+    }catch(e){}
+  }
 }
 
 
@@ -1493,7 +1605,7 @@ FR Fliesen Rechteck`);
 renderCustomerList();
 renderDashboard();
 
-// v39: Clean reset including tombstone cleanup
+// v40: Papierkorb + restore + permanent delete
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
