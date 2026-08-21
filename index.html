@@ -150,7 +150,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v35 · iPhone Cloud Login</b></p>
+    <p class="small"><b>Version v36 · Cloud Delete Sync</b></p>
     <div style="margin:18px 0;padding:16px;border:1px solid #ddd;border-radius:14px">
       <h3 style="margin-top:0">ChatGPT Import API</h3>
       <p class="small">Ohne Cloud-Sync-Anmeldung. Der Import-Schlüssel wird nur auf diesem Gerät gespeichert.</p>
@@ -202,6 +202,12 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
   }
 });
 let cloudUser=null;
+const FR_DELETED_INVOICES_KEY='frDeletedInvoiceNumbers';
+function getDeletedInvoiceNumbers(){try{return JSON.parse(localStorage.getItem(FR_DELETED_INVOICES_KEY)||'[]')}catch(e){return []}}
+function setDeletedInvoiceNumbers(v){localStorage.setItem(FR_DELETED_INVOICES_KEY,JSON.stringify([...new Set(v||[])]))}
+function markInvoiceDeleted(nr){if(!nr)return;const a=getDeletedInvoiceNumbers();if(!a.includes(String(nr)))a.push(String(nr));setDeletedInvoiceNumbers(a)}
+function unmarkInvoiceDeleted(nr){setDeletedInvoiceNumbers(getDeletedInvoiceNumbers().filter(x=>String(x)!==String(nr)))}
+
 async function refreshCloudUser(){
  const r=await sb.auth.getUser(); cloudUser=r.data&&r.data.user?r.data.user:null;
  const s=document.getElementById('cloudStatus'); if(s)s.textContent=cloudUser?'Angemeldet: '+cloudUser.email:'Nicht angemeldet';
@@ -305,6 +311,7 @@ function cloudRowToInvoice(row){
 async function cloudUpsertInvoice(x){
   await refreshCloudUser();
   if(!cloudUser||!x||!x.nr) return false;
+  unmarkInvoiceDeleted(x.nr);
   const row=invoiceToCloudRow(x);
   const q=await sb.from('invoices').select('id').eq('user_id',cloudUser.id).eq('invoice_number',x.nr).maybeSingle();
   if(q.error) throw q.error;
@@ -313,33 +320,42 @@ async function cloudUpsertInvoice(x){
   return true;
 }
 async function cloudDeleteInvoice(nr){
+  if(!nr) return false;
+  markInvoiceDeleted(nr);
   await refreshCloudUser();
-  if(!cloudUser||!nr) return false;
+  if(!cloudUser) return false;
   const z=await sb.from('invoices').delete().eq('user_id',cloudUser.id).eq('invoice_number',nr);
   if(z.error) throw z.error;
   return true;
 }
 async function syncCloud(showMessage=true){
   await refreshCloudUser();
-  if(!cloudUser){ if(showMessage)alert('Bitte zuerst per E-Mail anmelden.'); return false; }
+  if(!cloudUser){if(showMessage)alert('Bitte zuerst per E-Mail anmelden.');return false}
   try{
-    let local=getInvoices();
-    for(const x of local){ if(x.nr) await cloudUpsertInvoice(x); }
+    const deleted=new Set(getDeletedInvoiceNumbers().map(String));
+    for(const nr of deleted){
+      const del=await sb.from('invoices').delete().eq('user_id',cloudUser.id).eq('invoice_number',nr);
+      if(del.error)throw del.error;
+    }
+    let local=getInvoices().filter(x=>!deleted.has(String(x.nr||'')));
+    setInvoices(local);
+    for(const x of local){if(x.nr)await cloudUpsertInvoice(x)}
     const d=await sb.from('invoices').select('*').eq('user_id',cloudUser.id).order('created_at',{ascending:false});
-    if(d.error) throw d.error;
+    if(d.error)throw d.error;
     const byNr=new Map(local.filter(x=>x.nr).map(x=>[String(x.nr),x]));
     for(const row of (d.data||[])){
       const remote=cloudRowToInvoice(row);
+      if(deleted.has(String(remote.nr||'')))continue;
       const existing=byNr.get(String(remote.nr));
-      if(!existing || String(remote.savedAt||'')>String(existing.savedAt||'')) byNr.set(String(remote.nr),remote);
+      if(!existing||String(remote.savedAt||'')>String(existing.savedAt||''))byNr.set(String(remote.nr),remote);
     }
-    local=Array.from(byNr.values()).sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||'')));
-    setInvoices(local); renderDashboard();
-    const s=document.getElementById('cloudStatus'); if(s)s.textContent='Angemeldet: '+cloudUser.email+' · Auto Sync aktiv';
-    if(showMessage) alert('Cloud Sync fertig: '+local.length+' Rechnung(en)');
+    local=Array.from(byNr.values()).filter(x=>!deleted.has(String(x.nr||''))).sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||'')));
+    setInvoices(local);renderDashboard();
+    const st=document.getElementById('cloudStatus');if(st)st.textContent='Angemeldet: '+cloudUser.email+' · Auto Sync aktiv';
+    if(showMessage)alert('Cloud Sync fertig: '+local.length+' Rechnung(en)');
     return true;
   }catch(e){
-    if(showMessage) alert('Cloud Fehler: '+(e&&e.message?e.message:e));
+    if(showMessage)alert('Cloud Fehler: '+(e&&e.message?e.message:e));
     return false;
   }
 }
@@ -1112,7 +1128,13 @@ function copyInvoice(i){
 }
 
 function togglePaid(i){let a=getInvoices();if(!a[i])return;a[i].paid=!a[i].paid;a[i].savedAt=new Date().toISOString();setInvoices(a);renderDashboard();cloudUpsertInvoice(a[i]).catch(()=>{})}
-function deleteInvoice(i){if(!confirm('Rechnung wirklich löschen?'))return;let a=getInvoices();const nr=a[i]&&a[i].nr;a.splice(i,1);setInvoices(a);renderDashboard();if(nr)cloudDeleteInvoice(nr).catch(()=>{})}
+async function deleteInvoice(i){
+  if(!confirm('Rechnung wirklich löschen?'))return;
+  let a=getInvoices();const nr=a[i]&&a[i].nr;
+  if(nr)markInvoiceDeleted(nr);
+  a.splice(i,1);setInvoices(a);renderDashboard();
+  if(nr){try{await cloudDeleteInvoice(nr);await autoCloudSync()}catch(e){}}
+}
 
 
 
@@ -1415,7 +1437,7 @@ FR Fliesen Rechteck`);
 renderCustomerList();
 renderDashboard();
 
-// v35: ChatGPT Import + Cloud Sync + iPhone Session Transfer
+// v36: ChatGPT Import + Cloud Sync + permanent Cloud Delete
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
