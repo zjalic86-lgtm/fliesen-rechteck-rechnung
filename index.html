@@ -115,10 +115,44 @@ label{font-weight:700}
 .sockel-total{font-size:20px;font-weight:800;text-align:center;padding:10px;background:#fff;border-radius:12px;margin-top:8px}
 @media(max-width:620px){.sockel-repeat-row{grid-template-columns:1fr auto}}
 
+
+.accountScreen{position:fixed;inset:0;background:#f4f5f7;z-index:10050;display:flex;align-items:center;justify-content:center;padding:20px}
+.accountBox{width:min(460px,100%);background:#fff;border-radius:22px;padding:24px;box-shadow:0 8px 30px rgba(0,0,0,.10)}
+.accountBox h2{margin:0 0 6px}
+.accountBox input{font-size:16px;text-align:left;letter-spacing:0}
+.accountStatus{min-height:22px;color:#666;font-size:14px;margin:6px 0}
+.accountError{color:#b00020;font-weight:700}
+.accountOk{color:#1d6b38;font-weight:700}
+.accountDivider{border-top:1px solid #e3e3e3;margin:16px 0}
+
 </style>
 </head>
 <body>
-<div id="lockScreen" class="lockScreen">
+<div id="accountScreen" class="accountScreen">
+  <div class="accountBox">
+    <h2>FR Rechnung</h2>
+    <p class="small">Anmelden oder neues Konto erstellen.</p>
+
+    <div id="accountNormal">
+      <label>E-Mail</label>
+      <input id="accountEmail" type="email" autocomplete="email" placeholder="name@email.at">
+      <label>Passwort</label>
+      <input id="accountPassword" type="password" autocomplete="current-password" placeholder="mind. 6 Zeichen">
+      <div id="accountStatus" class="accountStatus"></div>
+      <button class="btn" type="button" onclick="accountSignIn()">Anmelden</button>
+      <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
+      <button class="btn outline" type="button" onclick="accountForgotPassword()">Passwort vergessen / setzen</button>
+    </div>
+
+    <div id="accountRecovery" class="hidden">
+      <p class="small">Neues Passwort eingeben.</p>
+      <label>Neues Passwort</label>
+      <input id="accountNewPassword" type="password" autocomplete="new-password" placeholder="mind. 6 Zeichen">
+      <button class="btn" type="button" onclick="accountSetNewPassword()">Passwort speichern</button>
+    </div>
+  </div>
+</div>
+<div id="lockScreen" class="lockScreen" style="display:none">
   <div class="lockBox">
     <h2 id="lockTitle">FR Fliesen Rechteck</h2>
     <p id="lockInfo" class="small">Face ID oder PIN</p>
@@ -133,7 +167,7 @@ label{font-weight:700}
 <div class="app" id="mainApp" style="display:none">
   <div class="card head">
     <img id="logoPreview" class="logo hidden">
-    <h1>FR Fliesen Rechteck</h1>
+    <h1 id="appCompanyTitle">FR Rechnung</h1>
     <div class="small">Rechnung App</div>
   </div>
 
@@ -440,7 +474,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v68 · Weitere Arbeiten separat · Alle lfm einzeln messen</b></p>
+      <p class="small"><b>Version v69 · Benutzerkonto · E-Mail + Passwort · Eigene Firmendaten</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -463,9 +497,29 @@ label{font-weight:700}
     <div id="settings-company" class="settings-section hidden">
       <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
       <h2>Firma & Logo</h2>
+
+      <label>Firmenname</label><input id="companyName" placeholder="z.B. Muster Fliesen GmbH">
+      <label>Adresse</label><input id="companyAddress" placeholder="Straße · PLZ Ort">
+      <div class="row">
+        <div><label>UID</label><input id="companyUid" placeholder="ATU..."></div>
+        <div><label>Steuernummer</label><input id="companyTaxNr"></div>
+      </div>
+      <div class="row">
+        <div><label>E-Mail</label><input id="companyEmail" type="email"></div>
+        <div><label>Telefon</label><input id="companyPhone"></div>
+      </div>
+      <label>Website</label><input id="companyWebsite">
+      <div class="row">
+        <div><label>Bank</label><input id="companyBank"></div>
+        <div><label>BIC / SWIFT</label><input id="companyBic"></div>
+      </div>
+      <label>IBAN</label><input id="companyIban">
+      <button class="btn" type="button" onclick="saveCompanyProfile()">Firmendaten speichern</button>
+
+      <div class="accountDivider"></div>
       <label>Logo auswählen</label>
       <input id="logoInput" type="file" accept="image/*">
-      <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
+      <p class="small">Firmendaten, Logo, Kunden, Angebote und Rechnungen werden pro Benutzerkonto getrennt gespeichert.</p>
     </div>
 
     <div id="settings-chatgpt" class="settings-section hidden">
@@ -483,8 +537,9 @@ label{font-weight:700}
 
     <div id="settings-cloud" class="settings-section hidden">
       <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
-      <h2>Cloud Sync</h2>
+      <h2>Konto & Cloud Sync</h2>
       <p id="cloudStatus" class="small">Nicht angemeldet</p>
+      <button class="btn outline" type="button" onclick="accountLogout()">Benutzer abmelden</button>
       <label>E-Mail</label>
       <input id="cloudEmail" type="email" placeholder="name@email.at">
       <button class="btn outline" onclick="cloudLogin()">Anmelden per E-Mail</button>
@@ -530,22 +585,204 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
   }
 });
 let cloudUser=null;
+
+const LEGACY_COMPANY_PROFILE={
+  name:'FR Fliesen Rechteck',
+  address:'Kamerlweg 58 · 4600 Wels',
+  uid:'ATU79163806',
+  taxNr:'54 347/6998',
+  email:'office@fliesen-rechteck.at',
+  phone:'06649277777',
+  website:'www.fliesen-rechteck.at',
+  bank:'SPARKASSE',
+  bic:'ASPKAT2LXXX',
+  iban:'AT09 2032 0321 0067 2132'
+};
+
+function userKey(base){
+  return cloudUser&&cloudUser.id ? `${base}:${cloudUser.id}` : `${base}:no-user`;
+}
+function getCompanyProfile(){
+  if(!cloudUser)return {name:'FR Rechnung',address:'',uid:'',taxNr:'',email:'',phone:'',website:'',bank:'',bic:'',iban:''};
+  try{
+    const v=JSON.parse(localStorage.getItem(userKey('frCompanyProfile'))||'null');
+    if(v)return {...{name:'',address:'',uid:'',taxNr:'',email:'',phone:'',website:'',bank:'',bic:'',iban:''},...v};
+  }catch(e){}
+  return {name:'',address:'',uid:'',taxNr:'',email:'',phone:'',website:'',bank:'',bic:'',iban:''};
+}
+function setCompanyProfile(v){
+  localStorage.setItem(userKey('frCompanyProfile'),JSON.stringify(v||{}));
+}
+function companyDisplayName(){
+  const c=getCompanyProfile();
+  return (c.name||'FR Rechnung').trim()||'FR Rechnung';
+}
+function cleanIban(v){return String(v||'').replace(/\s+/g,'').toUpperCase()}
+function hasLegacyUserData(){
+  return ['frInvoices','frOffers','frCustomers','frInvoiceTrash','frLogo','frPin','frImportToken','frDeletedInvoiceNumbers']
+    .some(k=>!!localStorage.getItem(k));
+}
+function migrateLegacyDataToCurrentUser(){
+  if(!cloudUser)return;
+  let owner=localStorage.getItem('frLegacyOwnerUserId')||'';
+  if(!owner && hasLegacyUserData()){
+    owner=cloudUser.id;
+    localStorage.setItem('frLegacyOwnerUserId',owner);
+  }
+  if(owner!==cloudUser.id)return;
+  const pairs=[
+    ['frInvoices','frInvoices'],['frOffers','frOffers'],['frCustomers','frCustomers'],
+    ['frInvoiceTrash','frInvoiceTrash'],['frLogo','frLogo'],['frPin','frPin'],
+    ['frFaceCredentialId','frFaceCredentialId'],['frFaceUserId','frFaceUserId'],
+    ['frChatgptImportToken','frChatgptImportToken'],['frDeletedInvoiceNumbers','frDeletedInvoiceNumbers']
+  ];
+  for(const [legacy,base] of pairs){
+    const val=localStorage.getItem(legacy);
+    const scoped=userKey(base);
+    if(val!==null && localStorage.getItem(scoped)===null)localStorage.setItem(scoped,val);
+  }
+  const profileKey=userKey('frCompanyProfile');
+  if(localStorage.getItem(profileKey)===null){
+    localStorage.setItem(profileKey,JSON.stringify(LEGACY_COMPANY_PROFILE));
+  }
+}
+function updateCompanyUi(){
+  const c=getCompanyProfile();
+  const title=document.getElementById('appCompanyTitle');
+  if(title)title.textContent=c.name||'FR Rechnung';
+  const fields={
+    companyName:c.name,companyAddress:c.address,companyUid:c.uid,companyTaxNr:c.taxNr,
+    companyEmail:c.email,companyPhone:c.phone,companyWebsite:c.website,companyBank:c.bank,
+    companyBic:c.bic,companyIban:c.iban
+  };
+  for(const [id,val] of Object.entries(fields)){
+    const el=document.getElementById(id); if(el)el.value=val||'';
+  }
+}
+function saveCompanyProfile(){
+  const v={
+    name:(document.getElementById('companyName')?.value||'').trim(),
+    address:(document.getElementById('companyAddress')?.value||'').trim(),
+    uid:(document.getElementById('companyUid')?.value||'').trim(),
+    taxNr:(document.getElementById('companyTaxNr')?.value||'').trim(),
+    email:(document.getElementById('companyEmail')?.value||'').trim(),
+    phone:(document.getElementById('companyPhone')?.value||'').trim(),
+    website:(document.getElementById('companyWebsite')?.value||'').trim(),
+    bank:(document.getElementById('companyBank')?.value||'').trim(),
+    bic:(document.getElementById('companyBic')?.value||'').trim().toUpperCase(),
+    iban:(document.getElementById('companyIban')?.value||'').trim().toUpperCase()
+  };
+  if(!v.name){alert('Bitte Firmenname eingeben.');return}
+  setCompanyProfile(v);
+  updateCompanyUi();
+  alert('Firmendaten gespeichert');
+}
+
 const FR_DELETED_INVOICES_KEY='frDeletedInvoiceNumbers';
-function getDeletedInvoiceNumbers(){try{return JSON.parse(localStorage.getItem(FR_DELETED_INVOICES_KEY)||'[]')}catch(e){return []}}
-function setDeletedInvoiceNumbers(v){localStorage.setItem(FR_DELETED_INVOICES_KEY,JSON.stringify([...new Set(v||[])]))}
+function getDeletedInvoiceNumbers(){try{return JSON.parse(localStorage.getItem(userKey(FR_DELETED_INVOICES_KEY))||'[]')}catch(e){return []}}
+function setDeletedInvoiceNumbers(v){localStorage.setItem(userKey(FR_DELETED_INVOICES_KEY),JSON.stringify([...new Set(v||[])]))}
 function markInvoiceDeleted(nr){if(!nr)return;const a=getDeletedInvoiceNumbers();if(!a.includes(String(nr)))a.push(String(nr));setDeletedInvoiceNumbers(a)}
 function unmarkInvoiceDeleted(nr){setDeletedInvoiceNumbers(getDeletedInvoiceNumbers().filter(x=>String(x)!==String(nr)))}
 
 async function refreshCloudUser(){
- const r=await sb.auth.getUser(); cloudUser=r.data&&r.data.user?r.data.user:null;
- const s=document.getElementById('cloudStatus'); if(s)s.textContent=cloudUser?'Angemeldet: '+cloudUser.email:'Nicht angemeldet';
+  const r=await sb.auth.getUser();
+  cloudUser=r.data&&r.data.user?r.data.user:null;
+  const s=document.getElementById('cloudStatus');
+  if(s)s.textContent=cloudUser?'Angemeldet: '+cloudUser.email:'Nicht angemeldet';
+  return cloudUser;
+}
+function setAccountStatus(msg,type=''){
+  const el=document.getElementById('accountStatus');
+  if(!el)return;
+  el.textContent=msg||'';
+  el.className='accountStatus '+(type==='error'?'accountError':type==='ok'?'accountOk':'');
+}
+function showAccountScreen(){
+  document.getElementById('accountScreen').style.display='flex';
+  document.getElementById('lockScreen').style.display='none';
+  document.getElementById('mainApp').style.display='none';
+}
+async function afterAccountLogin(){
+  await refreshCloudUser();
+  if(!cloudUser){showAccountScreen();return}
+  migrateLegacyDataToCurrentUser();
+  frPin=localStorage.getItem(userKey('frPin'))||'';
+  logo=localStorage.getItem(userKey('frLogo'))||'';
+  updateCompanyUi();
+  showLogo();
+  loadChatgptImportToken();
+  renderCustomerList();
+  renderDashboard();
+  renderTrash();
+  document.getElementById('accountScreen').style.display='none';
+  document.getElementById('mainApp').style.display='none';
+  document.getElementById('lockScreen').style.display='flex';
+  setupLock();
+  setTimeout(()=>syncCloud(false),300);
+}
+async function accountSignIn(){
+  const email=(document.getElementById('accountEmail')?.value||'').trim();
+  const password=document.getElementById('accountPassword')?.value||'';
+  if(!email||!password){setAccountStatus('E-Mail und Passwort eingeben.','error');return}
+  setAccountStatus('Anmeldung…');
+  const r=await sb.auth.signInWithPassword({email,password});
+  if(r.error){setAccountStatus('Anmeldung Fehler: '+r.error.message,'error');return}
+  setAccountStatus('Angemeldet.','ok');
+  await afterAccountLogin();
+}
+async function accountSignUp(){
+  const email=(document.getElementById('accountEmail')?.value||'').trim();
+  const password=document.getElementById('accountPassword')?.value||'';
+  if(!email||password.length<6){setAccountStatus('E-Mail und Passwort mit mindestens 6 Zeichen eingeben.','error');return}
+  setAccountStatus('Konto wird erstellt…');
+  const r=await sb.auth.signUp({
+    email,password,
+    options:{emailRedirectTo:'https://fliesen-rechteck-rechnung.vercel.app/'}
+  });
+  if(r.error){setAccountStatus('Registrierung Fehler: '+r.error.message,'error');return}
+  if(r.data&&r.data.session){
+    setAccountStatus('Konto erstellt.','ok');
+    await afterAccountLogin();
+  }else{
+    setAccountStatus('Konto erstellt. Bitte Bestätigungs-E-Mail öffnen und danach anmelden.','ok');
+  }
+}
+async function accountForgotPassword(){
+  const email=(document.getElementById('accountEmail')?.value||'').trim();
+  if(!email){setAccountStatus('Bitte zuerst E-Mail eingeben.','error');return}
+  const r=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://fliesen-rechteck-rechnung.vercel.app/'});
+  if(r.error){setAccountStatus('Fehler: '+r.error.message,'error');return}
+  setAccountStatus('E-Mail zum Passwort setzen wurde gesendet.','ok');
+}
+async function accountSetNewPassword(){
+  const password=document.getElementById('accountNewPassword')?.value||'';
+  if(password.length<6){setAccountStatus('Passwort muss mindestens 6 Zeichen haben.','error');return}
+  const r=await sb.auth.updateUser({password});
+  if(r.error){setAccountStatus('Fehler: '+r.error.message,'error');return}
+  document.getElementById('accountRecovery').classList.add('hidden');
+  document.getElementById('accountNormal').classList.remove('hidden');
+  setAccountStatus('Neues Passwort gespeichert.','ok');
+  await afterAccountLogin();
+}
+async function accountLogout(){
+  await sb.auth.signOut();
+  cloudUser=null;
+  frPin='';
+  logo='';
+  measurementList=[];
+  measurementMaterials=[];
+  showAccountScreen();
+  setAccountStatus('Abgemeldet.','ok');
 }
 async function cloudLogin(){
- const email=(document.getElementById('cloudEmail').value||'').trim(); if(!email)return alert('Bitte E-Mail eingeben.');
- const r=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:'https://fliesen-rechteck-rechnung.vercel.app/'}});
- if(r.error)return alert('Anmeldung Fehler: '+r.error.message); alert('E-Mail gesendet. Link in der E-Mail öffnen.');
+  const email=(document.getElementById('cloudEmail')?.value||'').trim();
+  if(!email)return alert('Bitte E-Mail eingeben.');
+  const r=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:'https://fliesen-rechteck-rechnung.vercel.app/'}});
+  if(r.error)return alert('Anmeldung Fehler: '+r.error.message);
+  alert('E-Mail gesendet. Link in der E-Mail öffnen.');
 }
-async function cloudLogout(){await sb.auth.signOut();await refreshCloudUser();alert('Abgemeldet');}
+async function cloudLogout(){await accountLogout();}
+
 async function copyCloudSession(){
   try{
     const r=await sb.auth.getSession();
@@ -677,7 +914,7 @@ async function deleteAllInvoicesEverywhere(){
     renderTrash();
 
     // Clear ChatGPT import queue too, otherwise old test invoices would return.
-    const importToken=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
+    const importToken=localStorage.getItem(userKey(FR_IMPORT_TOKEN_KEY))||'';
     if(importToken){
       const qr=await fetch('/api/import?mode=clear&token='+encodeURIComponent(importToken),{cache:'no-store'});
       const qd=await qr.json().catch(()=>({}));
@@ -701,7 +938,7 @@ async function deleteAllInvoicesEverywhere(){
     // Cloud + import queue are now empty, so old deletion markers are no longer needed.
     // This allows numbering to restart cleanly from 01.
     setDeletedInvoiceNumbers([]);
-    localStorage.setItem('frCloudResetAt',new Date().toISOString());
+    localStorage.setItem(userKey('frCloudResetAt'),new Date().toISOString());
 
     alert('Alle Rechnungen wurden lokal, in der Cloud und im ChatGPT-Import gelöscht. Nummerierung startet wieder bei 01.');
   }catch(e){
@@ -746,9 +983,25 @@ async function autoCloudSync(){
   frCloudSyncBusy=true;
   try{ await syncCloud(false); }finally{ frCloudSyncBusy=false; }
 }
-sb.auth.onAuthStateChange(()=>setTimeout(refreshCloudUser,0));setTimeout(refreshCloudUser,300);setTimeout(loadChatgptImportToken,350);
-
-let frPin=localStorage.getItem('frPin')||'';
+sb.auth.onAuthStateChange((event,session)=>{
+  cloudUser=session&&session.user?session.user:null;
+  if(event==='PASSWORD_RECOVERY'){
+    showAccountScreen();
+    document.getElementById('accountNormal').classList.add('hidden');
+    document.getElementById('accountRecovery').classList.remove('hidden');
+    setAccountStatus('Neues Passwort festlegen.','ok');
+    return;
+  }
+  if(event==='SIGNED_OUT'){
+    showAccountScreen();
+    return;
+  }
+  if(event==='SIGNED_IN' && session&&session.user){
+    const screen=document.getElementById('accountScreen');
+    if(screen && screen.style.display!=='none') setTimeout(()=>afterAccountLogin(),0);
+  }
+});
+let frPin='';
 
 
 function getUrlParams(){
@@ -847,24 +1100,24 @@ function applyUrlInvoice(){
 const FR_IMPORT_TOKEN_KEY='frChatgptImportToken';
 function loadChatgptImportToken(){
   const el=document.getElementById('chatgptImportToken');
-  if(el) el.value=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
+  if(el) el.value=localStorage.getItem(userKey(FR_IMPORT_TOKEN_KEY))||'';
   updateChatgptImportStatus();
 }
 function saveChatgptImportToken(){
   const el=document.getElementById('chatgptImportToken');
   const v=(el&&el.value||'').trim();
   if(!v){ alert('Bitte Import-Schlüssel eingeben.'); return; }
-  localStorage.setItem(FR_IMPORT_TOKEN_KEY,v);
+  localStorage.setItem(userKey(FR_IMPORT_TOKEN_KEY),v);
   updateChatgptImportStatus('Schlüssel gespeichert.');
 }
 function updateChatgptImportStatus(msg){
   const s=document.getElementById('chatgptImportStatus');
   if(!s)return;
   if(msg){s.textContent=msg;return;}
-  s.textContent=localStorage.getItem(FR_IMPORT_TOKEN_KEY)?'Import-Schlüssel gespeichert.':'Noch nicht eingerichtet.';
+  s.textContent=localStorage.getItem(userKey(FR_IMPORT_TOKEN_KEY))?'Import-Schlüssel gespeichert.':'Noch nicht eingerichtet.';
 }
 async function pullChatgptInvoices(showMessage){
-  const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
+  const token=localStorage.getItem(userKey(FR_IMPORT_TOKEN_KEY))||'';
   if(!token){
     if(showMessage) alert('Bitte zuerst Import-Schlüssel speichern.');
     return;
@@ -992,7 +1245,7 @@ function faceIdSupported(){
   return !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext && location.protocol==='https:');
 }
 function faceCredentialId(){
-  return localStorage.getItem('frFaceCredentialId')||'';
+  return localStorage.getItem(userKey('frFaceCredentialId'))||'';
 }
 function updateFaceStatus(){
   const enabled=!!faceCredentialId();
@@ -1054,7 +1307,7 @@ function unlockApp(){
       if(err)err.textContent='Bitte 4–6 Ziffern eingeben.';
       return;
     }
-    localStorage.setItem('frPin',pin);
+    localStorage.setItem(userKey('frPin'),pin);
     frPin=pin;
   }else if(pin!==frPin){
     if(err)err.textContent='Falscher PIN.';
@@ -1074,10 +1327,10 @@ async function registerFaceId(){
     return;
   }
   try{
-    let userId=localStorage.getItem('frFaceUserId');
+    let userId=localStorage.getItem(userKey('frFaceUserId'));
     if(!userId){
       userId=b64urlEncode(crypto.getRandomValues(new Uint8Array(16)));
-      localStorage.setItem('frFaceUserId',userId);
+      localStorage.setItem(userKey('frFaceUserId'),userId);
     }
     const cred=await navigator.credentials.create({
       publicKey:{
@@ -1102,7 +1355,7 @@ async function registerFaceId(){
       }
     });
     if(!cred)throw new Error('Keine Anmeldung erstellt');
-    localStorage.setItem('frFaceCredentialId',b64urlEncode(cred.rawId));
+    localStorage.setItem(userKey('frFaceCredentialId'),b64urlEncode(cred.rawId));
     updateFaceStatus();
     alert('Face ID aktiviert.');
   }catch(e){
@@ -1144,8 +1397,8 @@ async function faceUnlock(automatic=false){
   }
 }
 function removeFaceId(){
-  localStorage.removeItem('frFaceCredentialId');
-  localStorage.removeItem('frFaceUserId');
+  localStorage.removeItem(userKey('frFaceCredentialId'));
+  localStorage.removeItem(userKey('frFaceUserId'));
   updateFaceStatus();
   alert('Face ID uklonjen iz FR aplikacije.');
 }
@@ -1165,16 +1418,11 @@ function changePin(){
     alert('Bitte neuen PIN mit 4–6 Ziffern eingeben.');
     return;
   }
-  localStorage.setItem('frPin',pin);
+  localStorage.setItem(userKey('frPin'),pin);
   frPin=pin;
   el.value='';
   alert('PIN geändert');
 }
-
-// Start locked. Face ID is attempted automatically when already configured.
-document.getElementById('mainApp').style.display='none';
-document.getElementById('lockScreen').style.display='flex';
-setupLock();
 
 let docType='Rechnung';
 const H=['home','form','settings','trash','messen'];
@@ -1275,14 +1523,12 @@ function setPaymentConditionFromValues(){
   applyPaymentCondition();
 }
 
-let logo=localStorage.getItem('frLogo')||'';
+let logo='';
 function showLogo(){let i=document.getElementById('logoPreview');if(logo){i.src=logo;i.classList.remove('hidden')}else i.classList.add('hidden')}
-showLogo();
-
 document.getElementById('logoInput').addEventListener('change',e=>{
   let f=e.target.files[0];if(!f)return;
   let r=new FileReader();
-  r.onload=()=>{logo=r.result;localStorage.setItem('frLogo',logo);showLogo();alert('Logo gespeichert')};
+  r.onload=()=>{logo=r.result;localStorage.setItem(userKey('frLogo'),logo);showLogo();alert('Logo gespeichert')};
   r.readAsDataURL(f)
 });
 
@@ -1339,10 +1585,10 @@ function materialPdfModeForInvoice(x){
 
 
 function getCustomers(){
-  try{return JSON.parse(localStorage.getItem('frCustomers')||'[]')}catch(e){return []}
+  try{return JSON.parse(localStorage.getItem(userKey('frCustomers'))||'[]')}catch(e){return []}
 }
 function setCustomers(v){
-  localStorage.setItem('frCustomers',JSON.stringify(v||[]));
+  localStorage.setItem(userKey('frCustomers'),JSON.stringify(v||[]));
   renderCustomerList();
 }
 function renderCustomerList(){
@@ -1379,11 +1625,11 @@ function loadCustomerByName(){
 }
 
 function getInvoices(){
-  try{return JSON.parse(localStorage.getItem('frInvoices')||'[]')}catch(e){return []}
+  try{return JSON.parse(localStorage.getItem(userKey('frInvoices'))||'[]')}catch(e){return []}
 }
-function setInvoices(v){localStorage.setItem('frInvoices',JSON.stringify(v))}
-function getTrash(){try{return JSON.parse(localStorage.getItem('frInvoiceTrash')||'[]')}catch(e){return[]}}
-function setTrash(v){localStorage.setItem('frInvoiceTrash',JSON.stringify(v||[]))}
+function setInvoices(v){localStorage.setItem(userKey('frInvoices'),JSON.stringify(v))}
+function getTrash(){try{return JSON.parse(localStorage.getItem(userKey('frInvoiceTrash'))||'[]')}catch(e){return[]}}
+function setTrash(v){localStorage.setItem(userKey('frInvoiceTrash'),JSON.stringify(v||[]))}
 function addToTrash(x){
   if(!x)return;
   const t=getTrash().filter(z=>String(z.nr||'')!==String(x.nr||''));
@@ -1432,9 +1678,9 @@ function saveInvoice(){
 }
 
 function getOffers(){
-  try{return JSON.parse(localStorage.getItem('frOffers')||'[]')}catch(e){return []}
+  try{return JSON.parse(localStorage.getItem(userKey('frOffers'))||'[]')}catch(e){return []}
 }
-function setOffers(v){localStorage.setItem('frOffers',JSON.stringify(v||[]))}
+function setOffers(v){localStorage.setItem(userKey('frOffers'),JSON.stringify(v||[]))}
 function saveOffer(){
   const d=currentInvoiceData();
   d.type='Angebot';
@@ -1652,7 +1898,9 @@ async function pdfInvoice(i){
   const docNr=x.nr||'ohne-nummer';
   const docDate=x.date||new Date().toISOString().slice(0,10);
   const dueDateValue=calcDueDate(docDate,dueDays);
-  const qrData=await makeQrDataUrl(epcPayload(total,docNr));
+  const epc=epcPayload(total,docNr); const qrData=epc?await makeQrDataUrl(epc):'';
+  const company=getCompanyProfile();
+  const companyName=company.name||'FR Rechnung';
 
   const pdf=new jsPDF({unit:'mm',format:'a4'});
   const left=16,right=194;
@@ -1663,20 +1911,20 @@ async function pdfInvoice(i){
       const format=logo.startsWith('data:image/jpeg')?'JPEG':'PNG';
       pdf.addImage(logo,format,left,y,36,18,'','FAST');
     }catch(e){
-      pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text('FR Fliesen Rechteck',left,y+7);
+      pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text(companyName,left,y+7);
     }
   }else{
-    pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text('FR Fliesen Rechteck',left,y+7);
+    pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text(companyName,left,y+7);
   }
 
   pdf.setFontSize(8.5);pdf.setFont(undefined,'normal');
   [
-    'Kamerlweg 58 · 4600 Wels',
-    'UID ATU79163806 · StNr. 54 347/6998',
-    'office@fliesen-rechteck.at · 06649277777',
-    'IBAN AT09 2032 0321 0067 2132',
-    'BIC ASPKAT2LXXX'
-  ].forEach((t,k)=>pdf.text(t,right,y+2+k*4,{align:'right'}));
+    company.address,
+    [company.uid?('UID '+company.uid):'',company.taxNr?('StNr. '+company.taxNr):''].filter(Boolean).join(' · '),
+    [company.email,company.phone].filter(Boolean).join(' · '),
+    company.iban?('IBAN '+company.iban):'',
+    company.bic?('BIC '+company.bic):''
+  ].filter(Boolean).forEach((t,k)=>pdf.text(t,right,y+2+k*4,{align:'right'}));
 
   y=42;
   pdf.setDrawColor(201,45,41);pdf.setLineWidth(.6);pdf.line(left,y,right,y);
@@ -1753,19 +2001,21 @@ async function pdfInvoice(i){
   pdf.text(pdf.splitTextToSize(payText,175),left,y);
 
   try{
+    if(qrData){
     pdf.addImage(qrData,'PNG',16,222,42,42);
     pdf.setFontSize(8);pdf.setFont(undefined,'bold');pdf.text('Per Banking-App bezahlen',62,229);
     pdf.setFont(undefined,'normal');
     pdf.text('QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.',62,234);
-    pdf.text('Empfänger: FR Fliesen Rechteck',62,239);pdf.text('IBAN: AT09 2032 0321 0067 2132',62,244);
+    if(qrData){pdf.text('Empfänger: '+companyName,62,239);pdf.text('IBAN: '+(company.iban||''),62,244);}
     pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),62,249);pdf.text('Verwendung: Rechnung '+docNr,62,254);
+    }
   }catch(e){}
 
   pdf.setDrawColor(80);pdf.setLineWidth(.3);pdf.line(left,276,right,276);
   pdf.setFontSize(7.2);pdf.setFont(undefined,'normal');
-  pdf.text('Adresse Kamerlweg 58 · Wels · 4600    Steuernummer (SN) 54 347/6998    Umsatzsteuer-ID (UID) ATU79163806',105,282,{align:'center'});
-  pdf.text('E-Mail office@fliesen-rechteck.at    Tel. 06649277777    Website www.fliesen-rechteck.at    Bank SPARKASSE',105,286,{align:'center'});
-  pdf.text('SWIFT/BIC ASPKAT2LXXX    IBAN AT09 2032 0321 0067 2132',105,290,{align:'center'});
+  pdf.text(['Adresse '+(company.address||''),company.taxNr?('Steuernummer (SN) '+company.taxNr):'',company.uid?('Umsatzsteuer-ID (UID) '+company.uid):''].filter(Boolean).join('    '),105,282,{align:'center'});
+  pdf.text([company.email?('E-Mail '+company.email):'',company.phone?('Tel. '+company.phone):'',company.website?('Website '+company.website):'',company.bank?('Bank '+company.bank):''].filter(Boolean).join('    '),105,286,{align:'center'});
+  pdf.text([company.bic?('SWIFT/BIC '+company.bic):'',company.iban?('IBAN '+company.iban):''].filter(Boolean).join('    '),105,290,{align:'center'});
 
   // PDF zuerst zur Ansicht öffnen. Teilen erfolgt danach über den iPhone-PDF-Viewer.
   const blob=pdf.output('blob');
@@ -1828,21 +2078,16 @@ async function deleteInvoice(i){
 
 
 function epcPayload(amount,invoiceNr){
+  const c=getCompanyProfile();
   const eur=Number(amount||0).toFixed(2);
   const purpose='Rechnung '+String(invoiceNr||'');
+  if(!c.iban||!c.bic||!c.name)return '';
   return [
-    'BCD',
-    '002',
-    '1',
-    'SCT',
-    'ASPKAT2LXXX',
-    'FR Fliesen Rechteck',
-    'AT092032032100672132',
-    'EUR'+eur,
-    '',
-    '',
-    purpose,
-    ''
+    'BCD','002','1','SCT',
+    String(c.bic||'').replace(/\s+/g,'').toUpperCase(),
+    String(c.name||'').slice(0,70),
+    cleanIban(c.iban),
+    'EUR'+eur,'','',purpose,''
   ].join('\n');
 }
 
@@ -1896,7 +2141,9 @@ async function sharePDF(){
   const kundeUid=document.getElementById('kundeUid').value.trim();
   const bau=document.getElementById('bau').value;
   const nachricht=document.getElementById('nachricht').value.trim();
-  const qrData=await makeQrDataUrl(epcPayload(total,docNr));
+  const epc=epcPayload(total,docNr); const qrData=epc?await makeQrDataUrl(epc):'';
+  const company=getCompanyProfile();
+  const companyName=company.name||'FR Rechnung';
 
   const pdf=new jsPDF({unit:'mm',format:'a4'});
   const left=16,right=194;
@@ -1907,21 +2154,21 @@ async function sharePDF(){
       const format = logo.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
       pdf.addImage(logo,format,left,y,36,18,'','FAST');
     }catch(e){
-      pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text('FR Fliesen Rechteck',left,y+7);
+      pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text(companyName,left,y+7);
     }
   }else{
-    pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text('FR Fliesen Rechteck',left,y+7);
+    pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text(companyName,left,y+7);
   }
 
   pdf.setFontSize(8.5);pdf.setFont(undefined,'normal');
-  const company=[
-    'Kamerlweg 58 · 4600 Wels',
-    'UID ATU79163806 · StNr. 54 347/6998',
-    'office@fliesen-rechteck.at · 06649277777',
-    'IBAN AT09 2032 0321 0067 2132',
-    'BIC ASPKAT2LXXX'
-  ];
-  company.forEach((t,i)=>pdf.text(t,right,y+2+i*4,{align:'right'}));
+  const companyLines=[
+    company.address,
+    [company.uid?('UID '+company.uid):'',company.taxNr?('StNr. '+company.taxNr):''].filter(Boolean).join(' · '),
+    [company.email,company.phone].filter(Boolean).join(' · '),
+    company.iban?('IBAN '+company.iban):'',
+    company.bic?('BIC '+company.bic):''
+  ].filter(Boolean);
+  companyLines.forEach((t,i)=>pdf.text(t,right,y+2+i*4,{align:'right'}));
 
   y=42;
   pdf.setDrawColor(201,45,41);pdf.setLineWidth(.6);pdf.line(left,y,right,y);
@@ -2019,29 +2266,31 @@ async function sharePDF(){
 
   // SEPA / EPC QR-Code für Überweisung
   try{
+    if(qrData){
     pdf.addImage(qrData,'PNG',16,222,42,42);
     pdf.setFontSize(8);pdf.setFont(undefined,'bold');
     pdf.text('Per Banking-App bezahlen',62,229);
     pdf.setFont(undefined,'normal');
     pdf.text('QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.',62,234);
-    pdf.text('Empfänger: FR Fliesen Rechteck',62,239);
-    pdf.text('IBAN: AT09 2032 0321 0067 2132',62,244);
+    pdf.text('Empfänger: '+companyName,62,239);
+    pdf.text('IBAN: '+(company.iban||''),62,244);
     pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),62,249);
     pdf.text('Verwendung: Rechnung '+docNr,62,254);
+    }
   }catch(e){}
 
   // Fester Firmen-Fußbereich am Seitenende
   pdf.setDrawColor(80);pdf.setLineWidth(.3);pdf.line(left,276,right,276);
   pdf.setFontSize(7.2);pdf.setFont(undefined,'normal');
-  pdf.text('Adresse Kamerlweg 58 · Wels · 4600    Steuernummer (SN) 54 347/6998    Umsatzsteuer-ID (UID) ATU79163806',105,282,{align:'center'});
-  pdf.text('E-Mail office@fliesen-rechteck.at    Tel. 06649277777    Website www.fliesen-rechteck.at    Bank SPARKASSE',105,286,{align:'center'});
-  pdf.text('SWIFT/BIC ASPKAT2LXXX    IBAN AT09 2032 0321 0067 2132',105,290,{align:'center'});
+  pdf.text(['Adresse '+(company.address||''),company.taxNr?('Steuernummer (SN) '+company.taxNr):'',company.uid?('Umsatzsteuer-ID (UID) '+company.uid):''].filter(Boolean).join('    '),105,282,{align:'center'});
+  pdf.text([company.email?('E-Mail '+company.email):'',company.phone?('Tel. '+company.phone):'',company.website?('Website '+company.website):'',company.bank?('Bank '+company.bank):''].filter(Boolean).join('    '),105,286,{align:'center'});
+  pdf.text([company.bic?('SWIFT/BIC '+company.bic):'',company.iban?('IBAN '+company.iban):''].filter(Boolean).join('    '),105,290,{align:'center'});
 
   const blob=pdf.output('blob');
   const file=new File([blob],`${docType}_${docNr}.pdf`,{type:'application/pdf'});
   const shareData={
-    title:`${docType} ${docNr} - FR Fliesen Rechteck`,
-    text:`Guten Tag,\n\nanbei erhalten Sie die ${docType.toLowerCase()} ${docNr}.\n\nVielen Dank.\n\nMit freundlichen Grüßen\nFR Fliesen Rechteck`,
+    title:`${docType} ${docNr} - ${companyName}`,
+    text:`Guten Tag,\n\nanbei erhalten Sie die ${docType.toLowerCase()} ${docNr}.\n\nVielen Dank.\n\nMit freundlichen Grüßen\n${companyName}`,
     files:[file]
   };
 
@@ -2076,11 +2325,13 @@ function makeDoc(){
   dueDate.setDate(dueDate.getDate()+dueDays);
   const due=String(dueDate.getDate()).padStart(2,'0')+'.'+String(dueDate.getMonth()+1).padStart(2,'0')+'.'+dueDate.getFullYear();
   const customerEmail=document.getElementById('kundeEmail').value.trim();
+  const company=getCompanyProfile();
+  const companyName=company.name||'FR Rechnung';
 
   let w=window.open('','_blank');
   if(!w){alert('Popup blockiert. Bitte Popups erlauben.');return}
 
-  const lg=logo?`<img src="${logo}" style="max-width:190px;max-height:95px">`:`<div style="font-size:25px;font-weight:800">FR Fliesen Rechteck</div>`;
+  const lg=logo?`<img src="${logo}" style="max-width:190px;max-height:95px">`:`<div style="font-size:25px;font-weight:800">${esc(companyName)}</div>`;
   const rows=showPrices
     ? items.map(x=>{
         const itemPriceVisible=x.kind!=='material'||showMaterialPrices;
@@ -2097,7 +2348,7 @@ function makeDoc(){
   const footerText=esc(document.getElementById('invoiceFooter').value).replace(/\n/g,'<br>');
   const steuerText=footerText?`<p class="note">${footerText}</p>`:'';
   const skontoText=sk>0?`<p>Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue)}) abgezogen werden.</p>`:`<p>Zahlungsziel: ${dueDays} Tage.</p>`;
-  const mailSubject=encodeURIComponent(`${docType} ${docNr} - FR Fliesen Rechteck`);
+  const mailSubject=encodeURIComponent(`${docType} ${docNr} - ${companyName}`);
   const mailBody=encodeURIComponent(`Guten Tag,
 
 anbei erhalten Sie die ${docType.toLowerCase()} ${docNr}.
@@ -2105,7 +2356,7 @@ anbei erhalten Sie die ${docType.toLowerCase()} ${docNr}.
 Vielen Dank.
 
 Mit freundlichen Grüßen
-FR Fliesen Rechteck`);
+${companyName}`);
   const mailTo=encodeURIComponent(customerEmail);
   const epcText=epcPayload(total,docNr);
 
@@ -2128,7 +2379,7 @@ FR Fliesen Rechteck`);
   .printbtn{margin-top:25px;padding:12px 18px;border:0;border-radius:9px;background:#111;color:white;font-weight:700;margin-right:6px}
   @media print{.printbtn{display:none}body{padding:0}}
   </style></head><body>
-  <div class="top"><div>${lg}</div><div class="right">Kamerlweg 58 · 4600 Wels<br>UID ATU79163806 · StNr. 54 347/6998<br>office@fliesen-rechteck.at · 06649277777<br>IBAN AT09 2032 0321 0067 2132<br>BIC ASPKAT2LXXX</div></div>
+  <div class="top"><div>${lg}</div><div class="right">${esc(company.address||'')}<br>${company.uid?'UID '+esc(company.uid):''}${company.taxNr?' · StNr. '+esc(company.taxNr):''}<br>${esc(company.email||'')}${company.phone?' · '+esc(company.phone):''}<br>${company.iban?'IBAN '+esc(company.iban):''}<br>${company.bic?'BIC '+esc(company.bic):''}</div></div>
   <hr class="redline">
   <div class="meta">
     <div><b>Kunde:</b> ${esc(document.getElementById('kunde').value)}<br>${esc(document.getElementById('adresse').value)}${document.getElementById('kundeUid').value?`<br><b>UID:</b> ${esc(document.getElementById('kundeUid').value)}`:''}<br><b>Baustelle:</b> ${esc(document.getElementById('bau').value)}</div>
@@ -2140,13 +2391,13 @@ FR Fliesen Rechteck`);
   <div class="sum"><div><span>Netto</span><span>${euro(net)}</span></div>${ust?`<div><span>USt. 20%</span><span>${euro(ust)}</span></div>`:''}<div class="big"><span>Zahlbetrag</span><span>${euro(total)}</span></div></div>
   ${steuerText}
   <div class="footer">${skontoText}</div>
-  <div class="payqr"><div id="payQr"></div><div><b>Per Banking-App bezahlen</b><br>QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.<br><b>IBAN:</b> AT09 2032 0321 0067 2132<br><b>Betrag:</b> ${euro(total)}<br><b>Verwendung:</b> Rechnung ${esc(docNr)}</div></div>
-  <div class="companyfooter"><b>Adresse</b> Kamerlweg 58 · Wels · 4600 &nbsp;&nbsp; <b>Steuernummer (SN)</b> 54 347/6998 &nbsp;&nbsp; <b>Umsatzsteuer-ID (UID)</b> ATU79163806<br><b>E-Mail</b> office@fliesen-rechteck.at &nbsp;&nbsp; <b>Tel.</b> 06649277777 &nbsp;&nbsp; <b>Website</b> www.fliesen-rechteck.at &nbsp;&nbsp; <b>Bank</b> SPARKASSE<br><b>SWIFT/BIC</b> ASPKAT2LXXX &nbsp;&nbsp; <b>IBAN</b> AT09 2032 0321 0067 2132</div>
+  ${epcText?`<div class="payqr"><div id="payQr"></div><div><b>Per Banking-App bezahlen</b><br>QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.<br><b>IBAN:</b> ${esc(company.iban||'')}<br><b>Betrag:</b> ${euro(total)}<br><b>Verwendung:</b> Rechnung ${esc(docNr)}</div></div>`:''}
+  <div class="companyfooter"><b>Adresse</b> ${esc(company.address||'')} ${company.taxNr?'&nbsp;&nbsp; <b>Steuernummer (SN)</b> '+esc(company.taxNr):''} ${company.uid?'&nbsp;&nbsp; <b>UID</b> '+esc(company.uid):''}<br><b>E-Mail</b> ${esc(company.email||'')} ${company.phone?'&nbsp;&nbsp; <b>Tel.</b> '+esc(company.phone):''} ${company.website?'&nbsp;&nbsp; <b>Website</b> '+esc(company.website):''} ${company.bank?'&nbsp;&nbsp; <b>Bank</b> '+esc(company.bank):''}<br>${company.bic?'<b>SWIFT/BIC</b> '+esc(company.bic):''} ${company.iban?'&nbsp;&nbsp; <b>IBAN</b> '+esc(company.iban):''}</div>
   <button class="printbtn" onclick="window.print()">PDF / Drucken</button>
   <button class="printbtn" onclick="location.href='mailto:${mailTo}?subject=${mailSubject}&body=${mailBody}'">E-Mail senden</button>
   <button class="printbtn" onclick="window.close()">← Zurück</button>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-  <script>new QRCode(document.getElementById('payQr'),{text:${JSON.stringify(epcText)},width:120,height:120,correctLevel:QRCode.CorrectLevel.M});<\/script>
+  <script>if(${JSON.stringify(!!epcText)}){new QRCode(document.getElementById('payQr'),{text:${JSON.stringify(epcText)},width:120,height:120,correctLevel:QRCode.CorrectLevel.M});}<\/script>
   </body></html>`);
   w.document.close();
 }
@@ -2748,13 +2999,24 @@ function measureListToDoc(type){
 resetRepeatMeasureRows();
 resetAllLfmMeasureRows();
 resetRegieRows();
-renderCustomerList();
-renderDashboard();
+
+async function initAccountGate(){
+  showAccountScreen();
+  const r=await sb.auth.getSession();
+  const session=r&&r.data?r.data.session:null;
+  if(session&&session.user){
+    cloudUser=session.user;
+    await afterAccountLogin();
+  }else{
+    setAccountStatus('Bitte anmelden oder neues Konto erstellen.');
+  }
+}
+initAccountGate();
 
 // v51: Material-Autofill +40% + Material Preis ON/OFF + Raum messen
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
-  const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
+  const token=localStorage.getItem(userKey(FR_IMPORT_TOKEN_KEY))||'';
   if(!token) return;
   const now=Date.now();
   if(now-frLastAutoImport<15000) return;
@@ -2762,11 +3024,11 @@ async function autoPullChatgptInvoices(){
   await pullChatgptInvoices(false);
 }
 async function frAutoRefresh(){
+  if(!cloudUser)return;
   await autoPullChatgptInvoices();
   await autoCloudSync();
 }
-loadChatgptImportToken();
-setTimeout(frAutoRefresh,500);
+setTimeout(frAutoRefresh,1200);
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible') setTimeout(frAutoRefresh,300);
 });
