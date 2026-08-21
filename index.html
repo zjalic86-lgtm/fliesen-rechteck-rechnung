@@ -150,7 +150,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v38 · Full Reset</b></p>
+    <p class="small"><b>Version v39 · Clean Reset</b></p>
     <div style="margin:18px 0;padding:16px;border:1px solid #ddd;border-radius:14px">
       <h3 style="margin-top:0">ChatGPT Import API</h3>
       <p class="small">Ohne Cloud-Sync-Anmeldung. Der Import-Schlüssel wird nur auf diesem Gerät gespeichert.</p>
@@ -369,10 +369,12 @@ async function deleteAllInvoicesEverywhere(){
       }
     }
 
-    // Keep tombstones, so stale copies from another open tab/device cannot be re-imported.
+    // Cloud + import queue are now empty, so old deletion markers are no longer needed.
+    // This allows numbering to restart cleanly from 01.
+    setDeletedInvoiceNumbers([]);
     localStorage.setItem('frCloudResetAt',new Date().toISOString());
 
-    alert('Alle Rechnungen wurden lokal und in der Cloud gelöscht.');
+    alert('Alle Rechnungen wurden lokal, in der Cloud und im ChatGPT-Import gelöscht. Nummerierung startet wieder bei 01.');
   }catch(e){
     alert('Löschen Fehler: '+(e&&e.message?e.message:e));
   }
@@ -572,6 +574,10 @@ async function pullChatgptInvoices(showMessage){
 
       const date=row.invoice_date||new Date().toISOString().slice(0,10);
       const invoiceNumber=row.invoice_number||nextInvoiceNumber(date);
+
+      // Novi račun sme ponovo koristiti broj koji je ranije bio obrisan.
+      unmarkInvoiceDeleted(invoiceNumber);
+
       const items=[];
 
       if(Number(row.wand_m2||0)>0){
@@ -1487,7 +1493,7 @@ FR Fliesen Rechteck`);
 renderCustomerList();
 renderDashboard();
 
-// v38: Full reset including ChatGPT import queue
+// v39: Clean reset including tombstone cleanup
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
