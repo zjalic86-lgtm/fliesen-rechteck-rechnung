@@ -150,7 +150,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v37 · Cloud Reset</b></p>
+    <p class="small"><b>Version v38 · Full Reset</b></p>
     <div style="margin:18px 0;padding:16px;border:1px solid #ddd;border-radius:14px">
       <h3 style="margin-top:0">ChatGPT Import API</h3>
       <p class="small">Ohne Cloud-Sync-Anmeldung. Der Import-Schlüssel wird nur auf diesem Gerät gespeichert.</p>
@@ -346,6 +346,14 @@ async function deleteAllInvoicesEverywhere(){
     // Clear local invoices immediately.
     setInvoices([]);
     renderDashboard();
+
+    // Clear ChatGPT import queue too, otherwise old test invoices would return.
+    const importToken=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
+    if(importToken){
+      const qr=await fetch('/api/import?mode=clear&token='+encodeURIComponent(importToken),{cache:'no-store'});
+      const qd=await qr.json().catch(()=>({}));
+      if(!qr.ok) throw new Error(qd.error||('Import Queue HTTP '+qr.status));
+    }
 
     if(cloudUser){
       // Delete all cloud rows belonging to this logged-in user.
@@ -1479,7 +1487,7 @@ FR Fliesen Rechteck`);
 renderCustomerList();
 renderDashboard();
 
-// v37: ChatGPT Import + Cloud Sync + permanent delete + full cloud reset
+// v38: Full reset including ChatGPT import queue
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
