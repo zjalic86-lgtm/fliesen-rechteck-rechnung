@@ -142,8 +142,9 @@ label{font-weight:700}
 
     <div id="manualMeasure" class="hidden">
       <button class="settings-back" type="button" onclick="backToMeasureChoice()">‹ Messen</button>
-      <h2>📏 Manuell messen</h2>
-      <p class="small">Foto aufnehmen und Maße eingeben. Tür/Fenster wird automatisch abgezogen.</p>
+      <h2>📏 Schnell messen</h2>
+      <p class="small">Maße aus der iPhone-App Messen eintragen. m² wird sofort automatisch berechnet.</p>
+      <button class="btn outline" type="button" onclick="clearMeasure()">Neue Messung</button>
 
       <label>Foto</label>
       <input id="wallPhoto" type="file" accept="image/*" capture="environment" onchange="previewWallPhoto(event)">
@@ -155,6 +156,7 @@ label{font-weight:700}
           <div><label>Breite m</label><input id="wallWidth" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 4.20" oninput="calcWallArea()"></div>
           <div><label>Höhe m</label><input id="wallHeight" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 2.60" oninput="calcWallArea()"></div>
         </div>
+        <p class="small">Breite × Höhe = Wandfläche</p>
       </div>
 
       <div class="measure-card">
@@ -248,7 +250,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v45 · Auto + Manuell messen</b></p>
+      <p class="small"><b>Version v46 · Schnell messen</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1810,6 +1812,18 @@ function wallNumber(id){
   return Math.max(0,parseFloat(raw)||0);
 }
 
+function clearMeasure(){
+  ['wallWidth','wallHeight','openingWidth','openingHeight','wallMeasurePrice'].forEach(id=>{
+    const el=document.getElementById(id); if(el)el.value='';
+  });
+  const count=document.getElementById('openingCount'); if(count)count.value='1';
+  const photo=document.getElementById('wallPhoto'); if(photo)photo.value='';
+  const preview=document.getElementById('wallPhotoPreview');
+  if(preview){preview.style.display='none';preview.removeAttribute('src');}
+  calcWallArea();
+  const width=document.getElementById('wallWidth'); if(width)width.focus();
+}
+
 function calcWallArea(){
   const width=wallNumber('wallWidth');
   const height=wallNumber('wallHeight');
@@ -1858,7 +1872,7 @@ function messenToInvoice(){ insertMeasuredWall('Rechnung'); }
 renderCustomerList();
 renderDashboard();
 
-// v45: Auto + Manuell messen + Papierkorb + compact settings menu
+// v46: Schnell messen + Papierkorb + compact settings menu
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
