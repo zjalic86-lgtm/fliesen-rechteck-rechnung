@@ -380,7 +380,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v64 · PDF übernimmt aktuelle Eingaben automatisch · Material</b></p>
+      <p class="small"><b>Version v65 · Regiestunden separat · PDF übernimmt Eingaben automatisch</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -2463,7 +2463,7 @@ function collectRegieInfo(room){
   const presetPrice=Math.max(0,parseFloat(document.getElementById('regiePresetPrice')?.value)||0);
   if(presetPrice>0){
     out.push({
-      desc:`${room} – Regiestunden: Material tragen, Stemmen, Ausgleichen, Gehrung schneiden, Schleifen Maschine Wand/Boden, Rinne setzen, Nische herstellen, Palette fahren, Schutt fahren/entsorgen – nur nach Vereinbarung und Ihrer Bestätigung`,
+      desc:`Regiestunden: Material tragen, Stemmen, Ausgleichen, Gehrung schneiden, Schleifen Maschine Wand/Boden, Rinne setzen, Nische herstellen, Palette fahren, Schutt fahren/entsorgen – nur nach Vereinbarung und Ihrer Bestätigung`,
       qty:0,
       unit:'Std.',
       price:presetPrice,
@@ -2476,7 +2476,7 @@ function collectRegieInfo(room){
   const customPrice=Math.max(0,parseFloat(document.getElementById('regieCustomPrice')?.value)||0);
   if(custom && customQty>0 && customPrice>0){
     out.push({
-      desc:`${room} – Regiestunden: ${custom}`,
+      desc:`Regiestunden: ${custom}`,
       qty:customQty,
       unit:'Std.',
       price:customPrice,
