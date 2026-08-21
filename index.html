@@ -78,16 +78,19 @@ label{font-weight:700}
 </style>
 </head>
 <body>
-<div id="lockScreen" class="lockScreen" style="display:none">
+<div id="lockScreen" class="lockScreen">
   <div class="lockBox">
     <h2 id="lockTitle">FR Fliesen Rechteck</h2>
-    <p id="lockInfo" class="small">PIN eingeben</p>
-    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••">
+    <p id="lockInfo" class="small">Face ID oder PIN</p>
+    <button id="faceUnlockBtn" class="btn" type="button" onclick="faceUnlock(false)">Face ID öffnen</button>
+    <div id="faceStatus" class="small" style="margin:8px 0 12px"></div>
+    <div style="border-top:1px solid #e3e3e3;margin:12px 0"></div>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="PIN ••••">
     <div id="lockError" class="lockError"></div>
-    <button class="btn" onclick="unlockApp()">Öffnen</button>
+    <button class="btn outline" onclick="unlockApp()">Mit PIN öffnen</button>
   </div>
 </div>
-<div class="app" id="mainApp" style="display:block">
+<div class="app" id="mainApp" style="display:none">
   <div class="card head">
     <img id="logoPreview" class="logo hidden">
     <h1>FR Fliesen Rechteck</h1>
@@ -290,7 +293,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v54 · Sofort öffnen · Alle Materialien · Sonstige · +40% Netto</b></p>
+      <p class="small"><b>Version v55 · Face ID + PIN · Alle Materialien · Sonstige · +40% Netto</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -301,6 +304,9 @@ label{font-weight:700}
         </button>
         <button class="settings-menu-item" onclick="openSettingsSection('cloud')">
           <span>Cloud Sync</span><span>›</span>
+        </button>
+        <button class="settings-menu-item" onclick="openSettingsSection('security')">
+          <span>Face ID & PIN</span><span>›</span>
         </button>
       </div>
 
@@ -341,6 +347,20 @@ label{font-weight:700}
       <button class="btn outline" style="border-color:#b00020;color:#b00020" onclick="deleteAllInvoicesEverywhere()">Alle Rechnungen löschen</button>
       <button class="btn outline" onclick="cloudLogout()">Abmelden</button>
       <p class="small">iPhone: Wenn der E-Mail-Link Safari öffnet, dort Cloud Login kopieren. Danach FR-App öffnen und Cloud Login einfügen.</p>
+    </div>
+
+    <div id="settings-security" class="settings-section hidden">
+      <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
+      <h2>Face ID & PIN</h2>
+      <p id="faceSettingsStatus" class="small">Face ID Status wird geprüft…</p>
+      <button class="btn outline" type="button" onclick="registerFaceId()">Face ID einrichten</button>
+      <button class="btn outline" type="button" onclick="removeFaceId()">Face ID entfernen</button>
+      <div style="border-top:1px solid #e3e3e3;margin:16px 0"></div>
+      <label>Neuer PIN</label>
+      <input id="newPin" type="password" inputmode="numeric" maxlength="6" placeholder="4–6 Ziffern">
+      <button class="btn outline" onclick="changePin()">PIN ändern</button>
+      <button class="btn outline" onclick="lockNow()">Jetzt sperren</button>
+      <p class="small">Face ID funktioniert über HTTPS / Vercel. Bei direkter HTML-Datei bleibt PIN verfügbar.</p>
     </div>
 
   </div>
@@ -809,60 +829,191 @@ async function pullChatgptInvoices(showMessage){
   }
 }
 
-function setupLock(){
-  const title=document.getElementById('lockTitle');
-  const info=document.getElementById('lockInfo');
-  if(!frPin){
-    title.textContent='PIN erstellen';
-    info.textContent='Erstelle einen PIN mit 4–6 Ziffern.';
-  }else{
-    title.textContent='FR Fliesen Rechteck';
-    info.textContent='PIN eingeben';
-  }
-  setTimeout(()=>document.getElementById('pinInput').focus(),150);
+function b64urlEncode(buf){
+  const bytes=new Uint8Array(buf);
+  let s=''; for(const b of bytes)s+=String.fromCharCode(b);
+  return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 }
-
-function unlockApp(){
-  const input=document.getElementById('pinInput');
-  const pin=(input.value||'').trim();
-  const err=document.getElementById('lockError');
-  err.textContent='';
-
-  if(!frPin){
-    if(!/^[0-9]{4,6}$/.test(pin)){
-      err.textContent='Bitte 4–6 Ziffern eingeben.';
-      return;
-    }
-    localStorage.setItem('frPin',pin);
-    frPin=pin;
-  }else if(pin!==frPin){
-    err.textContent='Falscher PIN.';
-    input.value='';
-    input.focus();
-    return;
-  }
-
+function b64urlDecode(s){
+  s=String(s||'').replace(/-/g,'+').replace(/_/g,'/');
+  while(s.length%4)s+='=';
+  const raw=atob(s), out=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);
+  return out;
+}
+function faceIdSupported(){
+  return !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext && location.protocol==='https:');
+}
+function faceCredentialId(){
+  return localStorage.getItem('frFaceCredentialId')||'';
+}
+function updateFaceStatus(){
+  const enabled=!!faceCredentialId();
+  const supported=faceIdSupported();
+  const msg = !supported
+    ? 'Face ID nije dostupan u direktnoj HTML datoteci. Koristi HTTPS / Vercel.'
+    : enabled ? 'Face ID je uključen na ovom uređaju.' : 'Face ID još nije podešen.';
+  const lock=document.getElementById('faceStatus');
+  const settings=document.getElementById('faceSettingsStatus');
+  if(lock)lock.textContent=msg;
+  if(settings)settings.textContent=msg;
+  const btn=document.getElementById('faceUnlockBtn');
+  if(btn)btn.style.display=(supported && enabled)?'block':'none';
+}
+function finishUnlock(){
   document.getElementById('lockScreen').style.display='none';
   document.getElementById('mainApp').style.display='block';
-  input.value='';
-
+  const input=document.getElementById('pinInput');
+  if(input)input.value='';
   if(!sessionStorage.getItem('frUrlPrefillDone') && hasInvoiceParams()){
     sessionStorage.setItem('frUrlPrefillDone','1');
     setTimeout(applyUrlInvoice,50);
   }
 }
+function setupLock(){
+  const title=document.getElementById('lockTitle');
+  const info=document.getElementById('lockInfo');
+  const input=document.getElementById('pinInput');
+  const err=document.getElementById('lockError');
+  if(err)err.textContent='';
+  updateFaceStatus();
 
+  if(!frPin){
+    title.textContent='PIN erstellen';
+    info.textContent='Prvo napravi PIN 4–6 brojeva. Posle može Face ID.';
+    if(input)input.placeholder='Neuer PIN 4–6';
+  }else{
+    title.textContent='FR Fliesen Rechteck';
+    info.textContent=faceCredentialId() && faceIdSupported() ? 'Face ID oder PIN' : 'PIN eingeben';
+    if(input)input.placeholder='PIN ••••';
+  }
+
+  // Pokušaj Face ID automatski pri otvaranju. Ako Safari traži dodir,
+  // dugme Face ID öffnen ostaje kao rezerva.
+  if(frPin && faceCredentialId() && faceIdSupported()){
+    setTimeout(()=>faceUnlock(true),350);
+  }else{
+    setTimeout(()=>input?.focus(),150);
+  }
+}
+function unlockApp(){
+  const input=document.getElementById('pinInput');
+  const pin=(input?.value||'').trim();
+  const err=document.getElementById('lockError');
+  if(err)err.textContent='';
+
+  if(!frPin){
+    if(!/^[0-9]{4,6}$/.test(pin)){
+      if(err)err.textContent='Bitte 4–6 Ziffern eingeben.';
+      return;
+    }
+    localStorage.setItem('frPin',pin);
+    frPin=pin;
+  }else if(pin!==frPin){
+    if(err)err.textContent='Falscher PIN.';
+    if(input){input.value='';input.focus();}
+    return;
+  }
+  finishUnlock();
+}
+async function registerFaceId(){
+  if(!frPin){
+    alert('Zuerst PIN erstellen.');
+    return;
+  }
+  if(!faceIdSupported()){
+    alert('Face ID braucht HTTPS / Vercel. Bei direkter HTML-Datei funktioniert nur PIN.');
+    updateFaceStatus();
+    return;
+  }
+  try{
+    let userId=localStorage.getItem('frFaceUserId');
+    if(!userId){
+      userId=b64urlEncode(crypto.getRandomValues(new Uint8Array(16)));
+      localStorage.setItem('frFaceUserId',userId);
+    }
+    const cred=await navigator.credentials.create({
+      publicKey:{
+        challenge:crypto.getRandomValues(new Uint8Array(32)),
+        rp:{name:'FR Fliesen Rechteck'},
+        user:{
+          id:b64urlDecode(userId),
+          name:'fr-rechnung-device',
+          displayName:'FR Rechnung'
+        },
+        pubKeyCredParams:[
+          {type:'public-key',alg:-7},
+          {type:'public-key',alg:-257}
+        ],
+        authenticatorSelection:{
+          authenticatorAttachment:'platform',
+          residentKey:'required',
+          userVerification:'required'
+        },
+        timeout:60000,
+        attestation:'none'
+      }
+    });
+    if(!cred)throw new Error('Keine Anmeldung erstellt');
+    localStorage.setItem('frFaceCredentialId',b64urlEncode(cred.rawId));
+    updateFaceStatus();
+    alert('Face ID aktiviert.');
+  }catch(e){
+    if(e && e.name==='InvalidStateError'){
+      alert('Face ID/Passkey ist bereits für diese App vorhanden.');
+    }else if(e && e.name!=='NotAllowedError'){
+      alert('Face ID konnte nicht eingerichtet werden: '+(e?.message||e));
+    }
+    updateFaceStatus();
+  }
+}
+async function faceUnlock(automatic=false){
+  if(!faceIdSupported() || !faceCredentialId()){
+    updateFaceStatus();
+    if(!automatic)document.getElementById('pinInput')?.focus();
+    return;
+  }
+  const status=document.getElementById('faceStatus');
+  try{
+    if(status)status.textContent='Face ID…';
+    const assertion=await navigator.credentials.get({
+      publicKey:{
+        challenge:crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials:[{
+          type:'public-key',
+          id:b64urlDecode(faceCredentialId())
+        }],
+        userVerification:'required',
+        timeout:60000
+      }
+    });
+    if(assertion){
+      if(status)status.textContent='Face ID OK';
+      finishUnlock();
+    }
+  }catch(e){
+    if(status)status.textContent='Face ID nije potvrđen. Koristi PIN.';
+    if(!automatic || e?.name!=='NotAllowedError')document.getElementById('pinInput')?.focus();
+  }
+}
+function removeFaceId(){
+  localStorage.removeItem('frFaceCredentialId');
+  localStorage.removeItem('frFaceUserId');
+  updateFaceStatus();
+  alert('Face ID uklonjen iz FR aplikacije.');
+}
 function lockNow(){
   document.getElementById('mainApp').style.display='none';
   document.getElementById('lockScreen').style.display='flex';
-  document.getElementById('pinInput').value='';
-  document.getElementById('lockError').textContent='';
+  const input=document.getElementById('pinInput');
+  if(input)input.value='';
+  const err=document.getElementById('lockError');
+  if(err)err.textContent='';
   setupLock();
 }
-
 function changePin(){
   const el=document.getElementById('newPin');
-  const pin=(el.value||'').trim();
+  const pin=(el?.value||'').trim();
   if(!/^[0-9]{4,6}$/.test(pin)){
     alert('Bitte neuen PIN mit 4–6 Ziffern eingeben.');
     return;
@@ -873,16 +1024,10 @@ function changePin(){
   alert('PIN geändert');
 }
 
-// v18: Ne zaključava automatski kada izađeš iz aplikacije.
-// Za zaključavanje koristi dugme "Jetzt sperren".
-
-
-document.getElementById('lockScreen').style.display='none';
-document.getElementById('mainApp').style.display='block';
-if(!sessionStorage.getItem('frUrlPrefillDone') && hasInvoiceParams()){
-  sessionStorage.setItem('frUrlPrefillDone','1');
-  setTimeout(applyUrlInvoice,50);
-}
+// Start locked. Face ID is attempted automatically when already configured.
+document.getElementById('mainApp').style.display='none';
+document.getElementById('lockScreen').style.display='flex';
+setupLock();
 
 let docType='Rechnung';
 const H=['home','form','settings','trash','messen'];
