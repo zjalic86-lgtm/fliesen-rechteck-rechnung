@@ -150,7 +150,7 @@ label{font-weight:700}
 
   <div id="settings" class="card hidden">
     <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v36 · Cloud Delete Sync</b></p>
+    <p class="small"><b>Version v37 · Cloud Reset</b></p>
     <div style="margin:18px 0;padding:16px;border:1px solid #ddd;border-radius:14px">
       <h3 style="margin-top:0">ChatGPT Import API</h3>
       <p class="small">Ohne Cloud-Sync-Anmeldung. Der Import-Schlüssel wird nur auf diesem Gerät gespeichert.</p>
@@ -173,6 +173,7 @@ label{font-weight:700}
     <button class="btn outline" onclick="copyCloudSession()">Cloud Login kopieren</button>
     <button class="btn outline" onclick="pasteCloudSession()">Cloud Login einfügen</button>
     <button class="btn outline" onclick="syncCloud()">Cloud Sync</button>
+    <button class="btn outline" style="border-color:#b00020;color:#b00020" onclick="deleteAllInvoicesEverywhere()">Alle Rechnungen löschen</button>
     <button class="btn outline" onclick="cloudLogout()">Abmelden</button>
     <p class="small">iPhone: Wenn der E-Mail-Link nur Safari öffnet, dort „Cloud Login kopieren“ drücken. Danach FR-App vom Home-Bildschirm öffnen und „Cloud Login einfügen“ drücken.</p>
     <hr style="border:0;border-top:1px solid #ddd;margin:20px 0">
@@ -328,6 +329,47 @@ async function cloudDeleteInvoice(nr){
   if(z.error) throw z.error;
   return true;
 }
+
+async function deleteAllInvoicesEverywhere(){
+  if(!confirm('Wirklich ALLE Rechnungen auf diesem Gerät UND in der Cloud löschen?')) return;
+  if(!confirm('Letzte Bestätigung: Alle Rechnungen werden dauerhaft gelöscht.')) return;
+
+  try{
+    await refreshCloudUser();
+
+    // Remember every known number as deleted before clearing local data.
+    const local=getInvoices();
+    for(const x of local){
+      if(x&&x.nr) markInvoiceDeleted(x.nr);
+    }
+
+    // Clear local invoices immediately.
+    setInvoices([]);
+    renderDashboard();
+
+    if(cloudUser){
+      // Delete all cloud rows belonging to this logged-in user.
+      const d=await sb.from('invoices').delete().eq('user_id',cloudUser.id);
+      if(d.error) throw d.error;
+
+      // Verify cloud is really empty.
+      const check=await sb.from('invoices').select('id,invoice_number').eq('user_id',cloudUser.id);
+      if(check.error) throw check.error;
+
+      if((check.data||[]).length){
+        throw new Error('Cloud enthält noch '+check.data.length+' Rechnung(en).');
+      }
+    }
+
+    // Keep tombstones, so stale copies from another open tab/device cannot be re-imported.
+    localStorage.setItem('frCloudResetAt',new Date().toISOString());
+
+    alert('Alle Rechnungen wurden lokal und in der Cloud gelöscht.');
+  }catch(e){
+    alert('Löschen Fehler: '+(e&&e.message?e.message:e));
+  }
+}
+
 async function syncCloud(showMessage=true){
   await refreshCloudUser();
   if(!cloudUser){if(showMessage)alert('Bitte zuerst per E-Mail anmelden.');return false}
@@ -1437,7 +1479,7 @@ FR Fliesen Rechteck`);
 renderCustomerList();
 renderDashboard();
 
-// v36: ChatGPT Import + Cloud Sync + permanent Cloud Delete
+// v37: ChatGPT Import + Cloud Sync + permanent delete + full cloud reset
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
