@@ -225,18 +225,43 @@ label{font-weight:700}
 
     <div class="measure-card">
       <h3>⏱️ Regiestunden</h3>
-      <p class="small">Nur Preisinfo für den Kunden. Wird nicht in den Rechnungsbetrag eingerechnet.</p>
+      <p class="small">Preisinfo für den Kunden · nach Vereinbarung / Bestätigung. Wird nicht in den Rechnungsbetrag eingerechnet.</p>
+
+      <label>Regiestunden auswählen</label>
+      <select id="regiePreset">
+        <option value="">– auswählen –</option>
+        <option>Material tragen</option>
+        <option>Stemmen</option>
+        <option>Ausgleichen</option>
+        <option>Gehrung schneiden</option>
+        <option>Schleifen Maschine – Wand</option>
+        <option>Schleifen Maschine – Boden</option>
+        <option>Rinne setzen</option>
+        <option>Nische herstellen</option>
+        <option>Palette fahren</option>
+        <option>Schutt fahren / entsorgen</option>
+      </select>
+      <label>Preis €/Std.</label>
+      <input id="regiePresetPrice" type="number" min="0" step="0.01" placeholder="z.B. 55,00">
+
+      <div style="border-top:1px solid #e3e3e3;margin:16px 0"></div>
+
+      <label>Regiestunden – selbst schreiben</label>
+      <input id="regieCustomText" placeholder="z.B. Material holen, Baustelle reinigen ...">
       <div class="row">
         <div>
-          <label>Regiestunden</label>
-          <button id="regieToggle" class="btn outline" type="button" onclick="toggleRegieInfo()">Regiestunden hinzufügen</button>
+          <label>Stunden / h</label>
+          <input id="regieCustomQty" type="number" min="0" step="0.25" placeholder="z.B. 2,5" oninput="updateCustomRegieTotal()">
         </div>
         <div>
           <label>Preis €/Std.</label>
-          <input id="regieInfoPrice" type="number" min="0" step="0.01" placeholder="z.B. 55,00" disabled>
+          <input id="regieCustomPrice" type="number" min="0" step="0.01" placeholder="z.B. 55,00" oninput="updateCustomRegieTotal()">
         </div>
       </div>
-      <div id="regieInfoNote" class="material-price-note">OFF</div>
+      <label>Summe netto</label>
+      <input id="regieCustomTotal" readonly placeholder="0,00 €">
+
+      <div class="material-price-note">Oben: nur Preisinfo. Unten: Stunden × Preis wird berechnet und zur Rechnungssumme addiert.</div>
     </div>
 
     <button class="btn" type="button" onclick="addRoomToList()">+ Raum hinzufügen</button>
@@ -356,7 +381,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v58 · Regiestunden Preisinfo · Einzelwände · Material</b></p>
+      <p class="small"><b>Version v60 · Regiestunden Info + Stundenberechnung · Einzelwände · Material</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -2424,41 +2449,59 @@ function calcRoomMeasures(){
 }
 
 
-let regieInfoEnabled=false;
 
-function toggleRegieInfo(force){
-  regieInfoEnabled = typeof force==='boolean' ? force : !regieInfoEnabled;
-  const btn=document.getElementById('regieToggle');
-  const price=document.getElementById('regieInfoPrice');
-  const note=document.getElementById('regieInfoNote');
-  if(btn){
-    btn.textContent=regieInfoEnabled?'Regiestunden ✓':'Regiestunden hinzufügen';
-  }
-  if(price){
-    price.disabled=!regieInfoEnabled;
-    if(regieInfoEnabled)setTimeout(()=>price.focus(),50);
-    else price.value='';
-  }
-  if(note){
-    note.textContent=regieInfoEnabled
-      ? 'ON – Preis wird im PDF gezeigt, aber nicht berechnet.'
-      : 'OFF';
-  }
+function updateCustomRegieTotal(){
+  const qty=Math.max(0,parseFloat(document.getElementById('regieCustomQty')?.value)||0);
+  const price=Math.max(0,parseFloat(document.getElementById('regieCustomPrice')?.value)||0);
+  const total=document.getElementById('regieCustomTotal');
+  if(total)total.value=(qty>0 && price>0)?(qty*price).toFixed(2)+' €':'';
 }
+
 function collectRegieInfo(room){
-  if(!regieInfoEnabled)return [];
-  const price=Math.max(0,parseFloat(document.getElementById('regieInfoPrice')?.value)||0);
-  if(price<=0)return [];
-  return [{
-    desc:`${room} – Regiestunden`,
-    qty:0,
-    unit:'Std.',
-    price,
-    kind:'regieinfo'
-  }];
+  const out=[];
+
+  // Gornji izbor ostaje samo informacija o ceni za kupca.
+  const preset=(document.getElementById('regiePreset')?.value||'').trim();
+  const presetPrice=Math.max(0,parseFloat(document.getElementById('regiePresetPrice')?.value)||0);
+  if(preset && presetPrice>0){
+    out.push({
+      desc:`${room} – Regiestunden: ${preset}`,
+      qty:0,
+      unit:'Std.',
+      price:presetPrice,
+      kind:'regieinfo'
+    });
+  }
+
+  // Donji Regiestunden se računaju: sati × cena.
+  const custom=(document.getElementById('regieCustomText')?.value||'').trim();
+  const customQty=Math.max(0,parseFloat(document.getElementById('regieCustomQty')?.value)||0);
+  const customPrice=Math.max(0,parseFloat(document.getElementById('regieCustomPrice')?.value)||0);
+  if(custom && customQty>0 && customPrice>0){
+    out.push({
+      desc:`${room} – Regiestunden: ${custom}`,
+      qty:customQty,
+      unit:'Std.',
+      price:customPrice,
+      kind:'work'
+    });
+  }
+
+  return out;
 }
 function resetRegieRows(){
-  toggleRegieInfo(false);
+  const preset=document.getElementById('regiePreset');
+  const presetPrice=document.getElementById('regiePresetPrice');
+  const custom=document.getElementById('regieCustomText');
+  const customQty=document.getElementById('regieCustomQty');
+  const customPrice=document.getElementById('regieCustomPrice');
+  const customTotal=document.getElementById('regieCustomTotal');
+  if(preset)preset.value='';
+  if(presetPrice)presetPrice.value='';
+  if(custom)custom.value='';
+  if(customQty)customQty.value='';
+  if(customPrice)customPrice.value='';
+  if(customTotal)customTotal.value='';
 }
 
 function addRoomToList(){
