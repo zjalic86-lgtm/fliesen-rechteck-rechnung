@@ -111,40 +111,71 @@ label{font-weight:700}
   </div>
 
 
+
   <div id="messen" class="card hidden">
     <h2>📐 Messen</h2>
-    <p class="small">Foto aufnehmen und Maße eingeben. Tür/Fenster wird automatisch abgezogen.</p>
+    <p class="small">Wähle automatische oder manuelle Messung.</p>
 
-    <label>Foto</label>
-    <input id="wallPhoto" type="file" accept="image/*" capture="environment" onchange="previewWallPhoto(event)">
-    <img id="wallPhotoPreview" class="measure-preview">
-
-    <div class="measure-card">
-      <h3>Wand</h3>
-      <div class="row">
-        <div><label>Breite m</label><input id="wallWidth" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 4.20" oninput="calcWallArea()"></div>
-        <div><label>Höhe m</label><input id="wallHeight" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 2.60" oninput="calcWallArea()"></div>
-      </div>
+    <div id="measureChoice">
+      <button class="btn" type="button" onclick="openAutoMeasure()">📷 Automatisch scannen</button>
+      <button class="btn outline" type="button" onclick="openManualMeasure()">📏 Manuell messen</button>
+      <button class="btn outline" type="button" onclick="home()">Zurück</button>
     </div>
 
-    <div class="measure-card">
-      <h3>Tür / Fenster abziehen</h3>
-      <div class="row">
-        <div><label>Breite m</label><input id="openingWidth" type="number" inputmode="decimal" step="0.01" placeholder="0.00" oninput="calcWallArea()"></div>
-        <div><label>Höhe m</label><input id="openingHeight" type="number" inputmode="decimal" step="0.01" placeholder="0.00" oninput="calcWallArea()"></div>
+    <div id="autoMeasure" class="hidden">
+      <button class="settings-back" type="button" onclick="backToMeasureChoice()">‹ Messen</button>
+      <h2>📷 Automatisch scannen</h2>
+      <p class="small">Foto aufnehmen. Für eine echte automatische m²-Messung ohne bekannte Maße ist LiDAR/AR in einer iPhone-App nötig. Diese Web-App kann das Foto speichern, aber nicht zuverlässig echte Meter aus nur einem Foto berechnen.</p>
+
+      <label>Wand fotografieren</label>
+      <input id="autoWallPhoto" type="file" accept="image/*" capture="environment" onchange="previewAutoWallPhoto(event)">
+      <img id="autoWallPhotoPreview" class="measure-preview">
+
+      <div class="measure-card">
+        <b>Nächster Schritt</b>
+        <p class="small">Später kann hier die native LiDAR-Messung angebunden werden. Bis dahin kannst du direkt zur manuellen Messung wechseln.</p>
       </div>
-      <label>Anzahl</label>
-      <input id="openingCount" type="number" inputmode="numeric" step="1" min="0" value="1" oninput="calcWallArea()">
+
+      <button class="btn" type="button" onclick="openManualMeasure()">📏 Jetzt manuell messen</button>
+      <button class="btn outline" type="button" onclick="backToMeasureChoice()">Zurück</button>
     </div>
 
-    <div class="measure-result"><span id="wallAreaResult">0,00</span> m²</div>
+    <div id="manualMeasure" class="hidden">
+      <button class="settings-back" type="button" onclick="backToMeasureChoice()">‹ Messen</button>
+      <h2>📏 Manuell messen</h2>
+      <p class="small">Foto aufnehmen und Maße eingeben. Tür/Fenster wird automatisch abgezogen.</p>
 
-    <label>Preis €/m²</label>
-    <input id="wallMeasurePrice" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 40">
+      <label>Foto</label>
+      <input id="wallPhoto" type="file" accept="image/*" capture="environment" onchange="previewWallPhoto(event)">
+      <img id="wallPhotoPreview" class="measure-preview">
 
-    <button class="btn" type="button" onclick="messenToOffer()">In Angebot übernehmen</button>
-    <button class="btn outline" type="button" onclick="messenToInvoice()">In Rechnung übernehmen</button>
-    <button class="btn outline" type="button" onclick="home()">Zurück</button>
+      <div class="measure-card">
+        <h3>Wand</h3>
+        <div class="row">
+          <div><label>Breite m</label><input id="wallWidth" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 4.20" oninput="calcWallArea()"></div>
+          <div><label>Höhe m</label><input id="wallHeight" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 2.60" oninput="calcWallArea()"></div>
+        </div>
+      </div>
+
+      <div class="measure-card">
+        <h3>Tür / Fenster abziehen</h3>
+        <div class="row">
+          <div><label>Breite m</label><input id="openingWidth" type="number" inputmode="decimal" step="0.01" placeholder="0.00" oninput="calcWallArea()"></div>
+          <div><label>Höhe m</label><input id="openingHeight" type="number" inputmode="decimal" step="0.01" placeholder="0.00" oninput="calcWallArea()"></div>
+        </div>
+        <label>Anzahl</label>
+        <input id="openingCount" type="number" inputmode="numeric" step="1" min="0" value="1" oninput="calcWallArea()">
+      </div>
+
+      <div class="measure-result"><span id="wallAreaResult">0,00</span> m²</div>
+
+      <label>Preis €/m²</label>
+      <input id="wallMeasurePrice" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 40">
+
+      <button class="btn" type="button" onclick="messenToOffer()">In Angebot übernehmen</button>
+      <button class="btn outline" type="button" onclick="messenToInvoice()">In Rechnung übernehmen</button>
+      <button class="btn outline" type="button" onclick="backToMeasureChoice()">Zurück</button>
+    </div>
   </div>
 
   <div id="trash" class="card hidden">
@@ -217,7 +248,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v44 · Messen</b></p>
+      <p class="small"><b>Version v45 · Auto + Manuell messen</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1718,7 +1749,47 @@ function showMessen(){
   const panel=document.getElementById('messen');
   if(!panel){alert('Messen konnte nicht geöffnet werden.');return}
   panel.classList.remove('hidden');
+  backToMeasureChoice();
+}
+
+function backToMeasureChoice(){
+  const choice=document.getElementById('measureChoice');
+  const auto=document.getElementById('autoMeasure');
+  const manual=document.getElementById('manualMeasure');
+  if(choice)choice.classList.remove('hidden');
+  if(auto)auto.classList.add('hidden');
+  if(manual)manual.classList.add('hidden');
+}
+
+function openAutoMeasure(){
+  const choice=document.getElementById('measureChoice');
+  const auto=document.getElementById('autoMeasure');
+  const manual=document.getElementById('manualMeasure');
+  if(choice)choice.classList.add('hidden');
+  if(manual)manual.classList.add('hidden');
+  if(auto)auto.classList.remove('hidden');
+}
+
+function openManualMeasure(){
+  const choice=document.getElementById('measureChoice');
+  const auto=document.getElementById('autoMeasure');
+  const manual=document.getElementById('manualMeasure');
+  if(choice)choice.classList.add('hidden');
+  if(auto)auto.classList.add('hidden');
+  if(manual)manual.classList.remove('hidden');
   calcWallArea();
+}
+
+function previewAutoWallPhoto(event){
+  const file=event.target.files&&event.target.files[0];
+  const img=document.getElementById('autoWallPhotoPreview');
+  if(!file){img.style.display='none';img.removeAttribute('src');return}
+  const reader=new FileReader();
+  reader.onload=function(e){
+    img.src=e.target.result;
+    img.style.display='block';
+  };
+  reader.readAsDataURL(file);
 }
 
 function previewWallPhoto(event){
@@ -1787,7 +1858,7 @@ function messenToInvoice(){ insertMeasuredWall('Rechnung'); }
 renderCustomerList();
 renderDashboard();
 
-// v44: Messen + Papierkorb + compact settings menu
+// v45: Auto + Manuell messen + Papierkorb + compact settings menu
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
