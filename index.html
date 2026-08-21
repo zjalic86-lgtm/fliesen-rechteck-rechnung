@@ -474,7 +474,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v69 · Benutzerkonto · E-Mail + Passwort · Eigene Firmendaten</b></p>
+      <p class="small"><b>Version v70 · Anzahlung · Schlussrechnung · Benutzerkonto</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1425,6 +1425,28 @@ function changePin(){
 }
 
 let docType='Rechnung';
+let currentInvoiceKind='Rechnung';
+let currentLinkedOfferNr='';
+let currentAnzahlungPercent=0;
+
+function invoiceKindLabel(kind){
+  if(kind==='Anzahlungsrechnung')return 'Anzahlungsrechnung';
+  if(kind==='Schlussrechnung')return 'Schlussrechnung';
+  return 'Rechnung';
+}
+function currentDocumentLabel(){
+  return docType==='Angebot' ? 'Angebot' : invoiceKindLabel(currentInvoiceKind);
+}
+function invoiceDocumentLabel(x){
+  return invoiceKindLabel((x&&x.invoiceKind)||'Rechnung');
+}
+function setInvoiceContext(kind='Rechnung',offerNr='',percent=0){
+  currentInvoiceKind=invoiceKindLabel(kind);
+  currentLinkedOfferNr=String(offerNr||'');
+  currentAnzahlungPercent=Number(percent||0);
+  const title=document.getElementById('formTitle');
+  if(title && docType==='Rechnung') title.textContent='Neue '+currentDocumentLabel();
+}
 const H=['home','form','settings','trash','messen'];
 const units=['m²','lfm','Std.','Stk.','ST','Sack','Dose','m','Kübel','SET','5 KG','20 KG','Kanister','Pauschal','kg'];
 let itemCount=0;
@@ -1463,8 +1485,10 @@ function updateAutoNumberForDate(){
 }
 
 function showForm(t){
-  docType=t;hide();document.getElementById('form').classList.remove('hidden');
-  document.getElementById('formTitle').textContent=t==='Rechnung'?'Neue Rechnung':'Neues Angebot';
+  docType=t;
+  if(t==='Rechnung')setInvoiceContext('Rechnung','',0);
+  hide();document.getElementById('form').classList.remove('hidden');
+  document.getElementById('formTitle').textContent=t==='Rechnung'?'Neue '+currentDocumentLabel():'Neues Angebot';
   if(!document.getElementById('docDate').value)document.getElementById('docDate').value=new Date().toISOString().slice(0,10);
   updateDueDate();
   if(!document.getElementById('docNr').value)assignNextDocNumber();
@@ -1661,6 +1685,9 @@ function currentInvoiceData(){
     footer:document.getElementById('invoiceFooter').value,
     pdfPriceMode:(document.getElementById('pdfPriceMode').value||'on'),
     materialPdfPriceMode:(document.getElementById('materialPdfPriceMode').value||'on'),
+    invoiceKind:docType==='Rechnung'?currentInvoiceKind:'',
+    offerNr:docType==='Rechnung'?currentLinkedOfferNr:'',
+    anzahlungPercent:docType==='Rechnung'?currentAnzahlungPercent:0,
     items, net, ust, total:net+ust, paid:false,
     savedAt:new Date().toISOString()
   }
@@ -1728,13 +1755,30 @@ function deleteOffer(i){
   if(!confirm('Angebot wirklich löschen?'))return;
   let a=getOffers();a.splice(i,1);setOffers(a);renderDashboard();
 }
-function offerToInvoice(i){
-  let a=getOffers();const x=a[i];if(!x)return;
-  x.status='Angenommen';setOffers(a);
-  showForm('Rechnung');
+function offerNetValue(x){
+  if(Number.isFinite(Number(x&&x.net)))return Number(x.net)||0;
+  return (x&&Array.isArray(x.items)?x.items:[]).reduce((s,it)=>s+(Number(it.sum)||((Number(it.qty)||0)*(Number(it.price)||0))),0);
+}
+function invoiceLinkedOfferNr(inv){
+  if(inv&&inv.offerNr)return String(inv.offerNr);
+  const source=[
+    inv&&inv.nachricht||'',
+    ...((inv&&Array.isArray(inv.items)?inv.items:[]).map(it=>it&&it.desc||''))
+  ].join(' ');
+  const m=source.match(/\b(A-\d{4}-\d{2}-\d{3})\b/i);
+  return m?m[1]:'';
+}
+function invoiceIsAnzahlung(inv){
+  if(!inv)return false;
+  if(inv.invoiceKind==='Anzahlungsrechnung')return true;
+  return (inv.items||[]).some(it=>/^\s*Anzahlung\b/i.test(String(it.desc||'')));
+}
+function linkedAnzahlungen(offerNr){
+  return getInvoices().filter(inv=>invoiceIsAnzahlung(inv) && invoiceLinkedOfferNr(inv)===String(offerNr||''));
+}
+function fillInvoiceCustomerFromOffer(x){
   document.getElementById('docNr').value='';
   document.getElementById('docDate').value=new Date().toISOString().slice(0,10);
-  assignNextDocNumber();
   assignNextDocNumber();
   document.getElementById('kunde').value=x.kunde||'';
   document.getElementById('adresse').value=x.adresse||'';
@@ -1743,18 +1787,102 @@ function offerToInvoice(i){
   document.getElementById('bau').value=x.bau||'';
   document.getElementById('typ').value=x.typ||'Firma';
   document.getElementById('steuer').value=x.steuer||'rc';
-  document.getElementById('nachricht').value=x.nachricht||'';
   document.getElementById('tage').value=x.tage||'14';
   document.getElementById('skonto').value=x.skonto||'0';
-  document.getElementById('materialCost').value=x.material||'';
   document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
   document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
   document.getElementById('materialPdfPriceMode').value=materialPdfModeForInvoice(x);
   document.getElementById('items').innerHTML='';
-  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price,it.kind||'',it.costPrice||''));
   updateDueDate();
-  alert('Angebot wurde übernommen. Rechnungsnummer wurde automatisch erstellt.');
 }
+function markOfferAccepted(i,statusText='Angenommen'){
+  let a=getOffers();
+  if(!a[i])return null;
+  a[i].status=statusText;
+  setOffers(a);
+  renderDashboard();
+  return a[i];
+}
+function offerToInvoice(i){
+  const x=markOfferAccepted(i,'Angenommen');
+  if(!x)return;
+  showForm('Rechnung');
+  setInvoiceContext('Rechnung',x.nr,100);
+  fillInvoiceCustomerFromOffer(x);
+  document.getElementById('nachricht').value=x.nachricht||'';
+  document.getElementById('materialCost').value=x.material||'';
+  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price,it.kind||'',it.costPrice||''));
+  document.getElementById('formTitle').textContent='Neue Rechnung';
+  alert('Angebot wurde übernommen. 100% Rechnung ist bereit.');
+}
+function createAnzahlungFromOffer(i,percent){
+  const p=Math.max(0,Math.min(100,Number(percent)||0));
+  if(p<=0 || p>=100){alert('Bitte Anzahlung zwischen 1% und 99% wählen.');return}
+  const x=markOfferAccepted(i,`Angenommen · Anzahlung ${num(p).replace(',00','')}%`);
+  if(!x)return;
+
+  showForm('Rechnung');
+  setInvoiceContext('Anzahlungsrechnung',x.nr,p);
+  fillInvoiceCustomerFromOffer(x);
+
+  const net=offerNetValue(x);
+  const amount=Math.round(net*(p/100)*100)/100;
+  document.getElementById('nachricht').value=`Anzahlung ${num(p).replace(',00','')}% gemäß Angebot ${x.nr}.`;
+  document.getElementById('materialCost').value='0';
+  addItem(`Anzahlung ${num(p).replace(',00','')}% gemäß Angebot ${x.nr}`,1,'Pauschal',amount.toFixed(2),'anzahlung','');
+  document.getElementById('formTitle').textContent=`Neue Anzahlungsrechnung ${num(p).replace(',00','')}%`;
+  alert(`Anzahlungsrechnung ${num(p).replace(',00','')}% ist bereit.`);
+}
+function offerAnzahlung50(i){
+  createAnzahlungFromOffer(i,50);
+}
+function offerCustomAnzahlung(i){
+  const raw=prompt('Anzahlung in % eingeben','50');
+  if(raw===null)return;
+  const p=parseFloat(String(raw).replace(',','.'));
+  if(!Number.isFinite(p)||p<=0||p>=100){alert('Bitte Zahl zwischen 1 und 99 eingeben.');return}
+  createAnzahlungFromOffer(i,p);
+}
+function offerToSchlussrechnung(i){
+  let offers=getOffers();
+  const x=offers[i];
+  if(!x)return;
+
+  const deposits=linkedAnzahlungen(x.nr);
+  if(!deposits.length){
+    alert('Keine Anzahlungsrechnung zu diesem Angebot gefunden. Zuerst Anzahlung erstellen.');
+    return;
+  }
+  const unpaid=deposits.filter(d=>!d.paid);
+  if(unpaid.length){
+    const ok=confirm(`${unpaid.length} Anzahlungsrechnung(en) sind noch als OFFEN markiert. Trotzdem in der Schlussrechnung abziehen?`);
+    if(!ok)return;
+  }
+
+  x.status='Angenommen · Schlussrechnung';
+  offers[i]=x;
+  setOffers(offers);
+  renderDashboard();
+
+  showForm('Rechnung');
+  setInvoiceContext('Schlussrechnung',x.nr,0);
+  fillInvoiceCustomerFromOffer(x);
+  document.getElementById('nachricht').value=`Schlussrechnung gemäß Angebot ${x.nr}. Bereits verrechnete Anzahlungen werden abgezogen.`;
+  document.getElementById('materialCost').value=x.material||'';
+
+  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price,it.kind||'',it.costPrice||''));
+
+  deposits.forEach(d=>{
+    const depNet=Number(d.net)||((d.items||[]).reduce((s,it)=>s+(Number(it.sum)||0),0));
+    if(depNet>0){
+      addItem(`Abzüglich Anzahlungsrechnung ${d.nr||''}`,1,'Pauschal',(-depNet).toFixed(2),'anzahlung-abzug','');
+    }
+  });
+
+  document.getElementById('formTitle').textContent='Neue Schlussrechnung';
+  alert('Schlussrechnung ist bereit. Anzahlungen wurden abgezogen.');
+}
+
 
 
 function showTrash(){
@@ -1852,18 +1980,30 @@ function renderDashboard(){
   document.getElementById('statOpenCount').textContent=arr.filter(x=>!x.paid).length;
   const box=document.getElementById('invoiceList');
   if(!arr.length){box.innerHTML='<p class="small">Noch keine Rechnungen gespeichert.</p>'}
-  else box.innerHTML=arr.map((x,i)=>`<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?'Bezahlt':'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="pdfInvoice(${i})">PDF</button><button onclick="copyInvoice(${i})">Kopieren</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`).join('');
+  else box.innerHTML=arr.map((x,i)=>{
+    const kind=invoiceDocumentLabel(x);
+    const percent=x.anzahlungPercent?` ${num(x.anzahlungPercent).replace(',00','')}%`:'';
+    return `<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${esc(kind)}${percent} · ${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?'Bezahlt':'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="pdfInvoice(${i})">PDF</button><button onclick="copyInvoice(${i})">Kopieren</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`;
+  }).join('');
 
   const offers=getOffers();
   const ob=document.getElementById('offerList');
   if(ob){
     if(!offers.length) ob.innerHTML='<p class="small">Noch keine Angebote gespeichert.</p>';
-    else ob.innerHTML=offers.map((x,i)=>`<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${fmtDate(x.date)} · ${esc(x.bau||'')}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${esc(x.status||'Offen')}</span></div></div><div class="actions"><button onclick="loadOffer(${i})">Öffnen</button><button onclick="offerToInvoice(${i})">Angenommen → Rechnung</button><button onclick="setOfferStatus(${i},'Abgelehnt')">Abgelehnt</button><button onclick="deleteOffer(${i})">Löschen</button></div></div>`).join('');
+    else ob.innerHTML=offers.map((x,i)=>{
+      const deps=linkedAnzahlungen(x.nr);
+      const depTotal=deps.reduce((s,d)=>s+(Number(d.total)||0),0);
+      const depPaid=deps.filter(d=>d.paid).reduce((s,d)=>s+(Number(d.total)||0),0);
+      const depInfo=deps.length?`<br><span class="small">Anzahlung: ${euro(depTotal)} · bezahlt ${euro(depPaid)}</span>`:'';
+      return `<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${fmtDate(x.date)} · ${esc(x.bau||'')}</span>${depInfo}</div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${esc(x.status||'Offen')}</span></div></div><div class="actions"><button onclick="loadOffer(${i})">Öffnen</button><button onclick="offerAnzahlung50(${i})">50% Anzahlung</button><button onclick="offerCustomAnzahlung(${i})">Anzahlung %</button><button onclick="offerToSchlussrechnung(${i})">Schlussrechnung</button><button onclick="offerToInvoice(${i})">100% Rechnung</button><button onclick="setOfferStatus(${i},'Abgelehnt')">Abgelehnt</button><button onclick="deleteOffer(${i})">Löschen</button></div></div>`;
+    }).join('');
   }
 }
 function loadInvoice(i){
   const x=getInvoices()[i];if(!x)return;
   showForm('Rechnung');
+  setInvoiceContext(x.invoiceKind||'Rechnung',x.offerNr||invoiceLinkedOfferNr(x),x.anzahlungPercent||0);
+  document.getElementById('formTitle').textContent=invoiceDocumentLabel(x);
   document.getElementById('docNr').value=x.nr||'';document.getElementById('docDate').value=x.date||'';
   document.getElementById('kunde').value=x.kunde||'';document.getElementById('adresse').value=x.adresse||'';
   document.getElementById('kundeUid').value=x.kundeUid||'';document.getElementById('kundeEmail').value=x.email||'';document.getElementById('bau').value=x.bau||'';
@@ -1930,7 +2070,7 @@ async function pdfInvoice(i){
   pdf.setDrawColor(201,45,41);pdf.setLineWidth(.6);pdf.line(left,y,right,y);
   y+=10;
   pdf.setTextColor(34,34,34);pdf.setFontSize(18);pdf.setFont(undefined,'bold');
-  pdf.text('RECHNUNG',left,y);
+  pdf.text(invoiceDocumentLabel(x).toUpperCase(),left,y);
   y+=7;
 
   const nachricht=(x.nachricht||'').trim();
@@ -2031,6 +2171,7 @@ async function pdfInvoice(i){
 function copyInvoice(i){
   const x=getInvoices()[i];if(!x)return;
   showForm('Rechnung');
+  setInvoiceContext('Rechnung','',0);
   document.getElementById('docNr').value='';
   document.getElementById('docDate').value=new Date().toISOString().slice(0,10);
   document.getElementById('kunde').value=x.kunde||'';
@@ -2175,7 +2316,7 @@ async function sharePDF(){
   y+=10;
 
   pdf.setTextColor(34,34,34);pdf.setFontSize(18);pdf.setFont(undefined,'bold');
-  pdf.text(docType.toUpperCase(),left,y);
+  pdf.text(currentDocumentLabel().toUpperCase(),left,y);
   y+=7;
   if(nachricht){
     pdf.setTextColor(34,34,34);pdf.setFontSize(9.5);pdf.setFont(undefined,'normal');
@@ -2289,7 +2430,7 @@ async function sharePDF(){
   const blob=pdf.output('blob');
   const file=new File([blob],`${docType}_${docNr}.pdf`,{type:'application/pdf'});
   const shareData={
-    title:`${docType} ${docNr} - ${companyName}`,
+    title:`${currentDocumentLabel()} ${docNr} - ${companyName}`,
     text:`Guten Tag,\n\nanbei erhalten Sie die ${docType.toLowerCase()} ${docNr}.\n\nVielen Dank.\n\nMit freundlichen Grüßen\n${companyName}`,
     files:[file]
   };
@@ -2348,7 +2489,7 @@ function makeDoc(){
   const footerText=esc(document.getElementById('invoiceFooter').value).replace(/\n/g,'<br>');
   const steuerText=footerText?`<p class="note">${footerText}</p>`:'';
   const skontoText=sk>0?`<p>Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue)}) abgezogen werden.</p>`:`<p>Zahlungsziel: ${dueDays} Tage.</p>`;
-  const mailSubject=encodeURIComponent(`${docType} ${docNr} - ${companyName}`);
+  const mailSubject=encodeURIComponent(`${currentDocumentLabel()} ${docNr} - ${companyName}`);
   const mailBody=encodeURIComponent(`Guten Tag,
 
 anbei erhalten Sie die ${docType.toLowerCase()} ${docNr}.
@@ -2385,7 +2526,7 @@ ${companyName}`);
     <div><b>Kunde:</b> ${esc(document.getElementById('kunde').value)}<br>${esc(document.getElementById('adresse').value)}${document.getElementById('kundeUid').value?`<br><b>UID:</b> ${esc(document.getElementById('kundeUid').value)}`:''}<br><b>Baustelle:</b> ${esc(document.getElementById('bau').value)}</div>
     <div style="text-align:right;line-height:1.6"><b>Nr.:</b> ${esc(docNr)}<br><b>Rechnungsdatum:</b> ${fmtDate(docDate)}<br><b>Fälligkeitsdatum:</b> ${due}</div>
   </div>
-  <div class="title" style="margin-top:26px">${docType.toUpperCase()}</div>
+  <div class="title" style="margin-top:26px">${currentDocumentLabel().toUpperCase()}</div>
   ${document.getElementById('nachricht').value?`<div style="margin:0 0 22px;white-space:pre-line">${esc(document.getElementById('nachricht').value)}</div>`:''}
   <table>${tableHead}${rows}</table>
   <div class="sum"><div><span>Netto</span><span>${euro(net)}</span></div>${ust?`<div><span>USt. 20%</span><span>${euro(ust)}</span></div>`:''}<div class="big"><span>Zahlbetrag</span><span>${euro(total)}</span></div></div>
