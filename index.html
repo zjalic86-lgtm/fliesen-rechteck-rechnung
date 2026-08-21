@@ -44,6 +44,21 @@ label{font-weight:700}
 .lockBox input{font-size:22px;text-align:center;letter-spacing:8px}
 .lockError{color:#b00020;font-weight:700;min-height:20px}
 
+
+.settings-menu{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.settings-menu-item{
+  width:100%;display:flex;align-items:center;justify-content:space-between;
+  padding:17px 16px;border:1px solid #dedede;border-radius:14px;background:#fff;
+  font:inherit;font-size:16px;font-weight:650;text-align:left;color:#111;
+  box-shadow:0 1px 2px rgba(0,0,0,.03)
+}
+.settings-menu-item span:last-child{font-size:25px;font-weight:400;color:#777;line-height:1}
+.settings-section{margin-top:0}
+.settings-back{
+  border:0;background:transparent;padding:4px 0 14px 0;font:inherit;
+  font-size:16px;color:#444;font-weight:600
+}
+
 </style>
 </head>
 <body>
@@ -157,11 +172,40 @@ label{font-weight:700}
   </div>
 
   <div id="settings" class="card hidden">
-    <h2>Einstellungen · Firma</h2>
-    <p class="small"><b>Version v40 · Papierkorb</b></p>
-    <div style="margin:18px 0;padding:16px;border:1px solid #ddd;border-radius:14px">
-      <h3 style="margin-top:0">ChatGPT Import API</h3>
-      <p class="small">Ohne Cloud-Sync-Anmeldung. Der Import-Schlüssel wird nur auf diesem Gerät gespeichert.</p>
+    <div id="settingsMenu">
+      <h2>Einstellungen</h2>
+      <p class="small"><b>Version v41 · Einstellungen Menü</b></p>
+
+      <div class="settings-menu">
+        <button class="settings-menu-item" onclick="openSettingsSection('company')">
+          <span>Firma & Logo</span><span>›</span>
+        </button>
+        <button class="settings-menu-item" onclick="openSettingsSection('chatgpt')">
+          <span>ChatGPT Import</span><span>›</span>
+        </button>
+        <button class="settings-menu-item" onclick="openSettingsSection('cloud')">
+          <span>Cloud Sync</span><span>›</span>
+        </button>
+        <button class="settings-menu-item" onclick="openSettingsSection('security')">
+          <span>Sicherheit / PIN</span><span>›</span>
+        </button>
+      </div>
+
+      <button class="btn outline" onclick="home()" style="margin-top:16px">Zurück</button>
+    </div>
+
+    <div id="settings-company" class="settings-section hidden">
+      <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
+      <h2>Firma & Logo</h2>
+      <label>Logo auswählen</label>
+      <input id="logoInput" type="file" accept="image/*">
+      <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
+    </div>
+
+    <div id="settings-chatgpt" class="settings-section hidden">
+      <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
+      <h2>ChatGPT Import</h2>
+      <p class="small">Der Import-Schlüssel wird nur auf diesem Gerät gespeichert.</p>
       <label>Import-Schlüssel</label>
       <input id="chatgptImportToken" type="password" placeholder="Import-Schlüssel">
       <div class="actions" style="margin-top:10px">
@@ -170,27 +214,30 @@ label{font-weight:700}
       </div>
       <p class="small" id="chatgptImportStatus">Noch nicht eingerichtet.</p>
     </div>
-    <label>Logo auswählen</label>
-    <input id="logoInput" type="file" accept="image/*">
-    <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
-    <hr style="border:0;border-top:1px solid #ddd;margin:20px 0">
-    <h3>Cloud Sync</h3>
-    <p id="cloudStatus" class="small">Nicht angemeldet</p>
-    <label>E-Mail</label><input id="cloudEmail" type="email" placeholder="name@email.at">
-    <button class="btn outline" onclick="cloudLogin()">Anmelden per E-Mail</button>
-    <button class="btn outline" onclick="copyCloudSession()">Cloud Login kopieren</button>
-    <button class="btn outline" onclick="pasteCloudSession()">Cloud Login einfügen</button>
-    <button class="btn outline" onclick="syncCloud()">Cloud Sync</button>
-    <button class="btn outline" style="border-color:#b00020;color:#b00020" onclick="deleteAllInvoicesEverywhere()">Alle Rechnungen löschen</button>
-    <button class="btn outline" onclick="cloudLogout()">Abmelden</button>
-    <p class="small">iPhone: Wenn der E-Mail-Link nur Safari öffnet, dort „Cloud Login kopieren“ drücken. Danach FR-App vom Home-Bildschirm öffnen und „Cloud Login einfügen“ drücken.</p>
-    <hr style="border:0;border-top:1px solid #ddd;margin:20px 0">
-    <h3>Sicherheit</h3>
-    <label>Neuer PIN</label>
-    <input id="newPin" type="password" inputmode="numeric" maxlength="6" placeholder="4–6 Ziffern">
-    <button class="btn outline" onclick="changePin()">PIN ändern</button>
-    <button class="btn outline" onclick="lockNow()">Jetzt sperren</button>
-    <button class="btn outline" onclick="home()">Zurück</button>
+
+    <div id="settings-cloud" class="settings-section hidden">
+      <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
+      <h2>Cloud Sync</h2>
+      <p id="cloudStatus" class="small">Nicht angemeldet</p>
+      <label>E-Mail</label>
+      <input id="cloudEmail" type="email" placeholder="name@email.at">
+      <button class="btn outline" onclick="cloudLogin()">Anmelden per E-Mail</button>
+      <button class="btn outline" onclick="copyCloudSession()">Cloud Login kopieren</button>
+      <button class="btn outline" onclick="pasteCloudSession()">Cloud Login einfügen</button>
+      <button class="btn outline" onclick="syncCloud()">Cloud Sync</button>
+      <button class="btn outline" style="border-color:#b00020;color:#b00020" onclick="deleteAllInvoicesEverywhere()">Alle Rechnungen löschen</button>
+      <button class="btn outline" onclick="cloudLogout()">Abmelden</button>
+      <p class="small">iPhone: Wenn der E-Mail-Link Safari öffnet, dort Cloud Login kopieren. Danach FR-App öffnen und Cloud Login einfügen.</p>
+    </div>
+
+    <div id="settings-security" class="settings-section hidden">
+      <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
+      <h2>Sicherheit / PIN</h2>
+      <label>Neuer PIN</label>
+      <input id="newPin" type="password" inputmode="numeric" maxlength="6" placeholder="4–6 Ziffern">
+      <button class="btn outline" onclick="changePin()">PIN ändern</button>
+      <button class="btn outline" onclick="lockNow()">Jetzt sperren</button>
+    </div>
   </div>
 </div>
 
@@ -728,7 +775,7 @@ function changePin(){
 setupLock();
 
 let docType='Rechnung';
-const H=['home','form','settings'];
+const H=['home','form','settings','trash'];
 const units=['m²','lfm','Std.','Stk.','Pauschal','kg'];
 let itemCount=0;
 
@@ -773,7 +820,25 @@ function showForm(t){
   if(!document.getElementById('docNr').value)assignNextDocNumber();
   if(document.querySelectorAll('.item').length===0)addItem();
 }
-function settings(){hide();document.getElementById('settings').classList.remove('hidden')}
+function settings(){
+  hide();
+  document.getElementById('settings').classList.remove('hidden');
+  settingsBack();
+  try{refreshCloudUser()}catch(e){}
+}
+function settingsBack(){
+  const menu=document.getElementById('settingsMenu');
+  if(menu)menu.classList.remove('hidden');
+  document.querySelectorAll('.settings-section').forEach(x=>x.classList.add('hidden'));
+}
+function openSettingsSection(name){
+  const menu=document.getElementById('settingsMenu');
+  if(menu)menu.classList.add('hidden');
+  document.querySelectorAll('.settings-section').forEach(x=>x.classList.add('hidden'));
+  const sec=document.getElementById('settings-'+name);
+  if(sec)sec.classList.remove('hidden');
+  if(name==='cloud'){try{refreshCloudUser()}catch(e){}}
+}
 function calcDueDate(dateValue,daysValue){
   if(!dateValue)return '';
   const p=dateValue.split('-');
@@ -1605,7 +1670,7 @@ FR Fliesen Rechteck`);
 renderCustomerList();
 renderDashboard();
 
-// v40: Papierkorb + restore + permanent delete
+// v41: Papierkorb + compact settings menu
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
