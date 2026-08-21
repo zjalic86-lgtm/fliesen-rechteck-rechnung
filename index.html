@@ -103,7 +103,7 @@ label{font-weight:700}
     </div>
     <button class="btn" onclick="showForm('Rechnung')">+ Neue Rechnung</button>
     <button class="btn outline" onclick="showForm('Angebot')">+ Neues Angebot</button>
-    <button class="btn outline" onclick="showWallMeasure()">📐 Messen</button>
+    <button class="btn outline" type="button" onclick="showMessen()">📐 Messen</button>
     <h3>Gespeicherte Rechnungen</h3>
     <div id="invoiceList"></div>
     <h3>Gespeicherte Angebote</h3>
@@ -111,11 +111,11 @@ label{font-weight:700}
   </div>
 
 
-  <div id="wallMeasure" class="card hidden">
+  <div id="messen" class="card hidden">
     <h2>📐 Messen</h2>
     <p class="small">Foto aufnehmen und Maße eingeben. Tür/Fenster wird automatisch abgezogen.</p>
 
-    <label>Wand Foto</label>
+    <label>Foto</label>
     <input id="wallPhoto" type="file" accept="image/*" capture="environment" onchange="previewWallPhoto(event)">
     <img id="wallPhotoPreview" class="measure-preview">
 
@@ -138,12 +138,13 @@ label{font-weight:700}
     </div>
 
     <div class="measure-result"><span id="wallAreaResult">0,00</span> m²</div>
+
     <label>Preis €/m²</label>
     <input id="wallMeasurePrice" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 40">
 
-    <button class="btn" onclick="wallToOffer()">In Angebot übernehmen</button>
-    <button class="btn outline" onclick="wallToInvoice()">In Rechnung übernehmen</button>
-    <button class="btn outline" onclick="home()">Zurück</button>
+    <button class="btn" type="button" onclick="messenToOffer()">In Angebot übernehmen</button>
+    <button class="btn outline" type="button" onclick="messenToInvoice()">In Rechnung übernehmen</button>
+    <button class="btn outline" type="button" onclick="home()">Zurück</button>
   </div>
 
   <div id="trash" class="card hidden">
@@ -216,7 +217,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v43 · Messen</b></p>
+      <p class="small"><b>Version v44 · Messen</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -817,7 +818,7 @@ function changePin(){
 setupLock();
 
 let docType='Rechnung';
-const H=['home','form','settings','trash','wallMeasure'];
+const H=['home','form','settings','trash','messen'];
 const units=['m²','lfm','Std.','Stk.','Pauschal','kg'];
 let itemCount=0;
 
@@ -962,62 +963,7 @@ function getCustomers(){
 }
 function setCustomers(v){
   localStorage.setItem('frCustomers',JSON.stringify(v||[]));
-  
-let measuredWallArea=0;
-
-function showWallMeasure(){
-  ['home','form','settings','trash'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el)el.classList.add('hidden');
-  });
-  const panel=document.getElementById('wallMeasure');
-  if(!panel){alert('Messen konnte nicht geöffnet werden.');return}
-  panel.classList.remove('hidden');
-  calcWallArea();
-}
-function previewWallPhoto(event){
-  const file=event.target.files&&event.target.files[0];
-  const img=document.getElementById('wallPhotoPreview');
-  if(!file){img.style.display='none';img.removeAttribute('src');return}
-  const reader=new FileReader();
-  reader.onload=e=>{img.src=e.target.result;img.style.display='block'};
-  reader.readAsDataURL(file);
-}
-function wallNumber(id){
-  const el=document.getElementById(id);
-  const raw=String(el&&el.value||'').replace(',','.');
-  return Math.max(0,parseFloat(raw)||0);
-}
-function calcWallArea(){
-  const width=wallNumber('wallWidth');
-  const height=wallNumber('wallHeight');
-  const openingWidth=wallNumber('openingWidth');
-  const openingHeight=wallNumber('openingHeight');
-  const openingCount=Math.max(0,parseInt(document.getElementById('openingCount').value||'0',10)||0);
-  measuredWallArea=Math.max(0,(width*height)-(openingWidth*openingHeight*openingCount));
-  document.getElementById('wallAreaResult').textContent=
-    new Intl.NumberFormat('de-AT',{minimumFractionDigits:2,maximumFractionDigits:2}).format(measuredWallArea);
-  return measuredWallArea;
-}
-function insertMeasuredWall(targetType){
-  const area=calcWallArea();
-  if(area<=0){alert('Bitte Wandbreite und Wandhöhe eingeben.');return}
-  const price=wallNumber('wallMeasurePrice');
-  showForm(targetType);
-  // Remove the automatically created blank position if it is completely empty.
-  const blank=[...document.querySelectorAll('.item')].find(el=>{
-    const d=el.querySelector('.i-desc').value.trim();
-    const q=el.querySelector('.i-qty').value;
-    const p=el.querySelector('.i-price').value;
-    return !d&&!q&&!p;
-  });
-  if(blank) blank.remove();
-  addItem('Wandfliesen verlegen',area.toFixed(2),'m²',price?price.toFixed(2):'');
-}
-function wallToOffer(){insertMeasuredWall('Angebot')}
-function wallToInvoice(){insertMeasuredWall('Rechnung')}
-
-renderCustomerList();
+  renderCustomerList();
 }
 function renderCustomerList(){
   const el=document.getElementById('kundenListe');
@@ -1764,10 +1710,84 @@ FR Fliesen Rechteck`);
   </body></html>`);
   w.document.close();
 }
+
+let measuredWallArea=0;
+
+function showMessen(){
+  hide();
+  const panel=document.getElementById('messen');
+  if(!panel){alert('Messen konnte nicht geöffnet werden.');return}
+  panel.classList.remove('hidden');
+  calcWallArea();
+}
+
+function previewWallPhoto(event){
+  const file=event.target.files && event.target.files[0];
+  const img=document.getElementById('wallPhotoPreview');
+  if(!file){img.style.display='none';img.removeAttribute('src');return}
+  const reader=new FileReader();
+  reader.onload=function(e){
+    img.src=e.target.result;
+    img.style.display='block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function wallNumber(id){
+  const el=document.getElementById(id);
+  const raw=String(el && el.value || '').replace(',','.');
+  return Math.max(0,parseFloat(raw)||0);
+}
+
+function calcWallArea(){
+  const width=wallNumber('wallWidth');
+  const height=wallNumber('wallHeight');
+  const openingWidth=wallNumber('openingWidth');
+  const openingHeight=wallNumber('openingHeight');
+  const countEl=document.getElementById('openingCount');
+  const openingCount=Math.max(0,parseInt(countEl && countEl.value || '0',10)||0);
+
+  measuredWallArea=Math.max(0,(width*height)-(openingWidth*openingHeight*openingCount));
+
+  const out=document.getElementById('wallAreaResult');
+  if(out){
+    out.textContent=new Intl.NumberFormat('de-AT',{
+      minimumFractionDigits:2,
+      maximumFractionDigits:2
+    }).format(measuredWallArea);
+  }
+  return measuredWallArea;
+}
+
+function insertMeasuredWall(targetType){
+  const area=calcWallArea();
+  if(area<=0){
+    alert('Bitte Breite und Höhe eingeben.');
+    return;
+  }
+  const price=wallNumber('wallMeasurePrice');
+
+  showForm(targetType);
+
+  // Remove a completely empty auto-created position.
+  const empty=[...document.querySelectorAll('.item')].find(el=>{
+    const d=el.querySelector('.i-desc').value.trim();
+    const q=el.querySelector('.i-qty').value;
+    const p=el.querySelector('.i-price').value;
+    return !d && !q && !p;
+  });
+  if(empty) empty.remove();
+
+  addItem('Wandfliesen verlegen',area.toFixed(2),'m²',price ? price.toFixed(2) : '');
+}
+
+function messenToOffer(){ insertMeasuredWall('Angebot'); }
+function messenToInvoice(){ insertMeasuredWall('Rechnung'); }
+
 renderCustomerList();
 renderDashboard();
 
-// v43: Messen + Papierkorb + compact settings menu
+// v44: Messen + Papierkorb + compact settings menu
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
