@@ -110,6 +110,11 @@ label{font-weight:700}
 .regie-selected-item .small{margin:0}
 @media(max-width:620px){.regie-preset-grid{grid-template-columns:1fr}}
 
+
+.sockel-repeat-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin:8px 0}
+.sockel-total{font-size:20px;font-weight:800;text-align:center;padding:10px;background:#fff;border-radius:12px;margin-top:8px}
+@media(max-width:620px){.sockel-repeat-row{grid-template-columns:1fr auto}}
+
 </style>
 </head>
 <body>
@@ -220,15 +225,70 @@ label{font-weight:700}
 
     <div class="measure-card">
       <h3>Weitere Arbeiten</h3>
-      <div class="row">
-        <div><label>Sockel lfm</label><input id="roomSockel" type="number" step="0.01"></div>
-        <div><label>Preis €/lfm</label><input id="roomSockelPrice" type="number" step="0.01"></div>
-        <div><label>Schiene lfm</label><input id="roomSchiene" type="number" step="0.01"></div>
-        <div><label>Preis €/lfm</label><input id="roomSchienePrice" type="number" step="0.01"></div>
-        <div><label>Silikon lfm</label><input id="roomSilikon" type="number" step="0.01"></div>
-        <div><label>Preis €/lfm</label><input id="roomSilikonPrice" type="number" step="0.01"></div>
-        <div><label>Stufen lfm</label><input id="roomStufen" type="number" step="0.01"></div>
-        <div><label>Preis €/lfm</label><input id="roomStufenPrice" type="number" step="0.01"></div>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Sockel lfm einzeln messen</span>
+          <button class="measure-mini-btn" type="button" onclick="addLfmMeasureRow('sockel')">+ Sockel-Länge</button>
+        </div>
+        <div id="sockelMeasureRows"></div>
+        <div class="row">
+          <div><label>Sockel gesamt lfm</label><input id="roomSockel" type="number" step="0.01" readonly></div>
+          <div><label>Preis €/lfm</label><input id="roomSockelPrice" type="number" step="0.01"></div>
+        </div>
+        <div class="sockel-total"><span id="roomSockelResult">0,00</span> lfm</div>
+      </div>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Schiene lfm einzeln messen</span>
+          <button class="measure-mini-btn" type="button" onclick="addLfmMeasureRow('schiene')">+ Schiene-Länge</button>
+        </div>
+        <div id="schieneMeasureRows"></div>
+        <div class="row">
+          <div><label>Schiene gesamt lfm</label><input id="roomSchiene" type="number" step="0.01" readonly></div>
+          <div><label>Preis €/lfm</label><input id="roomSchienePrice" type="number" step="0.01"></div>
+        </div>
+        <div class="sockel-total"><span id="roomSchieneResult">0,00</span> lfm</div>
+      </div>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Silikon lfm einzeln messen</span>
+          <button class="measure-mini-btn" type="button" onclick="addLfmMeasureRow('silikon')">+ Silikon-Länge</button>
+        </div>
+        <div id="silikonMeasureRows"></div>
+        <div class="row">
+          <div><label>Silikon gesamt lfm</label><input id="roomSilikon" type="number" step="0.01" readonly></div>
+          <div><label>Preis €/lfm</label><input id="roomSilikonPrice" type="number" step="0.01"></div>
+        </div>
+        <div class="sockel-total"><span id="roomSilikonResult">0,00</span> lfm</div>
+      </div>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Stufen lfm einzeln messen</span>
+          <button class="measure-mini-btn" type="button" onclick="addLfmMeasureRow('stufen')">+ Stufen-Länge</button>
+        </div>
+        <div id="stufenMeasureRows"></div>
+        <div class="row">
+          <div><label>Stufen gesamt lfm</label><input id="roomStufen" type="number" step="0.01" readonly></div>
+          <div><label>Preis €/lfm</label><input id="roomStufenPrice" type="number" step="0.01"></div>
+        </div>
+        <div class="sockel-total"><span id="roomStufenResult">0,00</span> lfm</div>
+      </div>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Stufensockel lfm einzeln messen</span>
+          <button class="measure-mini-btn" type="button" onclick="addLfmMeasureRow('stufensockel')">+ Stufensockel-Länge</button>
+        </div>
+        <div id="stufensockelMeasureRows"></div>
+        <div class="row">
+          <div><label>Stufensockel gesamt lfm</label><input id="roomStufensockel" type="number" step="0.01" readonly></div>
+          <div><label>Preis €/lfm</label><input id="roomStufensockelPrice" type="number" step="0.01"></div>
+        </div>
+        <div class="sockel-total"><span id="roomStufensockelResult">0,00</span> lfm</div>
       </div>
     </div>
 
@@ -380,7 +440,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v65 · Regiestunden separat · PDF übernimmt Eingaben automatisch</b></p>
+      <p class="small"><b>Version v68 · Weitere Arbeiten separat · Alle lfm einzeln messen</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -2500,6 +2560,61 @@ function resetRegieRows(){
   if(customTotal)customTotal.value='';
 }
 
+
+
+const lfmConfig={
+  sockel:{rows:'sockelMeasureRows',input:'roomSockel',result:'roomSockelResult',label:'Sockel'},
+  schiene:{rows:'schieneMeasureRows',input:'roomSchiene',result:'roomSchieneResult',label:'Schiene'},
+  silikon:{rows:'silikonMeasureRows',input:'roomSilikon',result:'roomSilikonResult',label:'Silikon'},
+  stufen:{rows:'stufenMeasureRows',input:'roomStufen',result:'roomStufenResult',label:'Stufen'},
+  stufensockel:{rows:'stufensockelMeasureRows',input:'roomStufensockel',result:'roomStufensockelResult',label:'Stufensockel'}
+};
+
+function addLfmMeasureRow(kind,length=''){
+  const cfg=lfmConfig[kind];
+  if(!cfg)return;
+  const box=document.getElementById(cfg.rows);
+  if(!box)return;
+  const row=document.createElement('div');
+  row.className='sockel-repeat-row';
+  row.dataset.lfmKind=kind;
+  row.innerHTML=`
+    <div>
+      <label>Länge m / lfm</label>
+      <input class="lfm-length" type="number" min="0" step="0.01" value="${escAttr(length)}" placeholder="z.B. 2,40" oninput="calcLfmMeasures('${kind}')">
+    </div>
+    <button class="measure-remove" type="button" aria-label="${escAttr(cfg.label)}-Länge löschen" onclick="removeLfmMeasureRow(this,'${kind}')">✕</button>`;
+  box.appendChild(row);
+  calcLfmMeasures(kind);
+}
+function removeLfmMeasureRow(btn,kind){
+  btn.closest('.sockel-repeat-row')?.remove();
+  const cfg=lfmConfig[kind];
+  if(cfg && !document.querySelector(`#${cfg.rows} .sockel-repeat-row`))addLfmMeasureRow(kind);
+  calcLfmMeasures(kind);
+}
+function calcLfmMeasures(kind){
+  const cfg=lfmConfig[kind];
+  if(!cfg)return 0;
+  let total=0;
+  document.querySelectorAll(`#${cfg.rows} .lfm-length`).forEach(el=>{
+    total+=Math.max(0,parseFloat(el.value)||0);
+  });
+  const input=document.getElementById(cfg.input);
+  const result=document.getElementById(cfg.result);
+  if(input)input.value=total?total.toFixed(2):'';
+  if(result)result.textContent=num(total);
+  return total;
+}
+function resetAllLfmMeasureRows(){
+  Object.keys(lfmConfig).forEach(kind=>{
+    const cfg=lfmConfig[kind];
+    const box=document.getElementById(cfg.rows);
+    if(box)box.innerHTML='';
+    addLfmMeasureRow(kind);
+  });
+}
+
 function addRoomToList(){
   const room=(document.getElementById('measureRoomName').value||'').trim();
   if(!room){alert('Bitte Raum / Bereich eingeben.');return}
@@ -2511,10 +2626,18 @@ function addRoomToList(){
   }
   push('Wandfliesen verlegen',a.wall,'m²',roomNum('roomWallPrice'));
   push('Bodenfliesen verlegen',a.floor,'m²',roomNum('roomFloorPrice'));
-  push('Sockel verlegen',roomNum('roomSockel'),'lfm',roomNum('roomSockelPrice'));
-  push('Schiene verlegen',roomNum('roomSchiene'),'lfm',roomNum('roomSchienePrice'));
-  push('Silikon',roomNum('roomSilikon'),'lfm',roomNum('roomSilikonPrice'));
-  push('Stufen verlegen',roomNum('roomStufen'),'lfm',roomNum('roomStufenPrice'));
+
+  // Weitere Arbeiten stehen separat im Angebot/Rechnung, ohne Raumname.
+  function pushSeparate(desc,qty,unit,price){
+    qty=Number(qty)||0; price=Number(price)||0;
+    if(qty>0)items.push({desc,qty,unit,price});
+  }
+  pushSeparate('Sockel verlegen',roomNum('roomSockel'),'lfm',roomNum('roomSockelPrice'));
+  pushSeparate('Schiene verlegen',roomNum('roomSchiene'),'lfm',roomNum('roomSchienePrice'));
+  pushSeparate('Silikon',roomNum('roomSilikon'),'lfm',roomNum('roomSilikonPrice'));
+  pushSeparate('Stufen verlegen',roomNum('roomStufen'),'lfm',roomNum('roomStufenPrice'));
+  pushSeparate('Stufensockel verlegen',roomNum('roomStufensockel'),'lfm',roomNum('roomStufensockelPrice'));
+
   items.push(...collectRegieInfo(room));
   if(!items.length){alert('Bitte mindestens eine Menge eingeben.');return}
   measurementList.push({
@@ -2539,9 +2662,11 @@ function clearRoomInputs(){
   [
     'roomWallPrice','roomFloorPrice',
     'roomSockel','roomSockelPrice','roomSchiene','roomSchienePrice',
-    'roomSilikon','roomSilikonPrice','roomStufen','roomStufenPrice'
+    'roomSilikon','roomSilikonPrice','roomStufen','roomStufenPrice',
+    'roomStufensockel','roomStufensockelPrice'
   ].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});
   resetRepeatMeasureRows();
+  resetAllLfmMeasureRows();
   resetRegieRows();
 }
 
@@ -2621,6 +2746,7 @@ function measureListToDoc(type){
 }
 
 resetRepeatMeasureRows();
+resetAllLfmMeasureRows();
 resetRegieRows();
 renderCustomerList();
 renderDashboard();
