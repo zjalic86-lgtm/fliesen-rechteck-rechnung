@@ -380,7 +380,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v63 · Regiestunden Hinweis · Stundenberechnung · Material</b></p>
+      <p class="small"><b>Version v64 · PDF übernimmt aktuelle Eingaben automatisch · Material</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -2577,7 +2577,28 @@ function clearMeasureList(){
     renderMeasureMaterialList();
   }
 }
+function captureCurrentMeasureInputs(){
+  // Ako je Raum trenutno popunjen, automatski ga dodaj u dokument
+  // čak i kada korisnik nije pritisnuo + Raum hinzufügen.
+  const room=(document.getElementById('measureRoomName')?.value||'').trim();
+  if(room){
+    addRoomToList();
+  }
+
+  // Isto za trenutno izabran Material koji još nije dodat na listu.
+  const materialName=(document.getElementById('measureMaterialName')?.value||'').trim();
+  if(materialName){
+    const qty=Math.max(0,parseMaterialNumber(document.getElementById('measureMaterialQty')?.value));
+    const hasCatalog=!!selectedMaterial();
+    const customPrice=Math.max(0,parseMaterialNumber(document.getElementById('measureMaterialPrice')?.value));
+    if(qty>0 && (hasCatalog || (customMaterialMode && customPrice>0))){
+      addMeasuredMaterial();
+    }
+  }
+}
+
 function measureListToDoc(type){
+  captureCurrentMeasureInputs();
   if(!measurementList.length&&!measurementMaterials.length){alert('Messliste ist leer.');return}
   showForm(type);
   document.getElementById('items').innerHTML='';
