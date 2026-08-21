@@ -78,7 +78,7 @@ label{font-weight:700}
 </style>
 </head>
 <body>
-<div id="lockScreen" class="lockScreen">
+<div id="lockScreen" class="lockScreen" style="display:none">
   <div class="lockBox">
     <h2 id="lockTitle">FR Fliesen Rechteck</h2>
     <p id="lockInfo" class="small">PIN eingeben</p>
@@ -87,7 +87,7 @@ label{font-weight:700}
     <button class="btn" onclick="unlockApp()">Öffnen</button>
   </div>
 </div>
-<div class="app" id="mainApp" style="display:none">
+<div class="app" id="mainApp" style="display:block">
   <div class="card head">
     <img id="logoPreview" class="logo hidden">
     <h1>FR Fliesen Rechteck</h1>
@@ -290,7 +290,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v53 · Alle Materialien · Sonstige · +40% Netto · PDF Preis ON/OFF</b></p>
+      <p class="small"><b>Version v54 · Sofort öffnen · Alle Materialien · Sonstige · +40% Netto</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -301,9 +301,6 @@ label{font-weight:700}
         </button>
         <button class="settings-menu-item" onclick="openSettingsSection('cloud')">
           <span>Cloud Sync</span><span>›</span>
-        </button>
-        <button class="settings-menu-item" onclick="openSettingsSection('security')">
-          <span>Sicherheit / PIN</span><span>›</span>
         </button>
       </div>
 
@@ -346,14 +343,6 @@ label{font-weight:700}
       <p class="small">iPhone: Wenn der E-Mail-Link Safari öffnet, dort Cloud Login kopieren. Danach FR-App öffnen und Cloud Login einfügen.</p>
     </div>
 
-    <div id="settings-security" class="settings-section hidden">
-      <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
-      <h2>Sicherheit / PIN</h2>
-      <label>Neuer PIN</label>
-      <input id="newPin" type="password" inputmode="numeric" maxlength="6" placeholder="4–6 Ziffern">
-      <button class="btn outline" onclick="changePin()">PIN ändern</button>
-      <button class="btn outline" onclick="lockNow()">Jetzt sperren</button>
-    </div>
   </div>
 </div>
 
@@ -888,7 +877,12 @@ function changePin(){
 // Za zaključavanje koristi dugme "Jetzt sperren".
 
 
-setupLock();
+document.getElementById('lockScreen').style.display='none';
+document.getElementById('mainApp').style.display='block';
+if(!sessionStorage.getItem('frUrlPrefillDone') && hasInvoiceParams()){
+  sessionStorage.setItem('frUrlPrefillDone','1');
+  setTimeout(applyUrlInvoice,50);
+}
 
 let docType='Rechnung';
 const H=['home','form','settings','trash','messen'];
