@@ -63,6 +63,10 @@ label{font-weight:700}
 .measure-card{border:1px solid #e1e1e1;border-radius:16px;padding:14px;margin:12px 0;background:#fafafa}
 .measure-preview{width:100%;max-height:260px;object-fit:contain;border-radius:12px;margin:8px 0;display:none;background:#eee}
 .measure-result{font-size:24px;font-weight:800;text-align:center;padding:12px;background:#fff;border-radius:12px;margin:10px 0}
+.material-summary{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #e5e5e5}
+.material-summary:last-child{border-bottom:0}
+.material-summary .meta{font-size:13px;color:#666;margin-top:3px}
+.material-price-note{font-size:13px;color:#666;margin:-4px 0 10px}
 
 </style>
 </head>
@@ -164,6 +168,29 @@ label{font-weight:700}
 
     <button class="btn" type="button" onclick="addRoomToList()">+ Raum hinzufügen</button>
 
+    <div class="measure-card">
+      <h3>📦 Material</h3>
+      <label>Material suchen</label>
+      <input id="measureMaterialName" list="materialCatalogList" placeholder="z.B. FDF" oninput="syncMeasuredMaterial()" onchange="syncMeasuredMaterial()">
+      <datalist id="materialCatalogList"></datalist>
+      <div class="row">
+        <div><label>Menge</label><input id="measureMaterialQty" type="number" min="0" step="0.01" value="1" oninput="syncMeasuredMaterial()"></div>
+        <div><label>Einheit</label><input id="measureMaterialUnit" readonly placeholder="automatisch"></div>
+      </div>
+      <div class="row">
+        <div><label>Verkauf netto</label><input id="measureMaterialPrice" readonly placeholder="automatisch +40%"></div>
+        <div><label>Summe netto</label><input id="measureMaterialTotal" readonly></div>
+      </div>
+      <div class="material-price-note">Verkaufspreis wird automatisch mit +40% auf die Einkaufsliste berechnet.</div>
+      <label>Material-Preis auf PDF</label>
+      <select id="measureMaterialPdfMode" onchange="syncMaterialPdfModeFromMeasure()">
+        <option value="on" selected>ON – Materialpreise anzeigen</option>
+        <option value="off">OFF – Materialpreise ausblenden</option>
+      </select>
+      <button class="btn outline" type="button" onclick="addMeasuredMaterial()">+ Material hinzufügen</button>
+      <div id="measureMaterialList"></div>
+    </div>
+
     <h3>Räume / Messliste</h3>
     <div id="measureList"></div>
 
@@ -217,6 +244,11 @@ label{font-weight:700}
       <option value="on" selected>ON – Preise anzeigen</option>
       <option value="off">OFF – Pauschal</option>
     </select>
+    <label>Material-Preis auf PDF</label>
+    <select id="materialPdfPriceMode">
+      <option value="on" selected>ON – Materialpreise anzeigen</option>
+      <option value="off">OFF – Materialpreise ausblenden</option>
+    </select>
     <h3>Positionen</h3>
     <div id="items"></div>
     <button class="btn outline" type="button" onclick="addItem()">+ Position hinzufügen</button>
@@ -248,7 +280,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v50 · PDF Preis ON/OFF</b></p>
+      <p class="small"><b>Version v51 · Material-Autofill +40% · PDF Preis ON/OFF</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -727,7 +759,7 @@ async function pullChatgptInvoices(showMessage){
         for(const item of row.items){
           const qty=Number(item.qty||0);
           const price=Number(item.price||0);
-          items.push({desc:item.desc||'',qty,unit:item.unit||'m²',price,sum:qty*price});
+          items.push({desc:item.desc||'',qty,unit:item.unit||'m²',price,sum:qty*price,kind:item.kind||'',costPrice:Number(item.costPrice||0),hidePrice:!!item.hidePrice});
         }
       }
 
@@ -850,7 +882,7 @@ setupLock();
 
 let docType='Rechnung';
 const H=['home','form','settings','trash','messen'];
-const units=['m²','lfm','Std.','Stk.','Pauschal','kg'];
+const units=['m²','lfm','Std.','Stk.','ST','Sack','Dose','m','Kübel','SET','5 KG','20 KG','Kanister','Pauschal','kg'];
 let itemCount=0;
 
 function hide(){H.forEach(x=>document.getElementById(x).classList.add('hidden'))}
@@ -961,19 +993,33 @@ document.getElementById('logoInput').addEventListener('change',e=>{
 function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function escAttr(s){return esc(s).replace(/'/g,'&#39;')}
 
-function addItem(desc='',qty='',unit='m²',price=''){
+function addItem(desc='',qty='',unit='m²',price='',kind='',costPrice=''){
   itemCount++;
   const box=document.createElement('div');
   box.className='item';
+  box.dataset.kind=kind||'';
+  box.dataset.costPrice=costPrice===''?'':String(costPrice);
   box.innerHTML=`
     <div class="itemline">
-      <div class="wide"><label>Beschreibung</label><input class="i-desc" value="${escAttr(desc)}" placeholder="z.B. Bodenfliesen verlegen"></div>
-      <div><label>Menge</label><input class="i-qty" type="number" step="0.01" value="${qty}"></div>
+      <div class="wide"><label>Beschreibung${kind==='material'?' · Material':''}</label><input class="i-desc" value="${escAttr(desc)}" placeholder="z.B. Bodenfliesen verlegen"></div>
+      <div><label>Menge</label><input class="i-qty" type="number" step="0.01" value="${qty}" oninput="recalcMaterialCostFromItems()"></div>
       <div><label>Einheit</label><select class="i-unit">${units.map(u=>`<option ${u===unit?'selected':''}>${u}</option>`).join('')}</select></div>
       <div><label>Preis €</label><input class="i-price" type="number" step="0.01" value="${price}"></div>
-      <button type="button" class="remove" onclick="this.closest('.item').remove()">✕</button>
+      <button type="button" class="remove" onclick="removeInvoiceItem(this)">✕</button>
     </div>`;
   document.getElementById('items').appendChild(box);
+}
+function removeInvoiceItem(btn){
+  const el=btn&&btn.closest?btn.closest('.item'):null;
+  if(el)el.remove();
+  recalcMaterialCostFromItems();
+}
+function recalcMaterialCostFromItems(){
+  const mats=[...document.querySelectorAll('.item')].filter(el=>el.dataset.kind==='material' && Number(el.dataset.costPrice||0)>0);
+  if(!mats.length)return;
+  const total=mats.reduce((sum,el)=>sum+(parseFloat(el.querySelector('.i-qty').value)||0)*Number(el.dataset.costPrice||0),0);
+  const target=document.getElementById('materialCost');
+  if(target)target.value=total.toFixed(2);
 }
 
 function euro(n){return new Intl.NumberFormat('de-AT',{style:'currency',currency:'EUR'}).format(Number(n||0))}
@@ -981,11 +1027,18 @@ function num(n){return new Intl.NumberFormat('de-AT',{minimumFractionDigits:2,ma
 function fmtDate(v){if(!v)return '';const [y,m,d]=v.split('-');return d+'.'+m+'.'+y}
 
 function collectItems(){
+  const hideMaterial=(document.getElementById('materialPdfPriceMode')?.value||'on')==='off';
   return [...document.querySelectorAll('.item')].map(el=>{
     const q=parseFloat(el.querySelector('.i-qty').value)||0;
     const p=parseFloat(el.querySelector('.i-price').value)||0;
-    return {desc:el.querySelector('.i-desc').value,qty:q,unit:el.querySelector('.i-unit').value,price:p,sum:q*p}
+    const kind=el.dataset.kind||'';
+    const costPrice=parseFloat(el.dataset.costPrice||'')||0;
+    return {desc:el.querySelector('.i-desc').value,qty:q,unit:el.querySelector('.i-unit').value,price:p,sum:q*p,kind,costPrice,hidePrice:kind==='material'&&hideMaterial}
   }).filter(x=>x.desc||x.qty||x.price)
+}
+function materialPdfModeForInvoice(x){
+  if(x&&x.materialPdfPriceMode)return x.materialPdfPriceMode;
+  return x&&Array.isArray(x.items)&&x.items.some(it=>it&&it.kind==='material'&&it.hidePrice)?'off':'on';
 }
 
 
@@ -1065,6 +1118,7 @@ function currentInvoiceData(){
     material:parseFloat(document.getElementById('materialCost').value)||0,
     footer:document.getElementById('invoiceFooter').value,
     pdfPriceMode:(document.getElementById('pdfPriceMode').value||'on'),
+    materialPdfPriceMode:(document.getElementById('materialPdfPriceMode').value||'on'),
     items, net, ust, total:net+ust, paid:false,
     savedAt:new Date().toISOString()
   }
@@ -1120,8 +1174,9 @@ function loadOffer(i){
   document.getElementById('materialCost').value=x.material||'';
   document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
   document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
+  document.getElementById('materialPdfPriceMode').value=materialPdfModeForInvoice(x);
   document.getElementById('items').innerHTML='';
-  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
+  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price,it.kind||'',it.costPrice||''));
 }
 function setOfferStatus(i,status){
   let a=getOffers();if(!a[i])return;
@@ -1152,8 +1207,9 @@ function offerToInvoice(i){
   document.getElementById('materialCost').value=x.material||'';
   document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
   document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
+  document.getElementById('materialPdfPriceMode').value=materialPdfModeForInvoice(x);
   document.getElementById('items').innerHTML='';
-  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
+  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price,it.kind||'',it.costPrice||''));
   updateDueDate();
   alert('Angebot wurde übernommen. Rechnungsnummer wurde automatisch erstellt.');
 }
@@ -1273,7 +1329,8 @@ function loadInvoice(i){
   document.getElementById('nachricht').value=x.nachricht||'';document.getElementById('tage').value=x.tage||'14';
   document.getElementById('skonto').value=x.skonto||'3';updateDueDate();document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
   document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
-  document.getElementById('items').innerHTML='';(x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
+  document.getElementById('materialPdfPriceMode').value=materialPdfModeForInvoice(x);
+  document.getElementById('items').innerHTML='';(x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price,it.kind||'',it.costPrice||''));
 }
 
 
@@ -1284,9 +1341,12 @@ async function pdfInvoice(i){
 
   const items=(x.items||[]).map(it=>({
     desc:it.desc||'',qty:Number(it.qty)||0,unit:it.unit||'',
-    price:Number(it.price)||0,sum:(Number(it.qty)||0)*(Number(it.price)||0)
+    price:Number(it.price)||0,sum:(Number(it.qty)||0)*(Number(it.price)||0),
+    kind:it.kind||'',costPrice:Number(it.costPrice||0),hidePrice:!!it.hidePrice
   }));
   if(!items.length){alert('Diese Rechnung hat keine Positionen.');return}
+  const showPrices=(x.pdfPriceMode||'on')!=='off';
+  const showMaterialPrices=materialPdfModeForInvoice(x)!=='off';
 
   const net=Number(x.net)||items.reduce((a,b)=>a+b.sum,0);
   const ust=Number(x.ust)||0;
@@ -1351,17 +1411,30 @@ async function pdfInvoice(i){
 
   pdf.setFillColor(243,243,243);pdf.rect(left,y,right-left,7,'F');
   pdf.setFont(undefined,'bold');pdf.setFontSize(8.5);
-  pdf.text('Beschreibung',left+2,y+4.8);pdf.text('Menge',118,y+4.8,{align:'right'});
-  pdf.text('Einheit',126,y+4.8);pdf.text('Preis',164,y+4.8,{align:'right'});pdf.text('Summe',192,y+4.8,{align:'right'});
+  pdf.text('Beschreibung',left+2,y+4.8);
+  if(showPrices){
+    pdf.text('Menge',118,y+4.8,{align:'right'});
+    pdf.text('Einheit',126,y+4.8);
+    pdf.text('Preis',164,y+4.8,{align:'right'});pdf.text('Summe',192,y+4.8,{align:'right'});
+  }else{
+    pdf.text('Pauschal',192,y+4.8,{align:'right'});
+  }
   y+=8;pdf.setFont(undefined,'normal');
 
   for(const it of items){
     if(y>205){pdf.addPage();y=18}
     const lines=pdf.splitTextToSize(it.desc,78);
     const rowH=Math.max(7,lines.length*4.2+2);
-    pdf.text(lines,left+2,y+4);pdf.text(num(it.qty),118,y+4,{align:'right'});
-    pdf.text(it.unit,126,y+4);pdf.text(euro(it.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
-    pdf.text(euro(it.sum).replace(/\u00a0/g,' '),192,y+4,{align:'right'});
+    pdf.text(lines,left+2,y+4);
+    if(showPrices){
+      pdf.text(num(it.qty),118,y+4,{align:'right'});
+      pdf.text(it.unit,126,y+4);
+      const itemPriceVisible=it.kind!=='material'||showMaterialPrices;
+      if(itemPriceVisible){
+        pdf.text(euro(it.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
+        pdf.text(euro(it.sum).replace(/\u00a0/g,' '),192,y+4,{align:'right'});
+      }
+    }
     pdf.setDrawColor(220);pdf.line(left,y+rowH,right,y+rowH);y+=rowH;
   }
 
@@ -1422,8 +1495,9 @@ function copyInvoice(i){
   document.getElementById('materialCost').value=x.material||'';
   document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
   document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
+  document.getElementById('materialPdfPriceMode').value=materialPdfModeForInvoice(x);
   document.getElementById('items').innerHTML='';
-  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
+  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price,it.kind||'',it.costPrice||''));
   updateDueDate();
   alert('Rechnung kopiert. Neue Rechnungsnummer wurde automatisch erstellt. Jetzt nur gewünschte Menge ändern.');
 }
@@ -1501,6 +1575,7 @@ function makeQrDataUrl(text,size=260){
 async function sharePDF(){
   const items=collectItems();
   const showPrices=(document.getElementById('pdfPriceMode').value||'on')!=='off';
+  const showMaterialPrices=(document.getElementById('materialPdfPriceMode').value||'on')!=='off';
   if(items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
 
   const {jsPDF}=window.jspdf||{};
@@ -1598,8 +1673,11 @@ async function sharePDF(){
     if(showPrices){
       pdf.text(num(x.qty),118,y+4,{align:'right'});
       pdf.text(x.unit||'',126,y+4);
-      pdf.text(euro(x.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
-      pdf.text(euro(x.sum).replace(/\u00a0/g,' '),192,y+4,{align:'right'});
+      const itemPriceVisible=x.kind!=='material'||showMaterialPrices;
+      if(itemPriceVisible){
+        pdf.text(euro(x.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
+        pdf.text(euro(x.sum).replace(/\u00a0/g,' '),192,y+4,{align:'right'});
+      }
     }
     pdf.setDrawColor(220);pdf.line(left,y+rowH,right,y+rowH);
     y+=rowH;
@@ -1676,6 +1754,7 @@ async function sharePDF(){
 function makeDoc(){
   const items=collectItems();
   const showPrices=(document.getElementById('pdfPriceMode').value||'on')!=='off';
+  const showMaterialPrices=(document.getElementById('materialPdfPriceMode').value||'on')!=='off';
   if(items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
 
   const net=items.reduce((a,b)=>a+b.sum,0);
@@ -1697,7 +1776,10 @@ function makeDoc(){
 
   const lg=logo?`<img src="${logo}" style="max-width:190px;max-height:95px">`:`<div style="font-size:25px;font-weight:800">FR Fliesen Rechteck</div>`;
   const rows=showPrices
-    ? items.map(x=>`<tr><td>${esc(x.desc)}</td><td style="text-align:right">${num(x.qty)}</td><td>${esc(x.unit)}</td><td style="text-align:right">${euro(x.price)}</td><td style="text-align:right">${euro(x.sum)}</td></tr>`).join('')
+    ? items.map(x=>{
+        const itemPriceVisible=x.kind!=='material'||showMaterialPrices;
+        return `<tr><td>${esc(x.desc)}</td><td style="text-align:right">${num(x.qty)}</td><td>${esc(x.unit)}</td><td style="text-align:right">${itemPriceVisible?euro(x.price):''}</td><td style="text-align:right">${itemPriceVisible?euro(x.sum):''}</td></tr>`;
+      }).join('')
     : items.map(x=>`<tr><td>${esc(x.desc)}</td></tr>`).join('');
   const tableHead=showPrices
     ? '<tr><th>Beschreibung</th><th style="text-align:right">Menge</th><th>Einheit</th><th style="text-align:right">Preis</th><th style="text-align:right">Summe</th></tr>'
@@ -1760,13 +1842,112 @@ FR Fliesen Rechteck`);
   w.document.close();
 }
 
+const materialCatalog=[
+  {name:'FDF 20 KG',unit:'20 KG',cost:77.00},
+  {name:'FDF 5 KG',unit:'5 KG',cost:43.00},
+  {name:'Ecke + Manschette',unit:'ST',cost:3.50},
+  {name:'Höhenpassstück',unit:'ST',cost:8.00},
+  {name:'Rissharz',unit:'Dose',cost:18.00},
+  {name:'Dichtband',unit:'m',cost:1.10},
+  {name:'Silikon',unit:'ST',cost:7.00},
+  {name:'No 1',unit:'Sack',cost:17.00},
+  {name:'FF 450',unit:'Sack',cost:25.00},
+  {name:'Bio Gel',unit:'Sack',cost:27.00},
+  {name:'Vario Flex',unit:'Sack',cost:27.00},
+  {name:'AMT Ausgleichsmasse',unit:'Sack',cost:24.00},
+  {name:'DF 10',unit:'Kübel',cost:27.00},
+  {name:'MFT + Mfs',unit:'Sack',cost:36.00},
+  {name:'Schnellkleber',unit:'Sack',cost:41.00},
+  {name:'Schiene: L AS Natur + Weiß 9-12mm',unit:'ST',cost:9.00},
+  {name:'Quadra AS',unit:'ST',cost:18.00},
+  {name:'Edelstahl L 8-12mm',unit:'ST',cost:8.00},
+  {name:'Quadra Edelstahl',unit:'ST',cost:12.00},
+  {name:'AZ-Gebürstet',unit:'m',cost:2.00},
+  {name:'Acryl',unit:'ST',cost:3.00},
+  {name:'Gefälleprofil b.148',unit:'ST',cost:80.00},
+  {name:'Gefälleprofil Glas',unit:'ST',cost:120.00},
+  {name:'Megaflex A+B',unit:'SET',cost:74.00},
+  {name:'Saphir Perlfuge',unit:'5 KG',cost:24.00},
+  {name:'Nivelliermasse',unit:'Sack',cost:32.00},
+  {name:'Rapidur M5 Estrich',unit:'Sack',cost:15.00},
+  {name:'Drainagemörtel',unit:'Sack',cost:14.00},
+  {name:'RAM 3',unit:'Sack',cost:38.00},
+  {name:'GD 749 Grundierung',unit:'Kanister',cost:8.00},
+  {name:'HPS Haftprimer',unit:'Kanister',cost:77.00},
+  {name:'DSF RS',unit:'Sack',cost:110.00},
+  {name:'Wedi 1-3cm',unit:'ST',cost:32.00},
+  {name:'Wedi 4-5cm',unit:'ST',cost:39.00},
+  {name:'DKS Silikon',unit:'ST',cost:14.00},
+  {name:'Quattrotec',unit:'ST',cost:15.00},
+  {name:'ST Profil ASG 7mm',unit:'ST',cost:27.80},
+  {name:'ST Profil ASG 9mm',unit:'ST',cost:28.70},
+  {name:'ST Profil ASG 11mm',unit:'ST',cost:31.10},
+  {name:'ST Profil QU-AT 9mm MATT',unit:'ST',cost:25.50},
+  {name:'ST Profil QU-AT 9mm Glänzend',unit:'ST',cost:43.30},
+  {name:'ST Profil QU-AT 11mm Glänzend',unit:'ST',cost:25.90},
+  {name:'ST Profil QU-AT 11mm Matt',unit:'ST',cost:44.50}
+];
+function materialSalePrice(cost){return Math.round(Number(cost||0)*140)/100}
+function renderMaterialCatalogList(){
+  const el=document.getElementById('materialCatalogList');
+  if(!el)return;
+  el.innerHTML=materialCatalog.map(m=>`<option value="${escAttr(m.name)}">${euro(materialSalePrice(m.cost))} netto · ${esc(m.unit)}</option>`).join('');
+}
+function selectedMaterial(){
+  const v=(document.getElementById('measureMaterialName')?.value||'').trim().toLowerCase();
+  if(!v)return null;
+  return materialCatalog.find(m=>m.name.toLowerCase()===v)||null;
+}
+function syncMeasuredMaterial(){
+  const m=selectedMaterial();
+  const qty=Math.max(0,parseFloat(String(document.getElementById('measureMaterialQty')?.value||'').replace(',','.'))||0);
+  const unit=document.getElementById('measureMaterialUnit');
+  const price=document.getElementById('measureMaterialPrice');
+  const total=document.getElementById('measureMaterialTotal');
+  if(!m){if(unit)unit.value='';if(price)price.value='';if(total)total.value='';return}
+  const sale=materialSalePrice(m.cost);
+  if(unit)unit.value=m.unit;
+  if(price)price.value=sale.toFixed(2)+' €';
+  if(total)total.value=(sale*qty).toFixed(2)+' €';
+}
 let measurementList=[];
+let measurementMaterials=[];
+function addMeasuredMaterial(){
+  const m=selectedMaterial();
+  if(!m){alert('Bitte Material aus der Liste auswählen.');return}
+  const qty=Math.max(0,parseFloat(String(document.getElementById('measureMaterialQty')?.value||'').replace(',','.'))||0);
+  if(qty<=0){alert('Bitte Menge eingeben.');return}
+  measurementMaterials.push({desc:m.name,qty,unit:m.unit,price:materialSalePrice(m.cost),costPrice:m.cost,kind:'material'});
+  document.getElementById('measureMaterialName').value='';
+  document.getElementById('measureMaterialQty').value='1';
+  syncMeasuredMaterial();
+  renderMeasureMaterialList();
+}
+function renderMeasureMaterialList(){
+  const box=document.getElementById('measureMaterialList');
+  if(!box)return;
+  if(!measurementMaterials.length){box.innerHTML='<p class="small">Noch kein Material hinzugefügt.</p>';return}
+  box.innerHTML=measurementMaterials.map((m,i)=>`
+    <div class="material-summary">
+      <div><b>${esc(m.desc)}</b><div class="meta">${num(m.qty)} ${esc(m.unit)} · ${euro(m.price)} netto / ${esc(m.unit)} · Summe ${euro(m.qty*m.price)}</div></div>
+      <button type="button" class="remove" onclick="removeMeasuredMaterial(${i})">✕</button>
+    </div>`).join('');
+}
+function removeMeasuredMaterial(i){measurementMaterials.splice(i,1);renderMeasureMaterialList()}
+function syncMaterialPdfModeFromMeasure(){
+  const src=document.getElementById('measureMaterialPdfMode');
+  const dst=document.getElementById('materialPdfPriceMode');
+  if(src&&dst)dst.value=src.value||'on';
+}
 
 function showMessen(){
   hide();
   const p=document.getElementById('messen');
   if(p)p.classList.remove('hidden');
   calcRoomMeasures();
+  renderMaterialCatalogList();
+  renderMeasureMaterialList();
+  syncMeasuredMaterial();
   renderMeasureList();
 }
 function roomNum(id){
@@ -1840,25 +2021,33 @@ function removeRoomMeasurement(i){
   renderMeasureList();
 }
 function clearMeasureList(){
-  if(!measurementList.length)return;
-  if(confirm('Messliste wirklich leeren?')){
+  if(!measurementList.length&&!measurementMaterials.length)return;
+  if(confirm('Messliste und Material wirklich leeren?')){
     measurementList=[];
+    measurementMaterials=[];
     renderMeasureList();
+    renderMeasureMaterialList();
   }
 }
 function measureListToDoc(type){
-  if(!measurementList.length){alert('Messliste ist leer.');return}
+  if(!measurementList.length&&!measurementMaterials.length){alert('Messliste ist leer.');return}
   showForm(type);
   document.getElementById('items').innerHTML='';
   measurementList.forEach(r=>{
-    r.items.forEach(x=>addItem(x.desc,Number(x.qty).toFixed(2),x.unit,x.price?Number(x.price).toFixed(2):''));
+    r.items.forEach(x=>addItem(x.desc,Number(x.qty).toFixed(2),x.unit,x.price?Number(x.price).toFixed(2):'','work',''));
   });
+  measurementMaterials.forEach(m=>addItem(m.desc,Number(m.qty).toFixed(2),m.unit,Number(m.price).toFixed(2),'material',Number(m.costPrice).toFixed(2)));
+  const materialCost=measurementMaterials.reduce((sum,m)=>sum+Number(m.qty||0)*Number(m.costPrice||0),0);
+  document.getElementById('materialCost').value=materialCost?materialCost.toFixed(2):'';
+  const measureMode=document.getElementById('measureMaterialPdfMode');
+  const formMode=document.getElementById('materialPdfPriceMode');
+  if(measureMode&&formMode)formMode.value=measureMode.value||'on';
 }
 
 renderCustomerList();
 renderDashboard();
 
-// v50: PDF Preis ON/OFF + Raum messen
+// v51: Material-Autofill +40% + Material Preis ON/OFF + Raum messen
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
