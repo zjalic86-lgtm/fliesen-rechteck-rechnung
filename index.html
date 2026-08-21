@@ -101,6 +101,15 @@ label{font-weight:700}
   .regie-grid .measure-remove{grid-column:2;justify-self:end}
 }
 
+
+.regie-preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.regie-preset-btn{border:1px solid #d8d8d8;background:#fff;border-radius:12px;padding:12px;text-align:left;font-weight:700;cursor:pointer}
+.regie-preset-btn.selected{border-width:2px}
+.regie-selected-list{margin-top:10px}
+.regie-selected-item{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid #e5e5e5;border-radius:12px;padding:10px;margin:6px 0;background:#fff}
+.regie-selected-item .small{margin:0}
+@media(max-width:620px){.regie-preset-grid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -225,24 +234,27 @@ label{font-weight:700}
 
     <div class="measure-card">
       <h3>⏱️ Regiestunden</h3>
-      <p class="small">Preisinfo für den Kunden · nach Vereinbarung / Bestätigung. Wird nicht in den Rechnungsbetrag eingerechnet.</p>
+      <p class="small">Regiestunden nur nach Vereinbarung und Ihrer Bestätigung. Diese Preisinfo wird nicht automatisch berechnet.</p>
 
-      <label>Regiestunden auswählen</label>
-      <select id="regiePreset">
-        <option value="">– auswählen –</option>
-        <option>Material tragen</option>
-        <option>Stemmen</option>
-        <option>Ausgleichen</option>
-        <option>Gehrung schneiden</option>
-        <option>Schleifen Maschine – Wand</option>
-        <option>Schleifen Maschine – Boden</option>
-        <option>Rinne setzen</option>
-        <option>Nische herstellen</option>
-        <option>Palette fahren</option>
-        <option>Schutt fahren / entsorgen</option>
-      </select>
       <label>Preis €/Std.</label>
       <input id="regiePresetPrice" type="number" min="0" step="0.01" placeholder="z.B. 55,00">
+
+      <label>Regiestunden auswählen</label>
+      <div class="regie-preset-grid">
+        <button class="regie-preset-btn" type="button" onclick="addPresetRegie('Material tragen')">Material tragen</button>
+        <button class="regie-preset-btn" type="button" onclick="addPresetRegie('Stemmen')">Stemmen</button>
+        <button class="regie-preset-btn" type="button" onclick="addPresetRegie('Ausgleichen')">Ausgleichen</button>
+        <button class="regie-preset-btn" type="button" onclick="addPresetRegie('Gehrung schneiden')">Gehrung schneiden</button>
+        <button class="regie-preset-btn" type="button" onclick="addPresetRegie('Schleifen Maschine – Wand')">Schleifen Maschine – Wand</button>
+        <button class="regie-preset-btn" type="button" onclick="addPresetRegie('Schleifen Maschine – Boden')">Schleifen Maschine – Boden</button>
+        <button class="regie-preset-btn" type="button" onclick="addPresetRegie('Rinne setzen')">Rinne setzen</button>
+        <button class="regie-preset-btn" type="button" onclick="addPresetRegie('Nische herstellen')">Nische herstellen</button>
+        <button class="regie-preset-btn" type="button" onclick="addPresetRegie('Palette fahren')">Palette fahren</button>
+        <button class="regie-preset-btn" type="button" onclick="addPresetRegie('Schutt fahren / entsorgen')">Schutt fahren / entsorgen</button>
+      </div>
+
+      <div id="regieSelectedList" class="regie-selected-list"></div>
+      <div class="material-price-note">Ausgewählte Regiestunden gelten nur nach Vereinbarung und Ihrer Bestätigung. Sie werden nicht automatisch berechnet.</div>
 
       <div style="border-top:1px solid #e3e3e3;margin:16px 0"></div>
 
@@ -261,7 +273,7 @@ label{font-weight:700}
       <label>Summe netto</label>
       <input id="regieCustomTotal" readonly placeholder="0,00 €">
 
-      <div class="material-price-note">Oben: nur Preisinfo. Unten: Stunden × Preis wird berechnet und zur Rechnungssumme addiert.</div>
+      <div class="material-price-note">Oben: nur nach Vereinbarung und Ihrer Bestätigung, keine automatische Berechnung. Unten: Stunden × Preis wird berechnet und zur Rechnungssumme addiert.</div>
     </div>
 
     <button class="btn" type="button" onclick="addRoomToList()">+ Raum hinzufügen</button>
@@ -381,7 +393,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v60 · Regiestunden Info + Stundenberechnung · Einzelwände · Material</b></p>
+      <p class="small"><b>Version v62 · Regiestunden nach Bestätigung · Stundenberechnung · Material</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -2450,6 +2462,9 @@ function calcRoomMeasures(){
 
 
 
+
+let selectedPresetRegie=[];
+
 function updateCustomRegieTotal(){
   const qty=Math.max(0,parseFloat(document.getElementById('regieCustomQty')?.value)||0);
   const price=Math.max(0,parseFloat(document.getElementById('regieCustomPrice')?.value)||0);
@@ -2457,23 +2472,61 @@ function updateCustomRegieTotal(){
   if(total)total.value=(qty>0 && price>0)?(qty*price).toFixed(2)+' €':'';
 }
 
+function addPresetRegie(task){
+  const price=Math.max(0,parseFloat(document.getElementById('regiePresetPrice')?.value)||0);
+  if(price<=0){
+    alert('Bitte zuerst Preis €/Std. eingeben.');
+    document.getElementById('regiePresetPrice')?.focus();
+    return;
+  }
+
+  const existing=selectedPresetRegie.find(x=>x.task===task);
+  if(existing){
+    existing.price=price;
+  }else{
+    selectedPresetRegie.push({task,price});
+  }
+  renderSelectedPresetRegie();
+}
+
+function removePresetRegie(index){
+  selectedPresetRegie.splice(index,1);
+  renderSelectedPresetRegie();
+}
+
+function renderSelectedPresetRegie(){
+  const box=document.getElementById('regieSelectedList');
+  if(!box)return;
+  if(!selectedPresetRegie.length){
+    box.innerHTML='<div class="small">Noch keine Regiestunden ausgewählt.</div>';
+    return;
+  }
+  box.innerHTML=selectedPresetRegie.map((x,i)=>`
+    <div class="regie-selected-item">
+      <div>
+        <b>${esc(x.task)}</b>
+        <div class="small">${euro(x.price)}/Std. · nur Preisinfo</div>
+      </div>
+      <button class="measure-remove" type="button" onclick="removePresetRegie(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
 function collectRegieInfo(room){
   const out=[];
 
-  // Gornji izbor ostaje samo informacija o ceni za kupca.
-  const preset=(document.getElementById('regiePreset')?.value||'').trim();
-  const presetPrice=Math.max(0,parseFloat(document.getElementById('regiePresetPrice')?.value)||0);
-  if(preset && presetPrice>0){
+  // Kliknute stavke: samo Preisinfo, bez obračuna.
+  selectedPresetRegie.forEach(x=>{
     out.push({
-      desc:`${room} – Regiestunden: ${preset}`,
+      desc:`${room} – Regiestunden: ${x.task} – nach Vereinbarung und Ihrer Bestätigung`,
       qty:0,
       unit:'Std.',
-      price:presetPrice,
+      price:Number(x.price)||0,
       kind:'regieinfo'
     });
-  }
+  });
 
-  // Donji Regiestunden se računaju: sati × cena.
+  // Donji slobodni Regiestunden: sati × cena, računaju se u sumu.
   const custom=(document.getElementById('regieCustomText')?.value||'').trim();
   const customQty=Math.max(0,parseFloat(document.getElementById('regieCustomQty')?.value)||0);
   const customPrice=Math.max(0,parseFloat(document.getElementById('regieCustomPrice')?.value)||0);
@@ -2489,19 +2542,20 @@ function collectRegieInfo(room){
 
   return out;
 }
+
 function resetRegieRows(){
-  const preset=document.getElementById('regiePreset');
+  selectedPresetRegie=[];
   const presetPrice=document.getElementById('regiePresetPrice');
   const custom=document.getElementById('regieCustomText');
   const customQty=document.getElementById('regieCustomQty');
   const customPrice=document.getElementById('regieCustomPrice');
   const customTotal=document.getElementById('regieCustomTotal');
-  if(preset)preset.value='';
   if(presetPrice)presetPrice.value='';
   if(custom)custom.value='';
   if(customQty)customQty.value='';
   if(customPrice)customPrice.value='';
   if(customTotal)customTotal.value='';
+  renderSelectedPresetRegie();
 }
 
 function addRoomToList(){
