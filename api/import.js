@@ -13,7 +13,9 @@ export default async function handler(req, res) {
 
   const auth = req.headers.authorization || "";
   const queryToken = req.query?.token || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : queryToken;
+  const token = auth.startsWith("Bearer ")
+    ? auth.slice(7)
+    : queryToken;
 
   if (!importToken || token !== importToken) {
     return res.status(401).json({
@@ -31,8 +33,8 @@ export default async function handler(req, res) {
 
   const headers = {
     "Content-Type": "application/json",
-    "apikey": supabaseSecret,
-    "Authorization": `Bearer ${supabaseSecret}`
+    apikey: supabaseSecret,
+    Authorization: `Bearer ${supabaseSecret}`
   };
 
   if (req.method === "POST") {
@@ -52,7 +54,7 @@ export default async function handler(req, res) {
           method: "POST",
           headers: {
             ...headers,
-            "Prefer": "return=representation"
+            Prefer: "return=representation"
           },
           body: JSON.stringify({
             invoice
@@ -74,6 +76,7 @@ export default async function handler(req, res) {
         message: "FR Rechnung gespeichert",
         invoice
       });
+
     } catch (error) {
       return res.status(500).json({
         ok: false,
@@ -83,16 +86,45 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "GET") {
-    if (req.query?.mode !== "pull") {
-      return res.status(400).json({
-        ok: false,
-        error: "mode=pull required"
-      });
-    }
-
     try {
+      const mode = req.query?.mode || "";
+
+      if (mode === "clear") {
+        const clear = await fetch(
+          `${supabaseUrl}/rest/v1/fr_imports?id=gt.0`,
+          {
+            method: "DELETE",
+            headers: {
+              ...headers,
+              Prefer: "return=minimal"
+            }
+          }
+        );
+
+        if (!clear.ok) {
+          const err = await clear.text();
+
+          return res.status(clear.status).json({
+            ok: false,
+            error: err
+          });
+        }
+
+        return res.status(200).json({
+          ok: true,
+          cleared: true
+        });
+      }
+
+      if (mode !== "pull") {
+        return res.status(400).json({
+          ok: false,
+          error: "mode=pull or mode=clear required"
+        });
+      }
+
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/fr_imports?select=id,created_at,invoice&order=created_at.desc`,
+        `${supabaseUrl}/rest/v1/fr_imports?select=id,created_at,invoice&order=created_at.asc`,
         {
           method: "GET",
           headers
@@ -108,13 +140,46 @@ export default async function handler(req, res) {
         });
       }
 
+      // Posle uspešnog čitanja brišemo import red
+      // da se stari računi više ne vraćaju.
+      if (Array.isArray(rows) && rows.length) {
+        const ids = rows
+          .map(row => row.id)
+          .filter(id => id !== undefined && id !== null);
+
+        if (ids.length) {
+          const idList = `(${ids.join(",")})`;
+
+          const del = await fetch(
+            `${supabaseUrl}/rest/v1/fr_imports?id=in.${encodeURIComponent(idList)}`,
+            {
+              method: "DELETE",
+              headers: {
+                ...headers,
+                Prefer: "return=minimal"
+              }
+            }
+          );
+
+          if (!del.ok) {
+            const err = await del.text();
+
+            return res.status(500).json({
+              ok: false,
+              error: "Queue delete failed: " + err
+            });
+          }
+        }
+      }
+
       return res.status(200).json({
         ok: true,
-        invoices: rows.map(row => ({
+        invoices: (rows || []).map(row => ({
           ...row.invoice,
           created_at: row.created_at
         }))
       });
+
     } catch (error) {
       return res.status(500).json({
         ok: false,
