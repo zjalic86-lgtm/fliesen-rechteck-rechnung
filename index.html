@@ -90,6 +90,17 @@ label{font-weight:700}
   .measure-repeat-row .measure-remove{grid-column:2;justify-self:end}
 }
 
+
+.regie-row{border:1px solid #e5e5e5;border-radius:14px;background:#fff;padding:12px;margin:10px 0}
+.regie-grid{display:grid;grid-template-columns:2fr .8fr 1fr auto;gap:8px;align-items:end}
+.regie-custom{margin-top:8px}
+.regie-summary{font-size:13px;color:#555;margin-top:6px}
+@media(max-width:620px){
+  .regie-grid{grid-template-columns:1fr 1fr}
+  .regie-grid .regie-task{grid-column:1 / -1}
+  .regie-grid .measure-remove{grid-column:2;justify-self:end}
+}
+
 </style>
 </head>
 <body>
@@ -209,9 +220,23 @@ label{font-weight:700}
         <div><label>Preis €/lfm</label><input id="roomSilikonPrice" type="number" step="0.01"></div>
         <div><label>Stufen lfm</label><input id="roomStufen" type="number" step="0.01"></div>
         <div><label>Preis €/lfm</label><input id="roomStufenPrice" type="number" step="0.01"></div>
-        <div><label>Regie Std.</label><input id="roomRegie" type="number" step="0.25"></div>
-        <div><label>Preis €/Std.</label><input id="roomRegiePrice" type="number" step="0.01"></div>
       </div>
+    </div>
+
+    <div class="measure-card">
+      <h3>⏱️ Regiestunden</h3>
+      <p class="small">Nur Preisinfo für den Kunden. Wird nicht in den Rechnungsbetrag eingerechnet.</p>
+      <div class="row">
+        <div>
+          <label>Regiestunden</label>
+          <button id="regieToggle" class="btn outline" type="button" onclick="toggleRegieInfo()">Regiestunden hinzufügen</button>
+        </div>
+        <div>
+          <label>Preis €/Std.</label>
+          <input id="regieInfoPrice" type="number" min="0" step="0.01" placeholder="z.B. 55,00" disabled>
+        </div>
+      </div>
+      <div id="regieInfoNote" class="material-price-note">OFF</div>
     </div>
 
     <button class="btn" type="button" onclick="addRoomToList()">+ Raum hinzufügen</button>
@@ -331,7 +356,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v56 · Einzelwände · Türen/Fenster · Dusche/Badewanne · Material</b></p>
+      <p class="small"><b>Version v58 · Regiestunden Preisinfo · Einzelwände · Material</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1188,7 +1213,7 @@ function addItem(desc='',qty='',unit='m²',price='',kind='',costPrice=''){
   box.dataset.costPrice=costPrice===''?'':String(costPrice);
   box.innerHTML=`
     <div class="itemline">
-      <div class="wide"><label>Beschreibung${kind==='material'?' · Material':''}</label><input class="i-desc" value="${escAttr(desc)}" placeholder="z.B. Bodenfliesen verlegen"></div>
+      <div class="wide"><label>Beschreibung${kind==='material'?' · Material':kind==='regieinfo'?' · Preisinfo':''}</label><input class="i-desc" value="${escAttr(desc)}" placeholder="z.B. Bodenfliesen verlegen"></div>
       <div><label>Menge</label><input class="i-qty" type="number" step="0.01" value="${qty}" oninput="recalcMaterialCostFromItems()"></div>
       <div><label>Einheit</label><select class="i-unit">${units.map(u=>`<option ${u===unit?'selected':''}>${u}</option>`).join('')}</select></div>
       <div><label>Preis €</label><input class="i-price" type="number" step="0.01" value="${price}"></div>
@@ -1614,12 +1639,17 @@ async function pdfInvoice(i){
     const rowH=Math.max(7,lines.length*4.2+2);
     pdf.text(lines,left+2,y+4);
     if(showPrices){
-      pdf.text(num(it.qty),118,y+4,{align:'right'});
-      pdf.text(it.unit,126,y+4);
-      const itemPriceVisible=it.kind!=='material'||showMaterialPrices;
-      if(itemPriceVisible){
+      if(it.kind==='regieinfo'){
+        pdf.text(it.unit||'Std.',126,y+4);
         pdf.text(euro(it.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
-        pdf.text(euro(it.sum).replace(/\u00a0/g,' '),192,y+4,{align:'right'});
+      }else{
+        pdf.text(num(it.qty),118,y+4,{align:'right'});
+        pdf.text(it.unit,126,y+4);
+        const itemPriceVisible=it.kind!=='material'||showMaterialPrices;
+        if(itemPriceVisible){
+          pdf.text(euro(it.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
+          pdf.text(euro(it.sum).replace(/\u00a0/g,' '),192,y+4,{align:'right'});
+        }
       }
     }
     pdf.setDrawColor(220);pdf.line(left,y+rowH,right,y+rowH);y+=rowH;
@@ -1858,12 +1888,17 @@ async function sharePDF(){
     const rowH=Math.max(7,lines.length*4.2+2);
     pdf.text(lines,left+2,y+4);
     if(showPrices){
-      pdf.text(num(x.qty),118,y+4,{align:'right'});
-      pdf.text(x.unit||'',126,y+4);
-      const itemPriceVisible=x.kind!=='material'||showMaterialPrices;
-      if(itemPriceVisible){
+      if(x.kind==='regieinfo'){
+        pdf.text(x.unit||'Std.',126,y+4);
         pdf.text(euro(x.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
-        pdf.text(euro(x.sum).replace(/\u00a0/g,' '),192,y+4,{align:'right'});
+      }else{
+        pdf.text(num(x.qty),118,y+4,{align:'right'});
+        pdf.text(x.unit||'',126,y+4);
+        const itemPriceVisible=x.kind!=='material'||showMaterialPrices;
+        if(itemPriceVisible){
+          pdf.text(euro(x.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
+          pdf.text(euro(x.sum).replace(/\u00a0/g,' '),192,y+4,{align:'right'});
+        }
       }
     }
     pdf.setDrawColor(220);pdf.line(left,y+rowH,right,y+rowH);
@@ -1965,6 +2000,9 @@ function makeDoc(){
   const rows=showPrices
     ? items.map(x=>{
         const itemPriceVisible=x.kind!=='material'||showMaterialPrices;
+        if(x.kind==='regieinfo'){
+          return `<tr><td>${esc(x.desc)}</td><td style="text-align:right"></td><td>${esc(x.unit)}</td><td style="text-align:right">${euro(x.price)}</td><td style="text-align:right"></td></tr>`;
+        }
         return `<tr><td>${esc(x.desc)}</td><td style="text-align:right">${num(x.qty)}</td><td>${esc(x.unit)}</td><td style="text-align:right">${itemPriceVisible?euro(x.price):''}</td><td style="text-align:right">${itemPriceVisible?euro(x.sum):''}</td></tr>`;
       }).join('')
     : items.map(x=>`<tr><td>${esc(x.desc)}</td></tr>`).join('');
@@ -2384,6 +2422,45 @@ function calcRoomMeasures(){
 
   return {wall,floor,wallGross,openings,floorGross,floorCuts};
 }
+
+
+let regieInfoEnabled=false;
+
+function toggleRegieInfo(force){
+  regieInfoEnabled = typeof force==='boolean' ? force : !regieInfoEnabled;
+  const btn=document.getElementById('regieToggle');
+  const price=document.getElementById('regieInfoPrice');
+  const note=document.getElementById('regieInfoNote');
+  if(btn){
+    btn.textContent=regieInfoEnabled?'Regiestunden ✓':'Regiestunden hinzufügen';
+  }
+  if(price){
+    price.disabled=!regieInfoEnabled;
+    if(regieInfoEnabled)setTimeout(()=>price.focus(),50);
+    else price.value='';
+  }
+  if(note){
+    note.textContent=regieInfoEnabled
+      ? 'ON – Preis wird im PDF gezeigt, aber nicht berechnet.'
+      : 'OFF';
+  }
+}
+function collectRegieInfo(room){
+  if(!regieInfoEnabled)return [];
+  const price=Math.max(0,parseFloat(document.getElementById('regieInfoPrice')?.value)||0);
+  if(price<=0)return [];
+  return [{
+    desc:`${room} – Regiestunden`,
+    qty:0,
+    unit:'Std.',
+    price,
+    kind:'regieinfo'
+  }];
+}
+function resetRegieRows(){
+  toggleRegieInfo(false);
+}
+
 function addRoomToList(){
   const room=(document.getElementById('measureRoomName').value||'').trim();
   if(!room){alert('Bitte Raum / Bereich eingeben.');return}
@@ -2399,7 +2476,7 @@ function addRoomToList(){
   push('Schiene verlegen',roomNum('roomSchiene'),'lfm',roomNum('roomSchienePrice'));
   push('Silikon',roomNum('roomSilikon'),'lfm',roomNum('roomSilikonPrice'));
   push('Stufen verlegen',roomNum('roomStufen'),'lfm',roomNum('roomStufenPrice'));
-  push('Regie',roomNum('roomRegie'),'Std.',roomNum('roomRegiePrice'));
+  items.push(...collectRegieInfo(room));
   if(!items.length){alert('Bitte mindestens eine Menge eingeben.');return}
   measurementList.push({
     room,items,
@@ -2423,10 +2500,10 @@ function clearRoomInputs(){
   [
     'roomWallPrice','roomFloorPrice',
     'roomSockel','roomSockelPrice','roomSchiene','roomSchienePrice',
-    'roomSilikon','roomSilikonPrice','roomStufen','roomStufenPrice',
-    'roomRegie','roomRegiePrice'
+    'roomSilikon','roomSilikonPrice','roomStufen','roomStufenPrice'
   ].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});
   resetRepeatMeasureRows();
+  resetRegieRows();
 }
 
 function renderMeasureList(){
@@ -2440,7 +2517,9 @@ function renderMeasureList(){
     <div class="invoice">
       <div class="invoice-top">
         <div><b>${esc(r.room)}</b><br>
-          <span class="small">${r.items.map(x=>esc(x.desc.replace(r.room+' – ',''))+': '+num(x.qty)+' '+esc(x.unit)).join('<br>')}</span>
+          <span class="small">${r.items.map(x=>x.kind==='regieinfo'
+            ? esc(x.desc.replace(r.room+' – ',''))+': '+euro(x.price)+'/Std.'
+            : esc(x.desc.replace(r.room+' – ',''))+': '+num(x.qty)+' '+esc(x.unit)).join('<br>')}</span>
         </div>
         <button type="button" class="remove" onclick="removeRoomMeasurement(${i})">✕</button>
       </div>
@@ -2464,7 +2543,14 @@ function measureListToDoc(type){
   showForm(type);
   document.getElementById('items').innerHTML='';
   measurementList.forEach(r=>{
-    r.items.forEach(x=>addItem(x.desc,Number(x.qty).toFixed(2),x.unit,x.price?Number(x.price).toFixed(2):'','work',''));
+    r.items.forEach(x=>addItem(
+      x.desc,
+      x.kind==='regieinfo'?'':Number(x.qty).toFixed(2),
+      x.unit,
+      x.price?Number(x.price).toFixed(2):'',
+      x.kind||'work',
+      ''
+    ));
   });
   measurementMaterials.forEach(m=>addItem(m.desc,Number(m.qty).toFixed(2),m.unit,Number(m.price).toFixed(2),'material',Number(m.costPrice).toFixed(2)));
   const materialCost=measurementMaterials.reduce((sum,m)=>sum+Number(m.qty||0)*Number(m.costPrice||0),0);
@@ -2475,6 +2561,7 @@ function measureListToDoc(type){
 }
 
 resetRepeatMeasureRows();
+resetRegieRows();
 renderCustomerList();
 renderDashboard();
 
