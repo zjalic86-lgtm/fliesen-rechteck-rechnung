@@ -474,7 +474,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v70 · Anzahlung · Schlussrechnung · Benutzerkonto</b></p>
+      <p class="small"><b>Version v71 · Bank Sync · Auto Bezahlt · Anzahlung · Schlussrechnung</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -482,6 +482,9 @@ label{font-weight:700}
         </button>
         <button class="settings-menu-item" onclick="openSettingsSection('chatgpt')">
           <span>ChatGPT Import</span><span>›</span>
+        </button>
+        <button class="settings-menu-item" onclick="openSettingsSection('bank')">
+          <span>Bank Sync</span><span>›</span>
         </button>
         <button class="settings-menu-item" onclick="openSettingsSection('cloud')">
           <span>Cloud Sync</span><span>›</span>
@@ -533,6 +536,32 @@ label{font-weight:700}
         <button class="btn outline" onclick="pullChatgptInvoices(true)">ChatGPT Import abrufen</button>
       </div>
       <p class="small" id="chatgptImportStatus">Noch nicht eingerichtet.</p>
+    </div>
+
+    <div id="settings-bank" class="settings-section hidden">
+      <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
+      <h2>Bank Sync</h2>
+      <p class="small">Uplate se povezuju po Rechnungsnummer + tačnom iznosu. Kada se poklopi, Rechnung automatski prelazi na Bezahlt.</p>
+
+      <p id="bankStatus" class="small">Bank noch nicht verbunden.</p>
+
+      <label>Bank</label>
+      <select id="bankInstitution">
+        <option value="">– Bank laden –</option>
+      </select>
+
+      <div class="actions" style="margin-top:10px">
+        <button class="btn outline" type="button" onclick="bankLoadInstitutions(true)">Banken laden</button>
+        <button class="btn" type="button" onclick="bankConnect()">Bank verbinden</button>
+      </div>
+
+      <div class="actions" style="margin-top:10px">
+        <button class="btn outline" type="button" onclick="bankSync(true)">Zahlungen prüfen</button>
+        <button class="btn outline" type="button" onclick="bankDisconnect()">Bank-Verbindung entfernen</button>
+      </div>
+
+      <p id="bankLastSync" class="small">Noch keine Prüfung.</p>
+      <p class="small">Auto Sync: beim Öffnen der App, maximal etwa alle 6 Stunden. Bank-Passwort wird nie in der FR App gespeichert.</p>
     </div>
 
     <div id="settings-cloud" class="settings-section hidden">
@@ -684,6 +713,176 @@ function setDeletedInvoiceNumbers(v){localStorage.setItem(userKey(FR_DELETED_INV
 function markInvoiceDeleted(nr){if(!nr)return;const a=getDeletedInvoiceNumbers();if(!a.includes(String(nr)))a.push(String(nr));setDeletedInvoiceNumbers(a)}
 function unmarkInvoiceDeleted(nr){setDeletedInvoiceNumbers(getDeletedInvoiceNumbers().filter(x=>String(x)!==String(nr)))}
 
+
+const BANK_REQ_KEY='frBankRequisitionId';
+const BANK_NAME_KEY='frBankInstitutionName';
+const BANK_LAST_SYNC_KEY='frBankLastSyncAt';
+const BANK_AUTO_HOURS=6;
+
+function bankLocalGet(base){return localStorage.getItem(userKey(base))||''}
+function bankLocalSet(base,val){
+  if(val===null||val===undefined||val==='')localStorage.removeItem(userKey(base));
+  else localStorage.setItem(userKey(base),String(val));
+}
+function bankConnected(){return !!bankLocalGet(BANK_REQ_KEY)}
+function bankStatusText(){
+  const req=bankLocalGet(BANK_REQ_KEY);
+  const name=bankLocalGet(BANK_NAME_KEY);
+  if(!req)return 'Bank noch nicht verbunden.';
+  return 'Verbunden'+(name?' · '+name:'');
+}
+function updateBankStatusUi(extra=''){
+  const st=document.getElementById('bankStatus');
+  if(st)st.textContent=bankStatusText()+(extra?' · '+extra:'');
+  const ls=document.getElementById('bankLastSync');
+  const last=bankLocalGet(BANK_LAST_SYNC_KEY);
+  if(ls)ls.textContent=last?('Letzte Prüfung: '+new Date(last).toLocaleString('de-AT')):'Noch keine Prüfung.';
+}
+async function bankAuthHeaders(){
+  const r=await sb.auth.getSession();
+  const token=r&&r.data&&r.data.session?r.data.session.access_token:'';
+  if(!token)throw new Error('Bitte zuerst anmelden.');
+  return {'Content-Type':'application/json','Authorization':'Bearer '+token};
+}
+async function bankApiJson(url,options={}){
+  const headers=await bankAuthHeaders();
+  const r=await fetch(url,{cache:'no-store',...options,headers:{...headers,...(options.headers||{})}});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||d.detail||('HTTP '+r.status));
+  return d;
+}
+async function bankLoadInstitutions(showMessage=true){
+  const sel=document.getElementById('bankInstitution');
+  try{
+    if(showMessage)updateBankStatusUi('Banken werden geladen…');
+    const d=await bankApiJson('/api/bank-institutions?country=AT');
+    const banks=(d.institutions||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de'));
+    if(sel){
+      sel.innerHTML='<option value="">– Bank auswählen –</option>'+banks.map(b=>`<option value="${escAttr(b.id)}">${esc(b.name||b.id)}</option>`).join('');
+    }
+    updateBankStatusUi(banks.length+' Banken verfügbar');
+  }catch(e){
+    updateBankStatusUi('Fehler');
+    if(showMessage)alert('Bank Sync Fehler: '+(e?.message||e));
+  }
+}
+async function bankConnect(){
+  const sel=document.getElementById('bankInstitution');
+  const institutionId=sel?.value||'';
+  const institutionName=sel?.options?.[sel.selectedIndex]?.text||'';
+  if(!institutionId){alert('Bitte zuerst Bank auswählen.');return}
+  try{
+    updateBankStatusUi('Verbindung wird vorbereitet…');
+    const redirect=location.origin+location.pathname+'?bank_return=1';
+    const d=await bankApiJson('/api/bank-connect',{
+      method:'POST',
+      body:JSON.stringify({institution_id:institutionId,redirect})
+    });
+    if(!d.requisition_id||!d.link)throw new Error('Bank-Link fehlt.');
+    bankLocalSet(BANK_REQ_KEY,d.requisition_id);
+    bankLocalSet(BANK_NAME_KEY,institutionName);
+    location.href=d.link;
+  }catch(e){
+    updateBankStatusUi('Fehler');
+    alert('Bank verbinden Fehler: '+(e?.message||e));
+  }
+}
+function bankDisconnect(){
+  if(!confirm('Bank-Verbindung in der FR App entfernen?'))return;
+  bankLocalSet(BANK_REQ_KEY,'');
+  bankLocalSet(BANK_NAME_KEY,'');
+  bankLocalSet(BANK_LAST_SYNC_KEY,'');
+  updateBankStatusUi();
+}
+function bankNormalizeRef(v){
+  return String(v||'').toUpperCase().replace(/\s+/g,'').replace(/[^\p{L}\p{N}\-_.]/gu,'');
+}
+function bankAmountEqual(a,b){
+  return Math.abs((Number(a)||0)-(Number(b)||0))<0.02;
+}
+function bankMatchTransactions(transactions){
+  const invoices=getInvoices();
+  let matched=0;
+  let changed=false;
+
+  for(const tx of (transactions||[])){
+    const amount=Number(tx.amount)||0;
+    if(amount<=0)continue;
+    const textRef=bankNormalizeRef([tx.text,tx.endToEndId,tx.debtorName].filter(Boolean).join(' '));
+
+    for(const inv of invoices){
+      if(inv.paid||!inv.nr)continue;
+      if(!bankAmountEqual(amount,inv.total))continue;
+
+      const nr=bankNormalizeRef(inv.nr);
+      if(!nr||!textRef.includes(nr))continue;
+
+      inv.paid=true;
+      inv.paidAt=tx.date||new Date().toISOString().slice(0,10);
+      inv.bankMatch={
+        transactionId:tx.id||'',
+        date:tx.date||'',
+        amount,
+        debtorName:tx.debtorName||'',
+        text:tx.text||''
+      };
+      inv.savedAt=new Date().toISOString();
+      matched++;
+      changed=true;
+      break;
+    }
+  }
+
+  if(changed){
+    setInvoices(invoices);
+    renderDashboard();
+    for(const inv of invoices.filter(x=>x.paid&&x.bankMatch)){
+      cloudUpsertInvoice(inv).catch(()=>{});
+    }
+  }
+  return matched;
+}
+async function bankSync(showMessage=true){
+  if(!cloudUser)return false;
+  const reqId=bankLocalGet(BANK_REQ_KEY);
+  if(!reqId){
+    updateBankStatusUi();
+    if(showMessage)alert('Prvo poveži banku u Einstellungen → Bank Sync.');
+    return false;
+  }
+  try{
+    updateBankStatusUi('Zahlungen werden geprüft…');
+    const d=await bankApiJson('/api/bank-transactions?requisition_id='+encodeURIComponent(reqId));
+    if(d.status && d.status!=='LN' && d.status!=='LINKED'){
+      updateBankStatusUi('Bank Status: '+d.status);
+      if(showMessage)alert('Bank-Verbindung još nije spremna. Status: '+d.status);
+      return false;
+    }
+    const matched=bankMatchTransactions(d.transactions||[]);
+    const now=new Date().toISOString();
+    bankLocalSet(BANK_LAST_SYNC_KEY,now);
+    updateBankStatusUi(matched?(`${matched} Zahlung(en) erkannt`):'Keine neue passende Zahlung');
+    if(showMessage){
+      alert(matched?`${matched} Rechnung(en) automatisch auf Bezahlt gesetzt.`:'Keine neue passende Zahlung gefunden.');
+    }
+    if(location.search.includes('bank_return=1')){
+      try{history.replaceState({},'',location.pathname)}catch(e){}
+    }
+    return true;
+  }catch(e){
+    updateBankStatusUi('Fehler');
+    if(showMessage)alert('Bank Sync Fehler: '+(e?.message||e));
+    return false;
+  }
+}
+async function autoBankSync(force=false){
+  if(!cloudUser||!bankConnected())return;
+  const last=bankLocalGet(BANK_LAST_SYNC_KEY);
+  const age=last?(Date.now()-new Date(last).getTime()):Infinity;
+  const due=age>=BANK_AUTO_HOURS*60*60*1000;
+  if(force||due)await bankSync(false);
+}
+
 async function refreshCloudUser(){
   const r=await sb.auth.getUser();
   cloudUser=r.data&&r.data.user?r.data.user:null;
@@ -719,6 +918,8 @@ async function afterAccountLogin(){
   document.getElementById('lockScreen').style.display='flex';
   setupLock();
   setTimeout(()=>syncCloud(false),300);
+  const bankReturn=location.search.includes('bank_return=1');
+  setTimeout(()=>autoBankSync(bankReturn),900);
 }
 async function accountSignIn(){
   const email=(document.getElementById('accountEmail')?.value||'').trim();
@@ -852,7 +1053,19 @@ function invoiceToCloudRow(x){
     skonto:Number(x.skonto||0),
     steuer:x.steuer||'rc',
     footer:x.footer||'',
-    items:Array.isArray(x.items)?x.items:[],
+    items:(()=>{
+      const arr=Array.isArray(x.items)?x.items.map(it=>({...it})):[];
+      if(arr.length){
+        arr[0]._frmeta={
+          invoiceKind:x.invoiceKind||'Rechnung',
+          offerNr:x.offerNr||'',
+          anzahlungPercent:Number(x.anzahlungPercent||0),
+          paidAt:x.paidAt||'',
+          bankMatch:x.bankMatch||null
+        };
+      }
+      return arr;
+    })(),
     total:Number(x.total||0),
     paid:!!x.paid,
     updated_at:new Date().toISOString()
@@ -863,12 +1076,15 @@ function cloudRowToInvoice(row){
   const net=items.reduce((s,it)=>s+Number(it.sum!=null?it.sum:(Number(it.qty||0)*Number(it.price||0))),0);
   const steuer=String(row.steuer||'rc');
   const ust=steuer==='20'?net*0.20:0;
+  const meta=(items[0]&&items[0]._frmeta)||{};
   return {
     id:row.invoice_number||('FR-'+Date.now()),type:'Rechnung',nr:row.invoice_number||'',
     date:row.invoice_date||new Date().toISOString().slice(0,10),kunde:row.customer_name||'',
     adresse:row.customer_address||'',kundeUid:'',email:row.customer_email||'',bau:row.baustelle||'',
     typ:'Privat',steuer:steuer,nachricht:row.nachricht||'',tage:String(row.payment_days||14),
     skonto:String(row.skonto||0),material:Number(row.material_cost||0),footer:row.footer||'',items:items,
+    invoiceKind:meta.invoiceKind||'Rechnung',offerNr:meta.offerNr||'',anzahlungPercent:Number(meta.anzahlungPercent||0),
+    paidAt:meta.paidAt||'',bankMatch:meta.bankMatch||null,
     net:net,ust:ust,total:Number(row.total||net+ust),paid:!!row.paid,
     savedAt:row.updated_at||row.created_at||new Date().toISOString(),source:'cloud'
   };
@@ -1512,6 +1728,12 @@ function openSettingsSection(name){
   const sec=document.getElementById('settings-'+name);
   if(sec)sec.classList.remove('hidden');
   if(name==='cloud'){try{refreshCloudUser()}catch(e){}}
+  if(name==='bank'){
+    try{
+      updateBankStatusUi();
+      if(!(document.getElementById('bankInstitution')?.options?.length>1))bankLoadInstitutions(false);
+    }catch(e){}
+  }
 }
 function calcDueDate(dateValue,daysValue){
   if(!dateValue)return '';
@@ -1983,7 +2205,7 @@ function renderDashboard(){
   else box.innerHTML=arr.map((x,i)=>{
     const kind=invoiceDocumentLabel(x);
     const percent=x.anzahlungPercent?` ${num(x.anzahlungPercent).replace(',00','')}%`:'';
-    return `<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${esc(kind)}${percent} · ${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?'Bezahlt':'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="pdfInvoice(${i})">PDF</button><button onclick="copyInvoice(${i})">Kopieren</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`;
+    return `<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${esc(kind)}${percent} · ${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?(x.bankMatch?'Bezahlt · Bank':'Bezahlt'):'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="pdfInvoice(${i})">PDF</button><button onclick="copyInvoice(${i})">Kopieren</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`;
   }).join('');
 
   const offers=getOffers();
