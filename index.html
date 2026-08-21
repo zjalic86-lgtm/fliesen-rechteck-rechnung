@@ -114,16 +114,26 @@ label{font-weight:700}
 
   <div id="messen" class="card hidden">
     <h2>📐 Messen</h2>
-    <p class="small">Messart auswählen.</p>
+    <p class="small">Raum eingeben, messen und zur Liste hinzufügen. Danach einmal Angebot oder Rechnung erstellen.</p>
 
     <div id="measureChoice">
-      <button class="btn" type="button" onclick="openMeasureType('wand')">🧱 Wand / Raum</button>
-      <button class="btn outline" type="button" onclick="openMeasureType('boden')">⬜ Boden / Raum</button>
+      <label>Raum / Bereich</label>
+      <input id="measureRoomName" placeholder="z.B. Bad, Küche, WC, Terrasse">
+
+      <button class="btn" type="button" onclick="openMeasureType('wand')">🧱 Wand</button>
+      <button class="btn outline" type="button" onclick="openMeasureType('boden')">⬜ Boden</button>
       <button class="btn outline" type="button" onclick="openMeasureType('stufen')">🪜 Stufen</button>
       <button class="btn outline" type="button" onclick="openMeasureType('sockel')">📏 Sockel</button>
       <button class="btn outline" type="button" onclick="openMeasureType('schiene')">📐 Schiene</button>
       <button class="btn outline" type="button" onclick="openMeasureType('silikon')">〰️ Silikon</button>
       <button class="btn outline" type="button" onclick="openMeasureType('regie')">⏱️ Regie</button>
+
+      <h3>Messliste</h3>
+      <div id="measureList"></div>
+
+      <button class="btn" type="button" onclick="measureListToDoc('Angebot')">Alles in Angebot übernehmen</button>
+      <button class="btn outline" type="button" onclick="measureListToDoc('Rechnung')">Alles in Rechnung übernehmen</button>
+      <button class="btn outline" type="button" onclick="clearMeasureList()">Messliste leeren</button>
       <button class="btn outline" type="button" onclick="home()">Zurück</button>
     </div>
 
@@ -134,8 +144,7 @@ label{font-weight:700}
       <div class="measure-result"><span id="genericMeasureResult">0,00</span> <span id="genericMeasureUnit">m²</span></div>
       <label>Preis € / <span id="genericPriceUnit">m²</span></label>
       <input id="genericMeasurePrice" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 40">
-      <button class="btn" type="button" onclick="genericToDoc('Angebot')">In Angebot übernehmen</button>
-      <button class="btn outline" type="button" onclick="genericToDoc('Rechnung')">In Rechnung übernehmen</button>
+      <button class="btn" type="button" onclick="addMeasurementToList()">+ Zur Messliste hinzufügen</button>
       <button class="btn outline" type="button" onclick="backToMeasureChoice()">Zurück</button>
     </div>
   </div>
@@ -210,7 +219,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v47 · Messen Menü</b></p>
+      <p class="small"><b>Version v48 · Messen Liste</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1706,10 +1715,11 @@ FR Fliesen Rechteck`);
 
 let genericMeasureType='wand';
 let genericMeasureValue=0;
+let measurementList=[];
 
 const measureTypes={
-  wand:{title:'🧱 Wand / Raum',unit:'m²',desc:'Wandfliesen verlegen'},
-  boden:{title:'⬜ Boden / Raum',unit:'m²',desc:'Bodenfliesen verlegen'},
+  wand:{title:'🧱 Wand',unit:'m²',desc:'Wandfliesen verlegen'},
+  boden:{title:'⬜ Boden',unit:'m²',desc:'Bodenfliesen verlegen'},
   stufen:{title:'🪜 Stufen',unit:'lfm',desc:'Stufen verlegen'},
   sockel:{title:'📏 Sockel',unit:'lfm',desc:'Sockel verlegen'},
   schiene:{title:'📐 Schiene',unit:'lfm',desc:'Schiene verlegen'},
@@ -1722,10 +1732,12 @@ function showMessen(){
   const p=document.getElementById('messen');
   if(p)p.classList.remove('hidden');
   backToMeasureChoice();
+  renderMeasureList();
 }
 function backToMeasureChoice(){
   document.getElementById('measureChoice').classList.remove('hidden');
   document.getElementById('measureForm').classList.add('hidden');
+  renderMeasureList();
 }
 function openMeasureType(type){
   genericMeasureType=type;
@@ -1779,26 +1791,62 @@ function calcGenericMeasure(){
   if(out)out.textContent=new Intl.NumberFormat('de-AT',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v);
   return v;
 }
-function genericToDoc(type){
+function addMeasurementToList(){
   const v=calcGenericMeasure();
   if(v<=0){alert('Bitte Maße eingeben.');return}
+  const room=(document.getElementById('measureRoomName').value||'').trim();
+  if(!room){alert('Bitte zuerst Raum / Bereich eingeben.');return}
   const cfg=measureTypes[genericMeasureType];
   const price=gm('genericMeasurePrice');
-  showForm(type);
-  const empty=[...document.querySelectorAll('.item')].find(el=>{
-    const d=el.querySelector('.i-desc').value.trim();
-    const q=el.querySelector('.i-qty').value;
-    const p=el.querySelector('.i-price').value;
-    return !d&&!q&&!p;
+  measurementList.push({
+    room,
+    type:genericMeasureType,
+    desc:`${room} – ${cfg.desc}`,
+    qty:v,
+    unit:cfg.unit,
+    price:price
   });
-  if(empty)empty.remove();
-  addItem(cfg.desc,v.toFixed(2),cfg.unit,price?price.toFixed(2):'');
+  backToMeasureChoice();
+}
+function renderMeasureList(){
+  const box=document.getElementById('measureList');
+  if(!box)return;
+  if(!measurementList.length){
+    box.innerHTML='<p class="small">Noch keine Messungen.</p>';
+    return;
+  }
+  box.innerHTML=measurementList.map((x,i)=>`
+    <div class="invoice">
+      <div class="invoice-top">
+        <div><b>${esc(x.room)}</b><br>${esc(measureTypes[x.type].title)}<br>
+        <span class="small">${num(x.qty)} ${esc(x.unit)}${x.price?' · '+euro(x.price)+' / '+esc(x.unit):''}</span></div>
+        <button type="button" class="remove" onclick="removeMeasurement(${i})">✕</button>
+      </div>
+    </div>`).join('');
+}
+function removeMeasurement(i){
+  measurementList.splice(i,1);
+  renderMeasureList();
+}
+function clearMeasureList(){
+  if(!measurementList.length)return;
+  if(confirm('Messliste wirklich leeren?')){
+    measurementList=[];
+    renderMeasureList();
+  }
+}
+function measureListToDoc(type){
+  if(!measurementList.length){alert('Messliste ist leer.');return}
+  showForm(type);
+  document.getElementById('items').innerHTML='';
+  measurementList.forEach(x=>addItem(x.desc,x.qty.toFixed(2),x.unit,x.price?x.price.toFixed(2):''));
+  alert((type==='Angebot'?'Angebot':'Rechnung')+' mit '+measurementList.length+' Position(en) vorbereitet.');
 }
 
 renderCustomerList();
 renderDashboard();
 
-// v47: Messen Menü + Papierkorb + compact settings menu
+// v48: Messen Liste + Papierkorb + compact settings menu
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
