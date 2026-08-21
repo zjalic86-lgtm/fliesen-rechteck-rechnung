@@ -103,7 +103,7 @@ label{font-weight:700}
     </div>
     <button class="btn" onclick="showForm('Rechnung')">+ Neue Rechnung</button>
     <button class="btn outline" onclick="showForm('Angebot')">+ Neues Angebot</button>
-    <button class="btn outline" onclick="showWallMeasure()">📐 Wand messen</button>
+    <button class="btn outline" onclick="showWallMeasure()">📐 Messen</button>
     <h3>Gespeicherte Rechnungen</h3>
     <div id="invoiceList"></div>
     <h3>Gespeicherte Angebote</h3>
@@ -112,7 +112,7 @@ label{font-weight:700}
 
 
   <div id="wallMeasure" class="card hidden">
-    <h2>📐 Wand messen</h2>
+    <h2>📐 Messen</h2>
     <p class="small">Foto aufnehmen und Maße eingeben. Tür/Fenster wird automatisch abgezogen.</p>
 
     <label>Wand Foto</label>
@@ -216,7 +216,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v42 · Wand messen</b></p>
+      <p class="small"><b>Version v43 · Messen</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -966,8 +966,13 @@ function setCustomers(v){
 let measuredWallArea=0;
 
 function showWallMeasure(){
-  hide();
-  document.getElementById('wallMeasure').classList.remove('hidden');
+  ['home','form','settings','trash'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.classList.add('hidden');
+  });
+  const panel=document.getElementById('wallMeasure');
+  if(!panel){alert('Messen konnte nicht geöffnet werden.');return}
+  panel.classList.remove('hidden');
   calcWallArea();
 }
 function previewWallPhoto(event){
@@ -1762,7 +1767,7 @@ FR Fliesen Rechteck`);
 renderCustomerList();
 renderDashboard();
 
-// v42: Wand messen + Papierkorb + compact settings menu
+// v43: Messen + Papierkorb + compact settings menu
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
