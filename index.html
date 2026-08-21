@@ -67,6 +67,13 @@ label{font-weight:700}
 .material-summary:last-child{border-bottom:0}
 .material-summary .meta{font-size:13px;color:#666;margin-top:3px}
 .material-price-note{font-size:13px;color:#666;margin:-4px 0 10px}
+.material-search-wrap{position:relative}
+.material-suggestions{position:absolute;left:0;right:0;top:calc(100% - 10px);z-index:80;background:#fff;border:1px solid #d8d8d8;border-radius:14px;box-shadow:0 10px 28px rgba(0,0,0,.14);max-height:310px;overflow:auto;padding:5px}
+.material-suggestion{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;border:0;background:#fff;padding:13px 12px;border-radius:10px;font:inherit;color:#222}
+.material-suggestion:active,.material-suggestion:hover{background:#f3f4f6}
+.material-suggestion-name{font-weight:750}
+.material-suggestion-meta{font-size:13px;color:#666;text-align:right;white-space:nowrap}
+.material-search-empty{padding:13px;color:#666;font-size:14px}
 
 </style>
 </head>
@@ -171,8 +178,10 @@ label{font-weight:700}
     <div class="measure-card">
       <h3>📦 Material</h3>
       <label>Material suchen</label>
-      <input id="measureMaterialName" list="materialCatalogList" placeholder="z.B. FDF" oninput="syncMeasuredMaterial()" onchange="syncMeasuredMaterial()">
-      <datalist id="materialCatalogList"></datalist>
+      <div class="material-search-wrap">
+        <input id="measureMaterialName" placeholder="z.B. FDF" autocomplete="off" autocapitalize="off" spellcheck="false" oninput="materialSearchInput()" onfocus="showMaterialSuggestions()" onkeydown="materialSearchKeydown(event)">
+        <div id="materialSuggestions" class="material-suggestions hidden"></div>
+      </div>
       <div class="row">
         <div><label>Menge</label><input id="measureMaterialQty" type="number" min="0" step="0.01" value="1" oninput="syncMeasuredMaterial()"></div>
         <div><label>Einheit</label><input id="measureMaterialUnit" readonly placeholder="automatisch"></div>
@@ -280,7 +289,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v51 · Material-Autofill +40% · PDF Preis ON/OFF</b></p>
+      <p class="small"><b>Version v52 · Material-Schnellsuche · +40% Netto · PDF Preis ON/OFF</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1888,11 +1897,66 @@ const materialCatalog=[
   {name:'ST Profil QU-AT 11mm Matt',unit:'ST',cost:44.50}
 ];
 function materialSalePrice(cost){return Math.round(Number(cost||0)*140)/100}
-function renderMaterialCatalogList(){
-  const el=document.getElementById('materialCatalogList');
-  if(!el)return;
-  el.innerHTML=materialCatalog.map(m=>`<option value="${escAttr(m.name)}">${euro(materialSalePrice(m.cost))} netto · ${esc(m.unit)}</option>`).join('');
+function normalizeMaterialText(v){
+  return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
 }
+function materialMatches(q,m){
+  const name=normalizeMaterialText(m.name);
+  const tokens=normalizeMaterialText(q).split(/\s+/).filter(Boolean);
+  return tokens.every(t=>name.includes(t));
+}
+function materialSuggestionOrder(q,a,b){
+  const n=normalizeMaterialText(q);
+  const an=normalizeMaterialText(a.name),bn=normalizeMaterialText(b.name);
+  const ar=an===n?0:an.startsWith(n)?1:2;
+  const br=bn===n?0:bn.startsWith(n)?1:2;
+  return ar-br||an.localeCompare(bn);
+}
+function getMaterialMatches(){
+  const q=(document.getElementById('measureMaterialName')?.value||'').trim();
+  if(!q)return materialCatalog.slice(0,10);
+  return materialCatalog.filter(m=>materialMatches(q,m)).sort((a,b)=>materialSuggestionOrder(q,a,b)).slice(0,12);
+}
+function showMaterialSuggestions(){
+  const box=document.getElementById('materialSuggestions');
+  if(!box)return;
+  const list=getMaterialMatches();
+  if(!list.length){box.innerHTML='<div class="material-search-empty">Kein Material gefunden</div>';box.classList.remove('hidden');return}
+  box.innerHTML=list.map(m=>{
+    const idx=materialCatalog.indexOf(m);
+    return `<button type="button" class="material-suggestion" onmousedown="event.preventDefault()" onclick="selectMaterialSuggestion(${idx})"><span class="material-suggestion-name">${esc(m.name)}</span><span class="material-suggestion-meta">${euro(materialSalePrice(m.cost))} netto<br>${esc(m.unit)}</span></button>`;
+  }).join('');
+  box.classList.remove('hidden');
+}
+function hideMaterialSuggestions(){
+  document.getElementById('materialSuggestions')?.classList.add('hidden');
+}
+function materialSearchInput(){
+  syncMeasuredMaterial();
+  showMaterialSuggestions();
+}
+function selectMaterialSuggestion(index){
+  const m=materialCatalog[index];
+  if(!m)return;
+  const input=document.getElementById('measureMaterialName');
+  if(input)input.value=m.name;
+  syncMeasuredMaterial();
+  hideMaterialSuggestions();
+  const qty=document.getElementById('measureMaterialQty');
+  if(qty){qty.focus();qty.select?.()}
+}
+function materialSearchKeydown(e){
+  if(e.key==='Escape'){hideMaterialSuggestions();return}
+  if(e.key==='Enter'){
+    const list=getMaterialMatches();
+    if(list.length){e.preventDefault();selectMaterialSuggestion(materialCatalog.indexOf(list[0]))}
+  }
+}
+document.addEventListener('click',e=>{
+  const wrap=e.target.closest?.('.material-search-wrap');
+  if(!wrap)hideMaterialSuggestions();
+});
+function renderMaterialCatalogList(){ /* v52: custom live suggestions instead of datalist */ }
 function selectedMaterial(){
   const v=(document.getElementById('measureMaterialName')?.value||'').trim().toLowerCase();
   if(!v)return null;
@@ -1920,6 +1984,7 @@ function addMeasuredMaterial(){
   measurementMaterials.push({desc:m.name,qty,unit:m.unit,price:materialSalePrice(m.cost),costPrice:m.cost,kind:'material'});
   document.getElementById('measureMaterialName').value='';
   document.getElementById('measureMaterialQty').value='1';
+  hideMaterialSuggestions();
   syncMeasuredMaterial();
   renderMeasureMaterialList();
 }
