@@ -212,6 +212,11 @@ label{font-weight:700}
       </div>
     </div>
 
+    <label>Preis auf PDF</label>
+    <select id="pdfPriceMode">
+      <option value="on" selected>ON – Preise anzeigen</option>
+      <option value="off">OFF – Pauschal</option>
+    </select>
     <h3>Positionen</h3>
     <div id="items"></div>
     <button class="btn outline" type="button" onclick="addItem()">+ Position hinzufügen</button>
@@ -243,7 +248,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v49 · Raum messen</b></p>
+      <p class="small"><b>Version v50 · PDF Preis ON/OFF</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1059,6 +1064,7 @@ function currentInvoiceData(){
     skonto:document.getElementById('skonto').value,
     material:parseFloat(document.getElementById('materialCost').value)||0,
     footer:document.getElementById('invoiceFooter').value,
+    pdfPriceMode:(document.getElementById('pdfPriceMode').value||'on'),
     items, net, ust, total:net+ust, paid:false,
     savedAt:new Date().toISOString()
   }
@@ -1113,6 +1119,7 @@ function loadOffer(i){
   updateDueDate();
   document.getElementById('materialCost').value=x.material||'';
   document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
   document.getElementById('items').innerHTML='';
   (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
 }
@@ -1144,6 +1151,7 @@ function offerToInvoice(i){
   document.getElementById('skonto').value=x.skonto||'0';
   document.getElementById('materialCost').value=x.material||'';
   document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
   document.getElementById('items').innerHTML='';
   (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
   updateDueDate();
@@ -1264,6 +1272,7 @@ function loadInvoice(i){
   document.getElementById('typ').value=x.typ||'Firma';document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('nachricht').value=x.nachricht||'';document.getElementById('tage').value=x.tage||'14';
   document.getElementById('skonto').value=x.skonto||'3';updateDueDate();document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
   document.getElementById('items').innerHTML='';(x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
 }
 
@@ -1412,6 +1421,7 @@ function copyInvoice(i){
   document.getElementById('skonto').value=x.skonto||'0';
   document.getElementById('materialCost').value=x.material||'';
   document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
   document.getElementById('items').innerHTML='';
   (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
   updateDueDate();
@@ -1490,6 +1500,7 @@ function makeQrDataUrl(text,size=260){
 
 async function sharePDF(){
   const items=collectItems();
+  const showPrices=(document.getElementById('pdfPriceMode').value||'on')!=='off';
   if(items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
 
   const {jsPDF}=window.jspdf||{};
@@ -1568,10 +1579,14 @@ async function sharePDF(){
   pdf.setFillColor(243,243,243);pdf.rect(left,y,right-left,7,'F');
   pdf.setFont(undefined,'bold');pdf.setFontSize(8.5);
   pdf.text('Beschreibung',left+2,y+4.8);
-  pdf.text('Menge',118,y+4.8,{align:'right'});
-  pdf.text('Einheit',126,y+4.8);
-  pdf.text('Preis',164,y+4.8,{align:'right'});
-  pdf.text('Summe',192,y+4.8,{align:'right'});
+  if(showPrices){
+    pdf.text('Menge',118,y+4.8,{align:'right'});
+    pdf.text('Einheit',126,y+4.8);
+    pdf.text('Preis',164,y+4.8,{align:'right'});
+    pdf.text('Summe',192,y+4.8,{align:'right'});
+  }else{
+    pdf.text('Pauschal',192,y+4.8,{align:'right'});
+  }
   y+=8;
 
   pdf.setFont(undefined,'normal');
@@ -1580,10 +1595,12 @@ async function sharePDF(){
     const lines=pdf.splitTextToSize(x.desc||'',78);
     const rowH=Math.max(7,lines.length*4.2+2);
     pdf.text(lines,left+2,y+4);
-    pdf.text(num(x.qty),118,y+4,{align:'right'});
-    pdf.text(x.unit||'',126,y+4);
-    pdf.text(euro(x.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
-    pdf.text(euro(x.sum).replace(/\u00a0/g,' '),192,y+4,{align:'right'});
+    if(showPrices){
+      pdf.text(num(x.qty),118,y+4,{align:'right'});
+      pdf.text(x.unit||'',126,y+4);
+      pdf.text(euro(x.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
+      pdf.text(euro(x.sum).replace(/\u00a0/g,' '),192,y+4,{align:'right'});
+    }
     pdf.setDrawColor(220);pdf.line(left,y+rowH,right,y+rowH);
     y+=rowH;
   }
@@ -1658,6 +1675,7 @@ async function sharePDF(){
 
 function makeDoc(){
   const items=collectItems();
+  const showPrices=(document.getElementById('pdfPriceMode').value||'on')!=='off';
   if(items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
 
   const net=items.reduce((a,b)=>a+b.sum,0);
@@ -1678,7 +1696,12 @@ function makeDoc(){
   if(!w){alert('Popup blockiert. Bitte Popups erlauben.');return}
 
   const lg=logo?`<img src="${logo}" style="max-width:190px;max-height:95px">`:`<div style="font-size:25px;font-weight:800">FR Fliesen Rechteck</div>`;
-  const rows=items.map(x=>`<tr><td>${esc(x.desc)}</td><td style="text-align:right">${num(x.qty)}</td><td>${esc(x.unit)}</td><td style="text-align:right">${euro(x.price)}</td><td style="text-align:right">${euro(x.sum)}</td></tr>`).join('');
+  const rows=showPrices
+    ? items.map(x=>`<tr><td>${esc(x.desc)}</td><td style="text-align:right">${num(x.qty)}</td><td>${esc(x.unit)}</td><td style="text-align:right">${euro(x.price)}</td><td style="text-align:right">${euro(x.sum)}</td></tr>`).join('')
+    : items.map(x=>`<tr><td>${esc(x.desc)}</td></tr>`).join('');
+  const tableHead=showPrices
+    ? '<tr><th>Beschreibung</th><th style="text-align:right">Menge</th><th>Einheit</th><th style="text-align:right">Preis</th><th style="text-align:right">Summe</th></tr>'
+    : '<tr><th>Beschreibung</th></tr>';
 
   const footerText=esc(document.getElementById('invoiceFooter').value).replace(/\n/g,'<br>');
   const steuerText=footerText?`<p class="note">${footerText}</p>`:'';
@@ -1722,7 +1745,7 @@ FR Fliesen Rechteck`);
   </div>
   <div class="title" style="margin-top:26px">${docType.toUpperCase()}</div>
   ${document.getElementById('nachricht').value?`<div style="margin:0 0 22px;white-space:pre-line">${esc(document.getElementById('nachricht').value)}</div>`:''}
-  <table><tr><th>Beschreibung</th><th style="text-align:right">Menge</th><th>Einheit</th><th style="text-align:right">Preis</th><th style="text-align:right">Summe</th></tr>${rows}</table>
+  <table>${tableHead}${rows}</table>
   <div class="sum"><div><span>Netto</span><span>${euro(net)}</span></div>${ust?`<div><span>USt. 20%</span><span>${euro(ust)}</span></div>`:''}<div class="big"><span>Zahlbetrag</span><span>${euro(total)}</span></div></div>
   ${steuerText}
   <div class="footer">${skontoText}</div>
@@ -1835,7 +1858,7 @@ function measureListToDoc(type){
 renderCustomerList();
 renderDashboard();
 
-// v49: Raum messen + Papierkorb + compact settings menu
+// v50: PDF Preis ON/OFF + Raum messen
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
