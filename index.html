@@ -59,6 +59,11 @@ label{font-weight:700}
   font-size:16px;color:#444;font-weight:600
 }
 
+
+.measure-card{border:1px solid #e1e1e1;border-radius:16px;padding:14px;margin:12px 0;background:#fafafa}
+.measure-preview{width:100%;max-height:260px;object-fit:contain;border-radius:12px;margin:8px 0;display:none;background:#eee}
+.measure-result{font-size:24px;font-weight:800;text-align:center;padding:12px;background:#fff;border-radius:12px;margin:10px 0}
+
 </style>
 </head>
 <body>
@@ -98,10 +103,47 @@ label{font-weight:700}
     </div>
     <button class="btn" onclick="showForm('Rechnung')">+ Neue Rechnung</button>
     <button class="btn outline" onclick="showForm('Angebot')">+ Neues Angebot</button>
+    <button class="btn outline" onclick="showWallMeasure()">📐 Wand messen</button>
     <h3>Gespeicherte Rechnungen</h3>
     <div id="invoiceList"></div>
     <h3>Gespeicherte Angebote</h3>
     <div id="offerList"></div>
+  </div>
+
+
+  <div id="wallMeasure" class="card hidden">
+    <h2>📐 Wand messen</h2>
+    <p class="small">Foto aufnehmen und Maße eingeben. Tür/Fenster wird automatisch abgezogen.</p>
+
+    <label>Wand Foto</label>
+    <input id="wallPhoto" type="file" accept="image/*" capture="environment" onchange="previewWallPhoto(event)">
+    <img id="wallPhotoPreview" class="measure-preview">
+
+    <div class="measure-card">
+      <h3>Wand</h3>
+      <div class="row">
+        <div><label>Breite m</label><input id="wallWidth" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 4.20" oninput="calcWallArea()"></div>
+        <div><label>Höhe m</label><input id="wallHeight" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 2.60" oninput="calcWallArea()"></div>
+      </div>
+    </div>
+
+    <div class="measure-card">
+      <h3>Tür / Fenster abziehen</h3>
+      <div class="row">
+        <div><label>Breite m</label><input id="openingWidth" type="number" inputmode="decimal" step="0.01" placeholder="0.00" oninput="calcWallArea()"></div>
+        <div><label>Höhe m</label><input id="openingHeight" type="number" inputmode="decimal" step="0.01" placeholder="0.00" oninput="calcWallArea()"></div>
+      </div>
+      <label>Anzahl</label>
+      <input id="openingCount" type="number" inputmode="numeric" step="1" min="0" value="1" oninput="calcWallArea()">
+    </div>
+
+    <div class="measure-result"><span id="wallAreaResult">0,00</span> m²</div>
+    <label>Preis €/m²</label>
+    <input id="wallMeasurePrice" type="number" inputmode="decimal" step="0.01" placeholder="z.B. 40">
+
+    <button class="btn" onclick="wallToOffer()">In Angebot übernehmen</button>
+    <button class="btn outline" onclick="wallToInvoice()">In Rechnung übernehmen</button>
+    <button class="btn outline" onclick="home()">Zurück</button>
   </div>
 
   <div id="trash" class="card hidden">
@@ -174,7 +216,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v41 · Einstellungen Menü</b></p>
+      <p class="small"><b>Version v42 · Wand messen</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -775,7 +817,7 @@ function changePin(){
 setupLock();
 
 let docType='Rechnung';
-const H=['home','form','settings','trash'];
+const H=['home','form','settings','trash','wallMeasure'];
 const units=['m²','lfm','Std.','Stk.','Pauschal','kg'];
 let itemCount=0;
 
@@ -920,7 +962,57 @@ function getCustomers(){
 }
 function setCustomers(v){
   localStorage.setItem('frCustomers',JSON.stringify(v||[]));
-  renderCustomerList();
+  
+let measuredWallArea=0;
+
+function showWallMeasure(){
+  hide();
+  document.getElementById('wallMeasure').classList.remove('hidden');
+  calcWallArea();
+}
+function previewWallPhoto(event){
+  const file=event.target.files&&event.target.files[0];
+  const img=document.getElementById('wallPhotoPreview');
+  if(!file){img.style.display='none';img.removeAttribute('src');return}
+  const reader=new FileReader();
+  reader.onload=e=>{img.src=e.target.result;img.style.display='block'};
+  reader.readAsDataURL(file);
+}
+function wallNumber(id){
+  const el=document.getElementById(id);
+  const raw=String(el&&el.value||'').replace(',','.');
+  return Math.max(0,parseFloat(raw)||0);
+}
+function calcWallArea(){
+  const width=wallNumber('wallWidth');
+  const height=wallNumber('wallHeight');
+  const openingWidth=wallNumber('openingWidth');
+  const openingHeight=wallNumber('openingHeight');
+  const openingCount=Math.max(0,parseInt(document.getElementById('openingCount').value||'0',10)||0);
+  measuredWallArea=Math.max(0,(width*height)-(openingWidth*openingHeight*openingCount));
+  document.getElementById('wallAreaResult').textContent=
+    new Intl.NumberFormat('de-AT',{minimumFractionDigits:2,maximumFractionDigits:2}).format(measuredWallArea);
+  return measuredWallArea;
+}
+function insertMeasuredWall(targetType){
+  const area=calcWallArea();
+  if(area<=0){alert('Bitte Wandbreite und Wandhöhe eingeben.');return}
+  const price=wallNumber('wallMeasurePrice');
+  showForm(targetType);
+  // Remove the automatically created blank position if it is completely empty.
+  const blank=[...document.querySelectorAll('.item')].find(el=>{
+    const d=el.querySelector('.i-desc').value.trim();
+    const q=el.querySelector('.i-qty').value;
+    const p=el.querySelector('.i-price').value;
+    return !d&&!q&&!p;
+  });
+  if(blank) blank.remove();
+  addItem('Wandfliesen verlegen',area.toFixed(2),'m²',price?price.toFixed(2):'');
+}
+function wallToOffer(){insertMeasuredWall('Angebot')}
+function wallToInvoice(){insertMeasuredWall('Rechnung')}
+
+renderCustomerList();
 }
 function renderCustomerList(){
   const el=document.getElementById('kundenListe');
@@ -1670,7 +1762,7 @@ FR Fliesen Rechteck`);
 renderCustomerList();
 renderDashboard();
 
-// v41: Papierkorb + compact settings menu
+// v42: Wand messen + Papierkorb + compact settings menu
 let frLastAutoImport=0;
 async function autoPullChatgptInvoices(){
   const token=localStorage.getItem(FR_IMPORT_TOKEN_KEY)||'';
