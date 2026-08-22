@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V84: Übersicht visible photo -->
+<!-- FR Rechnung V85: Übersicht transparent menu -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -223,6 +223,20 @@ label{font-weight:700}
   -webkit-backdrop-filter:blur(7px);
   backdrop-filter:blur(7px);
   box-shadow:0 4px 14px rgba(0,0,0,.14) !important;
+}
+
+
+/* V85: Übersicht buttons more transparent so photo shows through */
+#home.photo-overview .settings-menu-item{
+  background:rgba(255,255,255,.68) !important;
+  -webkit-backdrop-filter:blur(5px);
+  backdrop-filter:blur(5px);
+  border:1px solid rgba(255,255,255,.58) !important;
+  box-shadow:0 3px 12px rgba(0,0,0,.12) !important;
+}
+#home.photo-overview #overviewMenu h2,
+#home.photo-overview #overviewMenu > .small{
+  background:rgba(255,255,255,.64) !important;
 }
 
 </style>
@@ -674,7 +688,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v84 · Private Übersicht · Foto · Enable Banking</b></p>
+      <p class="small"><b>Version v85 · Private Übersicht · Foto · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
