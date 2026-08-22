@@ -125,6 +125,21 @@ label{font-weight:700}
 .accountOk{color:#1d6b38;font-weight:700}
 .accountDivider{border-top:1px solid #e3e3e3;margin:16px 0}
 
+
+.regie-sheet{border:1px solid #e1e1e1;border-radius:16px;padding:14px;margin:12px 0;background:#fafafa}
+.regie-sheet textarea{min-height:92px}
+.signature-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}
+.signature-box{background:#fff;border:1px solid #ddd;border-radius:14px;padding:10px}
+.signature-box label{margin-top:0}
+.signature-canvas{width:100%;height:130px;border:1px dashed #aaa;border-radius:10px;background:#fff;touch-action:none;display:block}
+.signature-actions{display:flex;gap:8px;margin-top:8px}
+.signature-actions button{flex:1}
+.regie-pdf-note{font-size:13px;color:#666;line-height:1.45;margin-top:8px}
+@media(max-width:720px){
+  .signature-grid{grid-template-columns:1fr}
+  .signature-canvas{height:150px}
+}
+
 </style>
 </head>
 <body>
@@ -192,6 +207,7 @@ label{font-weight:700}
     <button class="btn" onclick="showForm('Rechnung')">+ Neue Rechnung</button>
     <button class="btn outline" onclick="showForm('Angebot')">+ Neues Angebot</button>
     <button class="btn outline" type="button" onclick="showMessen()">📐 Messen</button>
+    <button class="btn outline" type="button" onclick="showRegiestunden()">⏱️ Regiestunden PDF</button>
     <h3>Gespeicherte Rechnungen</h3>
     <div id="invoiceList"></div>
     <h3>Gespeicherte Angebote</h3>
@@ -199,6 +215,70 @@ label{font-weight:700}
   </div>
 
 
+
+  <div id="regie" class="card hidden">
+    <h2>⏱️ Regiestunden</h2>
+    <p class="small">Separater Regiestunden-Zettel als PDF. Unterschriften können direkt am Handy mit dem Finger gemacht werden.</p>
+
+    <div class="regie-sheet">
+      <label>Bauherr / Bauvorhaben</label>
+      <input id="regieBauvorhaben" placeholder="z.B. Kunde / Baustelle">
+
+      <label>Durchgeführte Arbeiten</label>
+      <textarea id="regieArbeiten" placeholder="z.B. Stemmen, Ausgleichen, Material tragen ..."></textarea>
+
+      <div class="row">
+        <div>
+          <label>Arbeitszeit</label>
+          <input id="regieArbeitszeit" placeholder="z.B. 07:00–12:00 / 5 Std.">
+        </div>
+        <div>
+          <label>Datum</label>
+          <input id="regieDatum" type="date">
+        </div>
+      </div>
+
+      <label>Regie Facharbeiter</label>
+      <input id="regieFacharbeiter" placeholder="Name / Anzahl">
+
+      <label>Materialverbrauch</label>
+      <textarea id="regieMaterial" placeholder="z.B. Kleber, Grundierung, Schiene ..."></textarea>
+    </div>
+
+    <h3>Unterschriften</h3>
+    <div class="signature-grid">
+      <div class="signature-box">
+        <label>Dienstnehmer</label>
+        <canvas id="sigDienstnehmer" class="signature-canvas"></canvas>
+        <div class="signature-actions">
+          <button class="btn outline" type="button" onclick="clearRegieSignature('sigDienstnehmer')">Löschen</button>
+        </div>
+      </div>
+
+      <div class="signature-box">
+        <label>Chef</label>
+        <canvas id="sigChef" class="signature-canvas"></canvas>
+        <div class="signature-actions">
+          <button class="btn outline" type="button" onclick="clearRegieSignature('sigChef')">Löschen</button>
+        </div>
+      </div>
+
+      <div class="signature-box">
+        <label>Bauleiter</label>
+        <canvas id="sigBauleiter" class="signature-canvas"></canvas>
+        <div class="signature-actions">
+          <button class="btn outline" type="button" onclick="clearRegieSignature('sigBauleiter')">Löschen</button>
+        </div>
+      </div>
+    </div>
+
+    <p class="regie-pdf-note">Potpis prstom ostaje direktno u PDF-u. Ako neko ne potpiše, u PDF-u ostaje prazna linija za potpis.</p>
+
+    <button class="btn" type="button" onclick="shareRegiePDF()">PDF senden / teilen</button>
+    <button class="btn outline" type="button" onclick="openRegiePDF()">PDF öffnen / Drucken</button>
+    <button class="btn outline" type="button" onclick="clearRegieForm()">Regiestunden leeren</button>
+    <button class="btn outline" type="button" onclick="home()">Zurück</button>
+  </div>
 
   <div id="messen" class="card hidden">
     <h2>📐 Raum messen</h2>
@@ -474,7 +554,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v71 · Bank Sync · Auto Bezahlt · Anzahlung · Schlussrechnung</b></p>
+      <p class="small"><b>Version v72 · Regiestunden PDF + Handy-Unterschrift · Bank Sync</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1663,7 +1743,7 @@ function setInvoiceContext(kind='Rechnung',offerNr='',percent=0){
   const title=document.getElementById('formTitle');
   if(title && docType==='Rechnung') title.textContent='Neue '+currentDocumentLabel();
 }
-const H=['home','form','settings','trash','messen'];
+const H=['home','form','settings','trash','messen','regie'];
 const units=['m²','lfm','Std.','Stk.','ST','Sack','Dose','m','Kübel','SET','5 KG','20 KG','Kanister','Pauschal','kg'];
 let itemCount=0;
 
@@ -2987,6 +3067,234 @@ function syncMaterialPdfModeFromMeasure(){
   const src=document.getElementById('measureMaterialPdfMode');
   const dst=document.getElementById('materialPdfPriceMode');
   if(src&&dst)dst.value=src.value||'on';
+}
+
+
+function showRegiestunden(){
+  hide();
+  const p=document.getElementById('regie');
+  if(p)p.classList.remove('hidden');
+  const d=document.getElementById('regieDatum');
+  if(d && !d.value)d.value=new Date().toISOString().slice(0,10);
+  setTimeout(initRegieSignaturePads,50);
+}
+
+const regieSignatureState={};
+
+function initRegieSignaturePads(){
+  ['sigDienstnehmer','sigChef','sigBauleiter'].forEach(initRegieSignaturePad);
+}
+function initRegieSignaturePad(id){
+  const canvas=document.getElementById(id);
+  if(!canvas)return;
+  const rect=canvas.getBoundingClientRect();
+  const ratio=Math.max(1,window.devicePixelRatio||1);
+  const oldData=canvas.dataset.signed==='1' ? canvas.toDataURL('image/png') : '';
+  const cssW=Math.max(280,Math.round(rect.width||canvas.parentElement?.clientWidth||300));
+  const cssH=Math.max(120,Math.round(rect.height||140));
+
+  canvas.width=Math.round(cssW*ratio);
+  canvas.height=Math.round(cssH*ratio);
+  canvas.style.width=cssW+'px';
+  canvas.style.height=cssH+'px';
+
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(ratio,0,0,ratio,0,0);
+  ctx.lineWidth=2.2;
+  ctx.lineCap='round';
+  ctx.lineJoin='round';
+  ctx.strokeStyle='#111';
+
+  if(oldData){
+    const img=new Image();
+    img.onload=()=>ctx.drawImage(img,0,0,cssW,cssH);
+    img.src=oldData;
+  }
+
+  if(canvas.dataset.bound==='1')return;
+  canvas.dataset.bound='1';
+  let drawing=false;
+
+  function pos(e){
+    const r=canvas.getBoundingClientRect();
+    return {x:e.clientX-r.left,y:e.clientY-r.top};
+  }
+  canvas.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    drawing=true;
+    canvas.dataset.signed='1';
+    try{canvas.setPointerCapture(e.pointerId)}catch(err){}
+    const p=pos(e);
+    ctx.beginPath();
+    ctx.moveTo(p.x,p.y);
+  });
+  canvas.addEventListener('pointermove',e=>{
+    if(!drawing)return;
+    e.preventDefault();
+    const p=pos(e);
+    ctx.lineTo(p.x,p.y);
+    ctx.stroke();
+  });
+  function end(e){
+    if(!drawing)return;
+    drawing=false;
+    try{canvas.releasePointerCapture(e.pointerId)}catch(err){}
+  }
+  canvas.addEventListener('pointerup',end);
+  canvas.addEventListener('pointercancel',end);
+  canvas.addEventListener('pointerleave',e=>{ if(e.buttons===0)drawing=false; });
+}
+function clearRegieSignature(id){
+  const canvas=document.getElementById(id);
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  canvas.dataset.signed='0';
+}
+function regieSignatureData(id){
+  const canvas=document.getElementById(id);
+  if(!canvas || canvas.dataset.signed!=='1')return '';
+  return canvas.toDataURL('image/png');
+}
+function clearRegieForm(){
+  ['regieBauvorhaben','regieArbeiten','regieArbeitszeit','regieFacharbeiter','regieMaterial'].forEach(id=>{
+    const el=document.getElementById(id); if(el)el.value='';
+  });
+  const d=document.getElementById('regieDatum');
+  if(d)d.value=new Date().toISOString().slice(0,10);
+  ['sigDienstnehmer','sigChef','sigBauleiter'].forEach(clearRegieSignature);
+}
+function regieFormData(){
+  return {
+    bauvorhaben:(document.getElementById('regieBauvorhaben')?.value||'').trim(),
+    arbeiten:(document.getElementById('regieArbeiten')?.value||'').trim(),
+    arbeitszeit:(document.getElementById('regieArbeitszeit')?.value||'').trim(),
+    datum:(document.getElementById('regieDatum')?.value||'').trim(),
+    facharbeiter:(document.getElementById('regieFacharbeiter')?.value||'').trim(),
+    material:(document.getElementById('regieMaterial')?.value||'').trim(),
+    sigDienstnehmer:regieSignatureData('sigDienstnehmer'),
+    sigChef:regieSignatureData('sigChef'),
+    sigBauleiter:regieSignatureData('sigBauleiter')
+  };
+}
+function regieRequiredOkay(d){
+  if(!d.bauvorhaben && !d.arbeiten && !d.arbeitszeit && !d.material){
+    alert('Bitte Regiestunden-Daten eingeben.');
+    return false;
+  }
+  return true;
+}
+function fmtRegieDate(v){
+  if(!v)return '';
+  const p=v.split('-');
+  return p.length===3?`${p[2]}.${p[1]}.${p[0]}`:v;
+}
+function addRegieWrapped(pdf,label,value,x,y,maxWidth,lineHeight=5){
+  pdf.setFont(undefined,'bold');
+  pdf.text(label,x,y);
+  pdf.setFont(undefined,'normal');
+  const labelW=pdf.getTextWidth(label+' ');
+  const lines=pdf.splitTextToSize(String(value||''),Math.max(30,maxWidth-labelW));
+  if(lines.length){
+    pdf.text(lines,x+labelW,y);
+    return y+Math.max(1,lines.length)*lineHeight;
+  }
+  return y+lineHeight;
+}
+function buildRegiePDF(){
+  const d=regieFormData();
+  if(!regieRequiredOkay(d))return null;
+  const {jsPDF}=window.jspdf||{};
+  if(!jsPDF){alert('PDF-Modul konnte nicht geladen werden.');return null}
+
+  const pdf=new jsPDF({unit:'mm',format:'a4'});
+  const company=getCompanyProfile();
+  const companyName=company.name||'FR Rechnung';
+  const left=16,right=194;
+  let y=16;
+
+  if(logo){
+    try{
+      const format=logo.startsWith('data:image/jpeg')?'JPEG':'PNG';
+      pdf.addImage(logo,format,155,12,38,20,'','FAST');
+    }catch(e){}
+  }else{
+    pdf.setFontSize(16);pdf.setFont(undefined,'bold');pdf.text(companyName,194,20,{align:'right'});
+  }
+
+  pdf.setFontSize(18);pdf.setFont(undefined,'bold');
+  pdf.text('REGIESTUNDEN',left,22);
+
+  y=38;
+  pdf.setFontSize(10.5);
+  y=addRegieWrapped(pdf,'Bauherr/Bauvorhaben:',d.bauvorhaben,left,y,right-left,5.5);
+  y+=2;
+  y=addRegieWrapped(pdf,'Durchgeführte Arbeiten:',d.arbeiten,left,y,right-left,5.5);
+  y+=2;
+  y=addRegieWrapped(pdf,'ARBEITSZEIT:',d.arbeitszeit,left,y,right-left,5.5);
+  y+=2;
+  y=addRegieWrapped(pdf,'Datum:',fmtRegieDate(d.datum),left,y,right-left,5.5);
+  y+=2;
+  y=addRegieWrapped(pdf,'Regie FACHARBEITER:',d.facharbeiter,left,y,right-left,5.5);
+
+  y+=7;
+  pdf.setFont(undefined,'bold');pdf.text('MATERIALVERBRAUCH:',left,y);
+  pdf.setFont(undefined,'normal');
+  const materialLines=pdf.splitTextToSize(d.material||'',right-left);
+  if(materialLines.length)pdf.text(materialLines,left,y+6);
+  y+=Math.max(24,materialLines.length*5+10);
+
+  const sigY=Math.max(178,y+8);
+  const cols=[
+    {label:'Unterschrift Dienstnehmer',data:d.sigDienstnehmer,x:16},
+    {label:'Unterschrift Chef',data:d.sigChef,x:77},
+    {label:'Unterschrift Bauleiter',data:d.sigBauleiter,x:138}
+  ];
+  pdf.setFontSize(8.5);
+  cols.forEach(c=>{
+    if(c.data){
+      try{pdf.addImage(c.data,'PNG',c.x,sigY,50,20,'','FAST')}catch(e){}
+    }
+    pdf.setDrawColor(100);pdf.line(c.x,sigY+22,c.x+50,sigY+22);
+    pdf.setTextColor(30);pdf.text(c.label,c.x,sigY+27);
+  });
+
+  // Footer with company data
+  pdf.setDrawColor(190);pdf.line(left,276,right,276);
+  pdf.setFontSize(8);pdf.setFont(undefined,'normal');
+  const footer=[
+    company.address||'',
+    [company.email,company.phone].filter(Boolean).join(' · '),
+    [company.uid?('UID '+company.uid):'',company.iban?('IBAN '+company.iban):''].filter(Boolean).join(' · ')
+  ].filter(Boolean);
+  footer.slice(0,3).forEach((line,i)=>pdf.text(String(line),105,282+i*4,{align:'center'}));
+
+  return {pdf,data:d};
+}
+async function shareRegiePDF(){
+  const built=buildRegiePDF();
+  if(!built)return;
+  const {pdf,data}=built;
+  const date=(data.datum||new Date().toISOString().slice(0,10));
+  const fileName=`Regiestunden_${date}.pdf`;
+  const blob=pdf.output('blob');
+  const file=new File([blob],fileName,{type:'application/pdf'});
+  try{
+    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'Regiestunden'});
+    }else{
+      pdf.save(fileName);
+    }
+  }catch(e){
+    if(e&&e.name!=='AbortError')pdf.save(fileName);
+  }
+}
+function openRegiePDF(){
+  const built=buildRegiePDF();
+  if(!built)return;
+  const url=built.pdf.output('bloburl');
+  const w=window.open(url,'_blank');
+  if(!w)built.pdf.save(`Regiestunden_${built.data.datum||'Datum'}.pdf`);
 }
 
 function showMessen(){
