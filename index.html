@@ -583,7 +583,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v75 · Regiestunden Entwurf speichern · später lesen & unterschreiben</b></p>
+      <p class="small"><b>Version v76 · Enable Banking Sync · Regiestunden Entwurf speichern</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -650,7 +650,7 @@ label{font-weight:700}
     <div id="settings-bank" class="settings-section hidden">
       <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
       <h2>Bank Sync</h2>
-      <p class="small">Uplate se povezuju po Rechnungsnummer + tačnom iznosu. Kada se poklopi, Rechnung automatski prelazi na Bezahlt.</p>
+      <p class="small">Enable Banking: uplate se povezuju po Rechnungsnummer + tačnom iznosu. Kada se poklopi, Rechnung automatski prelazi na Bezahlt.</p>
 
       <p id="bankStatus" class="small">Bank noch nicht verbunden.</p>
 
@@ -670,7 +670,7 @@ label{font-weight:700}
       </div>
 
       <p id="bankLastSync" class="small">Noch keine Prüfung.</p>
-      <p class="small">Auto Sync: beim Öffnen der App, maximal etwa alle 6 Stunden. Bank-Passwort wird nie in der FR App gespeichert.</p>
+      <p class="small">Auto Sync: beim Öffnen der App, maximal etwa alle 6 Stunden. Bank-Passwort wird nie in der FR App gespeichert. Sandbox dient nur zum Testen; echte österreichische Bankkonten brauchen später eine Production-Verbindung.</p>
     </div>
 
     <div id="settings-cloud" class="settings-section hidden">
@@ -823,9 +823,11 @@ function markInvoiceDeleted(nr){if(!nr)return;const a=getDeletedInvoiceNumbers()
 function unmarkInvoiceDeleted(nr){setDeletedInvoiceNumbers(getDeletedInvoiceNumbers().filter(x=>String(x)!==String(nr)))}
 
 
-const BANK_REQ_KEY='frBankRequisitionId';
+
+const BANK_CONN_KEY='frEnableBankingConnection';
 const BANK_NAME_KEY='frBankInstitutionName';
 const BANK_LAST_SYNC_KEY='frBankLastSyncAt';
+const BANK_PENDING_STATE_KEY='frEnableBankingPendingState';
 const BANK_AUTO_HOURS=6;
 
 function bankLocalGet(base){return localStorage.getItem(userKey(base))||''}
@@ -833,12 +835,12 @@ function bankLocalSet(base,val){
   if(val===null||val===undefined||val==='')localStorage.removeItem(userKey(base));
   else localStorage.setItem(userKey(base),String(val));
 }
-function bankConnected(){return !!bankLocalGet(BANK_REQ_KEY)}
+function bankConnected(){return !!bankLocalGet(BANK_CONN_KEY)}
 function bankStatusText(){
-  const req=bankLocalGet(BANK_REQ_KEY);
+  const conn=bankLocalGet(BANK_CONN_KEY);
   const name=bankLocalGet(BANK_NAME_KEY);
-  if(!req)return 'Bank noch nicht verbunden.';
-  return 'Verbunden'+(name?' · '+name:'');
+  if(!conn)return 'Bank noch nicht verbunden.';
+  return 'Verbunden · Enable Banking'+(name?' · '+name:'');
 }
 function updateBankStatusUi(extra=''){
   const st=document.getElementById('bankStatus');
@@ -864,12 +866,16 @@ async function bankLoadInstitutions(showMessage=true){
   const sel=document.getElementById('bankInstitution');
   try{
     if(showMessage)updateBankStatusUi('Banken werden geladen…');
-    const d=await bankApiJson('/api/bank-institutions?country=AT');
+    const d=await bankApiJson('/api/bank-institutions?country=AT&psu_type=business');
     const banks=(d.institutions||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de'));
     if(sel){
       sel.innerHTML='<option value="">– Bank auswählen –</option>'+banks.map(b=>`<option value="${escAttr(b.id)}">${esc(b.name||b.id)}</option>`).join('');
     }
-    updateBankStatusUi(banks.length+' Banken verfügbar');
+    const mode=d.environment?(' · '+d.environment):'';
+    updateBankStatusUi(banks.length+' Banken verfügbar'+mode);
+    if(showMessage && !banks.length){
+      alert('Im aktuellen Enable-Banking-Umfeld wurden keine österreichischen Business-Banken gefunden. Sandbox hat nur eine begrenzte Bankauswahl.');
+    }
   }catch(e){
     updateBankStatusUi('Fehler');
     if(showMessage)alert('Bank Sync Fehler: '+(e?.message||e));
@@ -882,13 +888,13 @@ async function bankConnect(){
   if(!institutionId){alert('Bitte zuerst Bank auswählen.');return}
   try{
     updateBankStatusUi('Verbindung wird vorbereitet…');
-    const redirect=location.origin+location.pathname+'?bank_return=1';
+    const redirect=location.origin+location.pathname;
     const d=await bankApiJson('/api/bank-connect',{
       method:'POST',
       body:JSON.stringify({institution_id:institutionId,redirect})
     });
-    if(!d.requisition_id||!d.link)throw new Error('Bank-Link fehlt.');
-    bankLocalSet(BANK_REQ_KEY,d.requisition_id);
+    if(!d.link||!d.state)throw new Error('Bank-Link fehlt.');
+    bankLocalSet(BANK_PENDING_STATE_KEY,d.state);
     bankLocalSet(BANK_NAME_KEY,institutionName);
     location.href=d.link;
   }catch(e){
@@ -896,11 +902,64 @@ async function bankConnect(){
     alert('Bank verbinden Fehler: '+(e?.message||e));
   }
 }
-function bankDisconnect(){
+async function bankCompleteReturn(){
+  const p=new URLSearchParams(location.search);
+  const code=p.get('code')||'';
+  const state=p.get('state')||'';
+  const error=p.get('error')||'';
+  const errorDescription=p.get('error_description')||'';
+
+  if(error){
+    try{history.replaceState({},'',location.pathname)}catch(e){}
+    alert('Bank-Verbindung abgebrochen: '+(errorDescription||error));
+    return false;
+  }
+  if(!code)return false;
+
+  const expected=bankLocalGet(BANK_PENDING_STATE_KEY);
+  if(expected && state && expected!==state){
+    try{history.replaceState({},'',location.pathname)}catch(e){}
+    alert('Bank-Verbindung konnte nicht bestätigt werden: State stimmt nicht.');
+    return false;
+  }
+
+  try{
+    updateBankStatusUi('Bank-Verbindung wird abgeschlossen…');
+    const d=await bankApiJson('/api/bank-session',{
+      method:'POST',
+      body:JSON.stringify({code,state})
+    });
+    if(!d.connection_token)throw new Error('Verbindungstoken fehlt.');
+    bankLocalSet(BANK_CONN_KEY,d.connection_token);
+    bankLocalSet(BANK_PENDING_STATE_KEY,'');
+    if(d.bank_name)bankLocalSet(BANK_NAME_KEY,d.bank_name);
+    try{history.replaceState({},'',location.pathname)}catch(e){}
+    updateBankStatusUi('Verbunden');
+    await bankSync(false);
+    alert('Bank erfolgreich verbunden.');
+    return true;
+  }catch(e){
+    try{history.replaceState({},'',location.pathname)}catch(err){}
+    updateBankStatusUi('Fehler');
+    alert('Bank-Verbindung Fehler: '+(e?.message||e));
+    return false;
+  }
+}
+async function bankDisconnect(){
   if(!confirm('Bank-Verbindung in der FR App entfernen?'))return;
-  bankLocalSet(BANK_REQ_KEY,'');
+  const connection=bankLocalGet(BANK_CONN_KEY);
+  if(connection){
+    try{
+      await bankApiJson('/api/bank-disconnect',{
+        method:'POST',
+        body:JSON.stringify({connection_token:connection})
+      });
+    }catch(e){}
+  }
+  bankLocalSet(BANK_CONN_KEY,'');
   bankLocalSet(BANK_NAME_KEY,'');
   bankLocalSet(BANK_LAST_SYNC_KEY,'');
+  bankLocalSet(BANK_PENDING_STATE_KEY,'');
   updateBankStatusUi();
 }
 function bankNormalizeRef(v){
@@ -917,7 +976,7 @@ function bankMatchTransactions(transactions){
   for(const tx of (transactions||[])){
     const amount=Number(tx.amount)||0;
     if(amount<=0)continue;
-    const textRef=bankNormalizeRef([tx.text,tx.endToEndId,tx.debtorName].filter(Boolean).join(' '));
+    const textRef=bankNormalizeRef([tx.text,tx.referenceNumber,tx.debtorName].filter(Boolean).join(' '));
 
     for(const inv of invoices){
       if(inv.paid||!inv.nr)continue;
@@ -929,6 +988,7 @@ function bankMatchTransactions(transactions){
       inv.paid=true;
       inv.paidAt=tx.date||new Date().toISOString().slice(0,10);
       inv.bankMatch={
+        provider:'Enable Banking',
         transactionId:tx.id||'',
         date:tx.date||'',
         amount,
@@ -953,29 +1013,27 @@ function bankMatchTransactions(transactions){
 }
 async function bankSync(showMessage=true){
   if(!cloudUser)return false;
-  const reqId=bankLocalGet(BANK_REQ_KEY);
-  if(!reqId){
+  const connection=bankLocalGet(BANK_CONN_KEY);
+  if(!connection){
     updateBankStatusUi();
     if(showMessage)alert('Prvo poveži banku u Einstellungen → Bank Sync.');
     return false;
   }
   try{
     updateBankStatusUi('Zahlungen werden geprüft…');
-    const d=await bankApiJson('/api/bank-transactions?requisition_id='+encodeURIComponent(reqId));
-    if(d.status && d.status!=='LN' && d.status!=='LINKED'){
+    const d=await bankApiJson('/api/bank-transactions?connection_token='+encodeURIComponent(connection));
+    if(d.status && d.status!=='AUTHORIZED'){
       updateBankStatusUi('Bank Status: '+d.status);
-      if(showMessage)alert('Bank-Verbindung još nije spremna. Status: '+d.status);
+      if(showMessage)alert('Bank-Verbindung nije aktivna. Status: '+d.status);
       return false;
     }
     const matched=bankMatchTransactions(d.transactions||[]);
     const now=new Date().toISOString();
     bankLocalSet(BANK_LAST_SYNC_KEY,now);
+    if(d.bank_name)bankLocalSet(BANK_NAME_KEY,d.bank_name);
     updateBankStatusUi(matched?(`${matched} Zahlung(en) erkannt`):'Keine neue passende Zahlung');
     if(showMessage){
       alert(matched?`${matched} Rechnung(en) automatisch auf Bezahlt gesetzt.`:'Keine neue passende Zahlung gefunden.');
-    }
-    if(location.search.includes('bank_return=1')){
-      try{history.replaceState({},'',location.pathname)}catch(e){}
     }
     return true;
   }catch(e){
@@ -985,7 +1043,13 @@ async function bankSync(showMessage=true){
   }
 }
 async function autoBankSync(force=false){
-  if(!cloudUser||!bankConnected())return;
+  if(!cloudUser)return;
+  const p=new URLSearchParams(location.search);
+  if(p.get('code')||p.get('error')){
+    await bankCompleteReturn();
+    return;
+  }
+  if(!bankConnected())return;
   const last=bankLocalGet(BANK_LAST_SYNC_KEY);
   const age=last?(Date.now()-new Date(last).getTime()):Infinity;
   const due=age>=BANK_AUTO_HOURS*60*60*1000;
@@ -1027,8 +1091,7 @@ async function afterAccountLogin(){
   document.getElementById('lockScreen').style.display='flex';
   setupLock();
   setTimeout(()=>syncCloud(false),300);
-  const bankReturn=location.search.includes('bank_return=1');
-  setTimeout(()=>autoBankSync(bankReturn),900);
+  setTimeout(()=>autoBankSync(false),900);
 }
 async function accountSignIn(){
   const email=(document.getElementById('accountEmail')?.value||'').trim();
