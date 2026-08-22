@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
@@ -41,22 +44,160 @@ label{font-weight:700}
 .lockBox input{font-size:22px;text-align:center;letter-spacing:8px}
 .lockError{color:#b00020;font-weight:700;min-height:20px}
 
+
+.settings-menu{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.settings-menu-item{
+  width:100%;display:flex;align-items:center;justify-content:space-between;
+  padding:17px 16px;border:1px solid #dedede;border-radius:14px;background:#fff;
+  font:inherit;font-size:16px;font-weight:650;text-align:left;color:#111;
+  box-shadow:0 1px 2px rgba(0,0,0,.03)
+}
+.settings-menu-item span:last-child{font-size:25px;font-weight:400;color:#777;line-height:1}
+.settings-section{margin-top:0}
+.settings-back{
+  border:0;background:transparent;padding:4px 0 14px 0;font:inherit;
+  font-size:16px;color:#444;font-weight:600
+}
+
+
+.measure-card{border:1px solid #e1e1e1;border-radius:16px;padding:14px;margin:12px 0;background:#fafafa}
+.measure-preview{width:100%;max-height:260px;object-fit:contain;border-radius:12px;margin:8px 0;display:none;background:#eee}
+.measure-result{font-size:24px;font-weight:800;text-align:center;padding:12px;background:#fff;border-radius:12px;margin:10px 0}
+.material-summary{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #e5e5e5}
+.material-summary:last-child{border-bottom:0}
+.material-summary .meta{font-size:13px;color:#666;margin-top:3px}
+.material-price-note{font-size:13px;color:#666;margin:-4px 0 10px}
+.material-search-wrap{position:relative}
+.material-suggestions{position:absolute;left:0;right:0;top:calc(100% - 10px);z-index:80;background:#fff;border:1px solid #d8d8d8;border-radius:14px;box-shadow:0 10px 28px rgba(0,0,0,.14);max-height:310px;overflow:auto;padding:5px}
+.material-suggestion{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;border:0;background:#fff;padding:13px 12px;border-radius:10px;font:inherit;color:#222}
+.material-suggestion:active,.material-suggestion:hover{background:#f3f4f6}
+.material-suggestion-name{font-weight:750}
+.material-suggestion-meta{font-size:13px;color:#666;text-align:right;white-space:nowrap}
+.material-search-empty{padding:13px;color:#666;font-size:14px}
+
+
+.measure-group{margin-top:10px}
+.measure-group-title{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:10px 0 6px;font-weight:800}
+.measure-repeat-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin:8px 0;padding:10px;border:1px solid #e5e5e5;border-radius:12px;background:#fff}
+.measure-repeat-row.opening{grid-template-columns:1.05fr 1fr 1fr .8fr auto}
+.measure-repeat-row.floor-cut{grid-template-columns:1.1fr 1fr 1fr .8fr auto}
+.measure-repeat-row label{margin-top:0}
+.measure-mini-btn{border:1px solid #d6d6d6;background:#fff;border-radius:10px;padding:10px 12px;font-weight:700;cursor:pointer}
+.measure-remove{border:0;background:#f1f1f1;border-radius:10px;width:40px;height:40px;font-size:18px;cursor:pointer}
+.measure-breakdown{font-size:13px;line-height:1.45;color:#555;text-align:center;margin-top:4px}
+@media(max-width:620px){
+  .measure-repeat-row,.measure-repeat-row.opening,.measure-repeat-row.floor-cut{grid-template-columns:1fr 1fr}
+  .measure-repeat-row .measure-remove{grid-column:2;justify-self:end}
+}
+
+
+.regie-row{border:1px solid #e5e5e5;border-radius:14px;background:#fff;padding:12px;margin:10px 0}
+.regie-grid{display:grid;grid-template-columns:2fr .8fr 1fr auto;gap:8px;align-items:end}
+.regie-custom{margin-top:8px}
+.regie-summary{font-size:13px;color:#555;margin-top:6px}
+@media(max-width:620px){
+  .regie-grid{grid-template-columns:1fr 1fr}
+  .regie-grid .regie-task{grid-column:1 / -1}
+  .regie-grid .measure-remove{grid-column:2;justify-self:end}
+}
+
+
+.regie-preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.regie-preset-btn{border:1px solid #d8d8d8;background:#fff;border-radius:12px;padding:12px;text-align:left;font-weight:700;cursor:pointer}
+.regie-preset-btn.selected{border-width:2px}
+.regie-selected-list{margin-top:10px}
+.regie-selected-item{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid #e5e5e5;border-radius:12px;padding:10px;margin:6px 0;background:#fff}
+.regie-selected-item .small{margin:0}
+@media(max-width:620px){.regie-preset-grid{grid-template-columns:1fr}}
+
+
+.sockel-repeat-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin:8px 0}
+.sockel-total{font-size:20px;font-weight:800;text-align:center;padding:10px;background:#fff;border-radius:12px;margin-top:8px}
+@media(max-width:620px){.sockel-repeat-row{grid-template-columns:1fr auto}}
+
+
+.accountScreen{position:fixed;inset:0;background:#f4f5f7;z-index:10050;display:flex;align-items:center;justify-content:center;padding:20px}
+.accountBox{width:min(460px,100%);background:#fff;border-radius:22px;padding:24px;box-shadow:0 8px 30px rgba(0,0,0,.10)}
+.accountBox h2{margin:0 0 6px}
+.accountBox input{font-size:16px;text-align:left;letter-spacing:0}
+.accountStatus{min-height:22px;color:#666;font-size:14px;margin:6px 0}
+.accountError{color:#b00020;font-weight:700}
+.accountOk{color:#1d6b38;font-weight:700}
+.accountDivider{border-top:1px solid #e3e3e3;margin:16px 0}
+
+
+.regie-sheet{border:1px solid #e1e1e1;border-radius:16px;padding:14px;margin:12px 0;background:#fafafa}
+.regie-sheet textarea{min-height:92px}
+.signature-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}
+.signature-box{background:#fff;border:1px solid #ddd;border-radius:14px;padding:10px}
+.signature-box label{margin-top:0}
+.signature-canvas{width:100%;height:130px;border:1px dashed #aaa;border-radius:10px;background:#fff;touch-action:none;display:block}
+.signature-actions{display:flex;gap:8px;margin-top:8px}
+.signature-actions button{flex:1}
+.regie-pdf-note{font-size:13px;color:#666;line-height:1.45;margin-top:8px}
+@media(max-width:720px){
+  .signature-grid{grid-template-columns:1fr}
+  .signature-canvas{height:150px}
+}
+
+
+.regie-preview-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:12000;padding:12px;display:flex;align-items:center;justify-content:center}
+.regie-preview-card{width:min(900px,100%);height:min(94vh,980px);background:#fff;border-radius:18px;display:flex;flex-direction:column;overflow:hidden}
+.regie-preview-head{padding:12px 14px;border-bottom:1px solid #e5e5e5;font-weight:800;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.regie-preview-frame{width:100%;flex:1;border:0;background:#f1f1f1}
+.regie-preview-actions{padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px solid #e5e5e5}
+@media(max-width:620px){.regie-preview-actions{grid-template-columns:1fr}}
+
+
+.regie-draft{border:1px solid #ddd;border-radius:13px;padding:11px;margin:8px 0;background:#fff}
+.regie-draft-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.regie-draft-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}
+.regie-draft-actions button{padding:10px;border-radius:10px;border:1px solid #ccc;background:#fff;font-weight:700}
+@media(max-width:620px){.regie-draft-actions{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
-<div id="lockScreen" class="lockScreen">
+<div id="accountScreen" class="accountScreen">
+  <div class="accountBox">
+    <h2>FR Rechnung</h2>
+    <p class="small">Anmelden oder neues Konto erstellen.</p>
+
+    <div id="accountNormal">
+      <label>E-Mail</label>
+      <input id="accountEmail" type="email" autocomplete="email" placeholder="name@email.at">
+      <label>Passwort</label>
+      <input id="accountPassword" type="password" autocomplete="current-password" placeholder="mind. 6 Zeichen">
+      <div id="accountStatus" class="accountStatus"></div>
+      <button class="btn" type="button" onclick="accountSignIn()">Anmelden</button>
+      <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
+      <button class="btn outline" type="button" onclick="accountForgotPassword()">Passwort vergessen / setzen</button>
+    </div>
+
+    <div id="accountRecovery" class="hidden">
+      <p class="small">Neues Passwort eingeben.</p>
+      <label>Neues Passwort</label>
+      <input id="accountNewPassword" type="password" autocomplete="new-password" placeholder="mind. 6 Zeichen">
+      <button class="btn" type="button" onclick="accountSetNewPassword()">Passwort speichern</button>
+    </div>
+  </div>
+</div>
+<div id="lockScreen" class="lockScreen" style="display:none">
   <div class="lockBox">
     <h2 id="lockTitle">FR Fliesen Rechteck</h2>
-    <p id="lockInfo" class="small">PIN eingeben</p>
-    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••">
+    <p id="lockInfo" class="small">Face ID oder PIN</p>
+    <button id="faceUnlockBtn" class="btn" type="button" onclick="faceUnlock(false)">Face ID öffnen</button>
+    <div id="faceStatus" class="small" style="margin:8px 0 12px"></div>
+    <div style="border-top:1px solid #e3e3e3;margin:12px 0"></div>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="PIN ••••">
     <div id="lockError" class="lockError"></div>
-    <button class="btn" onclick="unlockApp()">Öffnen</button>
+    <button class="btn outline" onclick="unlockApp()">Mit PIN öffnen</button>
   </div>
 </div>
 <div class="app" id="mainApp" style="display:none">
   <div class="card head">
     <img id="logoPreview" class="logo hidden">
-    <h1>FR Fliesen Rechteck</h1>
+    <h1 id="appCompanyTitle">FR Rechnung</h1>
     <div class="small">Rechnung App</div>
   </div>
 
@@ -64,6 +205,7 @@ label{font-weight:700}
     <button class="tab" onclick="home()">Übersicht</button>
     <button class="tab" onclick="showForm('Angebot')">Angebote</button>
     <button class="tab" onclick="showForm('Rechnung')">Rechnungen</button>
+    <button class="tab" onclick="showTrash()">Papierkorb</button>
     <button class="tab" onclick="settings()">Einstellungen</button>
   </div>
 
@@ -79,21 +221,311 @@ label{font-weight:700}
     </div>
     <button class="btn" onclick="showForm('Rechnung')">+ Neue Rechnung</button>
     <button class="btn outline" onclick="showForm('Angebot')">+ Neues Angebot</button>
+    <button class="btn outline" type="button" onclick="showMessen()">📐 Messen</button>
+    <button class="btn outline" type="button" onclick="showRegiestunden()">⏱️ Regiestunden PDF</button>
     <h3>Gespeicherte Rechnungen</h3>
     <div id="invoiceList"></div>
+    <h3>Gespeicherte Angebote</h3>
+    <div id="offerList"></div>
+  </div>
+
+
+
+  <div id="regie" class="card hidden">
+    <h2>⏱️ Regiestunden</h2>
+    <p class="small">Separater Regiestunden-Zettel als PDF. Unterschriften können direkt am Handy mit dem Finger gemacht werden.</p>
+
+    <div class="regie-sheet">
+      <label>Bauherr / Bauvorhaben</label>
+      <input id="regieBauvorhaben" placeholder="z.B. Kunde / Baustelle">
+
+      <label>Durchgeführte Arbeiten</label>
+      <textarea id="regieArbeiten" placeholder="z.B. Stemmen, Ausgleichen, Material tragen ..."></textarea>
+
+      <div class="row">
+        <div>
+          <label>Arbeitszeit</label>
+          <input id="regieArbeitszeit" placeholder="z.B. 07:00–12:00 / 5 Std.">
+        </div>
+        <div>
+          <label>Datum</label>
+          <input id="regieDatum" type="date">
+        </div>
+      </div>
+
+      <label>Regie Facharbeiter</label>
+      <input id="regieFacharbeiter" placeholder="Name / Anzahl">
+
+      <label>Materialverbrauch</label>
+      <textarea id="regieMaterial" placeholder="z.B. Kleber, Grundierung, Schiene ..."></textarea>
+    </div>
+
+    <button class="btn outline" type="button" onclick="saveRegieDraft()">💾 Regiestunden speichern</button>
+
+    <div class="regie-sheet" style="margin-top:14px">
+      <h3 style="margin-top:0">Gespeicherte Regiestunden</h3>
+      <div id="regieDraftList"><p class="small">Noch nichts gespeichert.</p></div>
+    </div>
+
+    <button class="btn" type="button" onclick="openRegieForReading()">1. PDF öffnen zum Lesen</button>
+    <p class="regie-pdf-note">PDF se otvara posebno na iPhone-u. Kunde pročita, zatim se vrati u FR App i klikne dugme ispod.</p>
+    <button id="regieAfterReadBtn" class="btn outline hidden" type="button" onclick="showRegieSignatures()">PDF gelesen – jetzt unterschreiben</button>
+
+    <div id="regieSignatureSection" class="hidden">
+      <h3>2. Unterschriften nach dem Lesen</h3>
+      <div class="signature-grid">
+        <div class="signature-box">
+          <label>Dienstnehmer</label>
+          <canvas id="sigDienstnehmer" class="signature-canvas"></canvas>
+          <div class="signature-actions">
+            <button class="btn outline" type="button" onclick="clearRegieSignature('sigDienstnehmer')">Löschen</button>
+          </div>
+        </div>
+
+        <div class="signature-box">
+          <label>Chef</label>
+          <canvas id="sigChef" class="signature-canvas"></canvas>
+          <div class="signature-actions">
+            <button class="btn outline" type="button" onclick="clearRegieSignature('sigChef')">Löschen</button>
+          </div>
+        </div>
+
+        <div class="signature-box">
+          <label>Bauleiter</label>
+          <canvas id="sigBauleiter" class="signature-canvas"></canvas>
+          <div class="signature-actions">
+            <button class="btn outline" type="button" onclick="clearRegieSignature('sigBauleiter')">Löschen</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="regie-pdf-note">Posle čitanja kupac/Bauleiter potpisuje direktno prstom na telefonu. Potpis se zatim ubacuje u isti PDF.</p>
+
+      <button class="btn" type="button" onclick="shareRegiePDF()">Unterschriebenes PDF senden / teilen</button>
+      <button class="btn outline" type="button" onclick="openRegiePDF()">Unterschriebenes PDF öffnen / Drucken</button>
+    </div>
+
+    <button class="btn outline" type="button" onclick="clearRegieForm()">Regiestunden leeren</button>
+    <button class="btn outline" type="button" onclick="home()">Zurück</button>
+  </div>
+
+  <div id="messen" class="card hidden">
+    <h2>📐 Raum messen</h2>
+    <p class="small">Raum eingeben und alle Arbeiten auf einem Bildschirm erfassen.</p>
+
+    <label>Raum / Bereich</label>
+    <input id="measureRoomName" placeholder="z.B. Bad OG, WC EG, Küche">
+
+    <div class="measure-card">
+      <h3>🧱 Wand</h3>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Wände einzeln messen</span>
+          <button class="measure-mini-btn" type="button" onclick="addWallMeasureRow()">+ Wand</button>
+        </div>
+        <div id="wallMeasureRows"></div>
+      </div>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Tür / Fenster abziehen</span>
+          <button class="measure-mini-btn" type="button" onclick="addOpeningMeasureRow()">+ Tür / Fenster</button>
+        </div>
+        <div id="openingMeasureRows"></div>
+      </div>
+
+      <label>Preis €/m²</label>
+      <input id="roomWallPrice" type="number" step="0.01">
+      <div class="measure-result"><span id="roomWallResult">0,00</span> m²</div>
+      <div id="roomWallBreakdown" class="measure-breakdown">Wände 0,00 m² · Türen/Fenster −0,00 m²</div>
+    </div>
+
+    <div class="measure-card">
+      <h3>⬜ Boden</h3>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Bodenflächen einzeln messen</span>
+          <button class="measure-mini-btn" type="button" onclick="addFloorMeasureRow()">+ Bodenfläche</button>
+        </div>
+        <div id="floorMeasureRows"></div>
+      </div>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Dusche / Badewanne abziehen</span>
+          <button class="measure-mini-btn" type="button" onclick="addFloorCutMeasureRow()">+ Dusche / Badewanne</button>
+        </div>
+        <div id="floorCutMeasureRows"></div>
+      </div>
+
+      <label>Preis €/m²</label>
+      <input id="roomFloorPrice" type="number" step="0.01">
+      <div class="measure-result"><span id="roomFloorResult">0,00</span> m²</div>
+      <div id="roomFloorBreakdown" class="measure-breakdown">Boden 0,00 m² · Dusche/Badewanne −0,00 m²</div>
+    </div>
+
+    <div class="measure-card">
+      <h3>Weitere Arbeiten</h3>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Sockel lfm einzeln messen</span>
+          <button class="measure-mini-btn" type="button" onclick="addLfmMeasureRow('sockel')">+ Sockel-Länge</button>
+        </div>
+        <div id="sockelMeasureRows"></div>
+        <div class="row">
+          <div><label>Sockel gesamt lfm</label><input id="roomSockel" type="number" step="0.01" readonly></div>
+          <div><label>Preis €/lfm</label><input id="roomSockelPrice" type="number" step="0.01"></div>
+        </div>
+        <div class="sockel-total"><span id="roomSockelResult">0,00</span> lfm</div>
+      </div>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Schiene lfm einzeln messen</span>
+          <button class="measure-mini-btn" type="button" onclick="addLfmMeasureRow('schiene')">+ Schiene-Länge</button>
+        </div>
+        <div id="schieneMeasureRows"></div>
+        <div class="row">
+          <div><label>Schiene gesamt lfm</label><input id="roomSchiene" type="number" step="0.01" readonly></div>
+          <div><label>Preis €/lfm</label><input id="roomSchienePrice" type="number" step="0.01"></div>
+        </div>
+        <div class="sockel-total"><span id="roomSchieneResult">0,00</span> lfm</div>
+      </div>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Silikon lfm einzeln messen</span>
+          <button class="measure-mini-btn" type="button" onclick="addLfmMeasureRow('silikon')">+ Silikon-Länge</button>
+        </div>
+        <div id="silikonMeasureRows"></div>
+        <div class="row">
+          <div><label>Silikon gesamt lfm</label><input id="roomSilikon" type="number" step="0.01" readonly></div>
+          <div><label>Preis €/lfm</label><input id="roomSilikonPrice" type="number" step="0.01"></div>
+        </div>
+        <div class="sockel-total"><span id="roomSilikonResult">0,00</span> lfm</div>
+      </div>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Stufen lfm einzeln messen</span>
+          <button class="measure-mini-btn" type="button" onclick="addLfmMeasureRow('stufen')">+ Stufen-Länge</button>
+        </div>
+        <div id="stufenMeasureRows"></div>
+        <div class="row">
+          <div><label>Stufen gesamt lfm</label><input id="roomStufen" type="number" step="0.01" readonly></div>
+          <div><label>Preis €/lfm</label><input id="roomStufenPrice" type="number" step="0.01"></div>
+        </div>
+        <div class="sockel-total"><span id="roomStufenResult">0,00</span> lfm</div>
+      </div>
+
+      <div class="measure-group">
+        <div class="measure-group-title">
+          <span>Stufensockel lfm einzeln messen</span>
+          <button class="measure-mini-btn" type="button" onclick="addLfmMeasureRow('stufensockel')">+ Stufensockel-Länge</button>
+        </div>
+        <div id="stufensockelMeasureRows"></div>
+        <div class="row">
+          <div><label>Stufensockel gesamt lfm</label><input id="roomStufensockel" type="number" step="0.01" readonly></div>
+          <div><label>Preis €/lfm</label><input id="roomStufensockelPrice" type="number" step="0.01"></div>
+        </div>
+        <div class="sockel-total"><span id="roomStufensockelResult">0,00</span> lfm</div>
+      </div>
+    </div>
+
+    <div class="measure-card">
+      <h3>⏱️ Regiestunden</h3>
+      <p class="small">Regiestunden nur nach Vereinbarung und Ihrer Bestätigung. Diese Preisinfo wird nicht automatisch berechnet.</p>
+
+      <div class="material-price-note" style="font-size:15px;line-height:1.5">
+        Regiestunden, z.B. Material tragen, Stemmen, Ausgleichen, Gehrung schneiden, Schleifen mit Maschine an Wand oder Boden, Rinne setzen, Nische herstellen, Palette fahren sowie Schutt fahren / entsorgen – nur nach Vereinbarung und Ihrer Bestätigung.
+      </div>
+
+      <label>Preis €/Std.</label>
+      <input id="regiePresetPrice" type="number" min="0" step="0.01" placeholder="z.B. 55,00">
+
+      <div style="border-top:1px solid #e3e3e3;margin:16px 0"></div>
+
+      <label>Regiestunden – selbst schreiben</label>
+      <input id="regieCustomText" placeholder="z.B. Material holen, Baustelle reinigen ...">
+      <div class="row">
+        <div>
+          <label>Stunden / h</label>
+          <input id="regieCustomQty" type="number" min="0" step="0.25" placeholder="z.B. 2,5" oninput="updateCustomRegieTotal()">
+        </div>
+        <div>
+          <label>Preis €/Std.</label>
+          <input id="regieCustomPrice" type="number" min="0" step="0.01" placeholder="z.B. 55,00" oninput="updateCustomRegieTotal()">
+        </div>
+      </div>
+      <label>Summe netto</label>
+      <input id="regieCustomTotal" readonly placeholder="0,00 €">
+
+      <div class="material-price-note">Oben: nur nach Vereinbarung und Ihrer Bestätigung, keine automatische Berechnung. Unten: Stunden × Preis wird berechnet und zur Rechnungssumme addiert.</div>
+    </div>
+
+    <button class="btn" type="button" onclick="addRoomToList()">+ Raum hinzufügen</button>
+
+    <div class="measure-card">
+      <h3>📦 Material</h3>
+      <label>Material suchen</label>
+      <div class="material-search-wrap">
+        <input id="measureMaterialName" placeholder="z.B. FDF" autocomplete="off" autocapitalize="off" spellcheck="false" oninput="materialSearchInput()" onfocus="showMaterialSuggestions()" onkeydown="materialSearchKeydown(event)">
+        <div id="materialSuggestions" class="material-suggestions hidden"></div>
+      </div>
+      <button class="btn outline" type="button" onclick="enableCustomMaterial()">+ Sonstige / anderes Material</button>
+      <div class="row">
+        <div><label>Menge / Kom.</label><input id="measureMaterialQty" type="number" min="0" step="0.01" value="1" oninput="syncMeasuredMaterial()"></div>
+        <div><label>Einheit</label><input id="measureMaterialUnit" readonly placeholder="automatisch"></div>
+      </div>
+      <div class="row">
+        <div><label>Verkauf netto</label><input id="measureMaterialPrice" readonly placeholder="automatisch +40%" oninput="syncMeasuredMaterial()"></div>
+        <div><label>Summe netto</label><input id="measureMaterialTotal" readonly></div>
+      </div>
+      <div id="materialModeNote" class="material-price-note">Verkaufspreis wird automatisch mit +40% auf die Einkaufsliste berechnet.</div>
+      <label>Material-Preis auf PDF</label>
+      <select id="measureMaterialPdfMode" onchange="syncMaterialPdfModeFromMeasure()">
+        <option value="on" selected>ON – Materialpreise anzeigen</option>
+        <option value="off">OFF – Materialpreise ausblenden</option>
+      </select>
+      <button class="btn outline" type="button" onclick="addMeasuredMaterial()">+ Material hinzufügen</button>
+      <div id="measureMaterialList"></div>
+    </div>
+
+    <h3>Räume / Messliste</h3>
+    <div id="measureList"></div>
+
+    <button class="btn" type="button" onclick="measureListToDoc('Angebot')">Angebot erstellen</button>
+    <button class="btn outline" type="button" onclick="measureListToDoc('Rechnung')">Rechnung erstellen</button>
+    <button class="btn outline" type="button" onclick="clearMeasureList()">Messliste leeren</button>
+    <button class="btn outline" type="button" onclick="home()">Zurück</button>
+  </div>
+
+  <div id="trash" class="card hidden">
+    <h2>Papierkorb</h2>
+    <p class="small">Gelöschte Rechnungen bleiben hier, bis du sie selbst endgültig löschst.</p>
+    <div id="trashList"></div>
+    <button class="btn outline" onclick="emptyTrash()">Papierkorb leeren</button>
   </div>
 
   <div id="form" class="card hidden">
     <h2 id="formTitle">Neue Rechnung</h2>
 
     <div class="row">
-      <div><label>Nummer</label><input id="docNr" placeholder="z.B. 2026-001"></div>
-      <div><label>Datum</label><input id="docDate" type="date"></div>
+      <div><label>Nummer</label><input id="docNr" placeholder="automatisch"></div>
+      <div><label>Rechnungsdatum</label><input id="docDate" type="date" onchange="updateDueDate();updateAutoNumberForDate()"></div>
     </div>
+    <label>Fälligkeitsdatum</label><input id="dueDate" type="date" readonly>
 
-    <label>Kunde</label><input id="kunde">
+    <label>Kunde</label>
+    <input id="kunde" list="kundenListe" onchange="loadCustomerByName()" onblur="loadCustomerByName()" placeholder="z.B. HB - Fliesen">
+    <datalist id="kundenListe"></datalist>
     <label>Adresse</label><input id="adresse">
+    <label>UID Kunde</label><input id="kundeUid" placeholder="z.B. ATU12345678">
     <label>E-Mail Kunde</label><input id="kundeEmail" type="email" placeholder="kunde@email.at">
+    <button class="btn outline" type="button" onclick="saveCustomer()">Kunde speichern</button>
     <label>Baustelle</label><input id="bau">
     <label>Nachricht (optional)</label><textarea id="nachricht" rows="3"></textarea>
     <label>Materialkosten €</label><input id="materialCost" type="number" step="0.01" placeholder="z.B. 350">
@@ -110,79 +542,854 @@ label{font-weight:700}
       </div>
     </div>
 
+    <label>Preis auf PDF</label>
+    <select id="pdfPriceMode">
+      <option value="on" selected>ON – Preise anzeigen</option>
+      <option value="off">OFF – Pauschal</option>
+    </select>
+    <label>Material-Preis auf PDF</label>
+    <select id="materialPdfPriceMode">
+      <option value="on" selected>ON – Materialpreise anzeigen</option>
+      <option value="off">OFF – Materialpreise ausblenden</option>
+    </select>
     <h3>Positionen</h3>
     <div id="items"></div>
     <button class="btn outline" type="button" onclick="addItem()">+ Position hinzufügen</button>
 
     <div class="row">
-      <div><label>Zahlungsziel</label><select id="tage"><option>14</option><option>7</option><option>30</option></select></div>
-      <div><label>Skonto</label><select id="skonto"><option value="3">3% / 7 Tage</option><option value="0">Kein Skonto</option></select></div>
+      <div>
+        <label>Zahlungsziel</label>
+        <select id="tage" onchange="updateDueDate()">
+          <option value="7">7 Tage</option>
+          <option value="14" selected>14 Tage</option>
+          <option value="30">30 Tage</option>
+        </select>
+      </div>
+      <div>
+        <label>Skonto</label>
+        <select id="skonto">
+          <option value="3">3% Skonto</option>
+          <option value="0">Kein Skonto</option>
+        </select>
+      </div>
     </div>
 
-    <button class="btn" onclick="saveInvoice()">Rechnung speichern</button>
+    <button class="btn" onclick="docType==='Angebot'?saveOffer():saveInvoice()">Speichern</button>
     <button class="btn outline" onclick="sharePDF()">PDF senden / teilen</button>
     <button class="btn outline" onclick="makeDoc()">PDF erstellen / Drucken</button>
     <button class="btn outline" onclick="home()">Zurück</button>
   </div>
 
   <div id="settings" class="card hidden">
-    <h2>Einstellungen · Firma</h2>
-    <label>Logo auswählen</label>
-    <input id="logoInput" type="file" accept="image/*">
-    <p class="small">Das Logo wird auf diesem iPhone gespeichert und für Rechnung/Angebot verwendet.</p>
-    <hr style="border:0;border-top:1px solid #ddd;margin:20px 0">
-    <h3>Cloud Sync</h3>
-    <p id="cloudStatus" class="small">Nicht angemeldet</p>
-    <label>E-Mail</label><input id="cloudEmail" type="email" placeholder="name@email.at">
-    <button class="btn outline" onclick="cloudLogin()">Anmelden per E-Mail</button>
-    <button class="btn outline" onclick="syncCloud()">Cloud Sync</button>
-    <button class="btn outline" onclick="cloudLogout()">Abmelden</button>
-    <hr style="border:0;border-top:1px solid #ddd;margin:20px 0">
-    <h3>Sicherheit</h3>
-    <label>Neuer PIN</label>
-    <input id="newPin" type="password" inputmode="numeric" maxlength="6" placeholder="4–6 Ziffern">
-    <button class="btn outline" onclick="changePin()">PIN ändern</button>
-    <button class="btn outline" onclick="lockNow()">Jetzt sperren</button>
-    <button class="btn outline" onclick="home()">Zurück</button>
+    <div id="settingsMenu">
+      <h2>Einstellungen</h2>
+      <p class="small"><b>Version v76 · Enable Banking Sync · Regiestunden Entwurf speichern</b></p>
+
+      <div class="settings-menu">
+        <button class="settings-menu-item" onclick="openSettingsSection('company')">
+          <span>Firma & Logo</span><span>›</span>
+        </button>
+        <button class="settings-menu-item" onclick="openSettingsSection('chatgpt')">
+          <span>ChatGPT Import</span><span>›</span>
+        </button>
+        <button class="settings-menu-item" onclick="openSettingsSection('bank')">
+          <span>Bank Sync</span><span>›</span>
+        </button>
+        <button class="settings-menu-item" onclick="openSettingsSection('cloud')">
+          <span>Cloud Sync</span><span>›</span>
+        </button>
+        <button class="settings-menu-item" onclick="openSettingsSection('security')">
+          <span>Face ID & PIN</span><span>›</span>
+        </button>
+      </div>
+
+      <button class="btn outline" onclick="home()" style="margin-top:16px">Zurück</button>
+    </div>
+
+    <div id="settings-company" class="settings-section hidden">
+      <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
+      <h2>Firma & Logo</h2>
+
+      <label>Firmenname</label><input id="companyName" placeholder="z.B. Muster Fliesen GmbH">
+      <label>Adresse</label><input id="companyAddress" placeholder="Straße · PLZ Ort">
+      <div class="row">
+        <div><label>UID</label><input id="companyUid" placeholder="ATU..."></div>
+        <div><label>Steuernummer</label><input id="companyTaxNr"></div>
+      </div>
+      <div class="row">
+        <div><label>E-Mail</label><input id="companyEmail" type="email"></div>
+        <div><label>Telefon</label><input id="companyPhone"></div>
+      </div>
+      <label>Website</label><input id="companyWebsite">
+      <div class="row">
+        <div><label>Bank</label><input id="companyBank"></div>
+        <div><label>BIC / SWIFT</label><input id="companyBic"></div>
+      </div>
+      <label>IBAN</label><input id="companyIban">
+      <button class="btn" type="button" onclick="saveCompanyProfile()">Firmendaten speichern</button>
+
+      <div class="accountDivider"></div>
+      <label>Logo auswählen</label>
+      <input id="logoInput" type="file" accept="image/*">
+      <p class="small">Firmendaten, Logo, Kunden, Angebote und Rechnungen werden pro Benutzerkonto getrennt gespeichert.</p>
+    </div>
+
+    <div id="settings-chatgpt" class="settings-section hidden">
+      <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
+      <h2>ChatGPT Import</h2>
+      <p class="small">Der Import-Schlüssel wird nur auf diesem Gerät gespeichert.</p>
+      <label>Import-Schlüssel</label>
+      <input id="chatgptImportToken" type="password" placeholder="Import-Schlüssel">
+      <div class="actions" style="margin-top:10px">
+        <button class="btn outline" onclick="saveChatgptImportToken()">Schlüssel speichern</button>
+        <button class="btn outline" onclick="pullChatgptInvoices(true)">ChatGPT Import abrufen</button>
+      </div>
+      <p class="small" id="chatgptImportStatus">Noch nicht eingerichtet.</p>
+    </div>
+
+    <div id="settings-bank" class="settings-section hidden">
+      <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
+      <h2>Bank Sync</h2>
+      <p class="small">Enable Banking: uplate se povezuju po Rechnungsnummer + tačnom iznosu. Kada se poklopi, Rechnung automatski prelazi na Bezahlt.</p>
+
+      <p id="bankStatus" class="small">Bank noch nicht verbunden.</p>
+
+      <label>Bank</label>
+      <select id="bankInstitution">
+        <option value="">– Bank laden –</option>
+      </select>
+
+      <div class="actions" style="margin-top:10px">
+        <button class="btn outline" type="button" onclick="bankLoadInstitutions(true)">Banken laden</button>
+        <button class="btn" type="button" onclick="bankConnect()">Bank verbinden</button>
+      </div>
+
+      <div class="actions" style="margin-top:10px">
+        <button class="btn outline" type="button" onclick="bankSync(true)">Zahlungen prüfen</button>
+        <button class="btn outline" type="button" onclick="bankDisconnect()">Bank-Verbindung entfernen</button>
+      </div>
+
+      <p id="bankLastSync" class="small">Noch keine Prüfung.</p>
+      <p class="small">Auto Sync: beim Öffnen der App, maximal etwa alle 6 Stunden. Bank-Passwort wird nie in der FR App gespeichert. Sandbox dient nur zum Testen; echte österreichische Bankkonten brauchen später eine Production-Verbindung.</p>
+    </div>
+
+    <div id="settings-cloud" class="settings-section hidden">
+      <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
+      <h2>Konto & Cloud Sync</h2>
+      <p id="cloudStatus" class="small">Nicht angemeldet</p>
+      <button class="btn outline" type="button" onclick="accountLogout()">Benutzer abmelden</button>
+      <label>E-Mail</label>
+      <input id="cloudEmail" type="email" placeholder="name@email.at">
+      <button class="btn outline" onclick="cloudLogin()">Anmelden per E-Mail</button>
+      <button class="btn outline" onclick="copyCloudSession()">Cloud Login kopieren</button>
+      <button class="btn outline" onclick="pasteCloudSession()">Cloud Login einfügen</button>
+      <button class="btn outline" onclick="syncCloud()">Cloud Sync</button>
+      <button class="btn outline" style="border-color:#b00020;color:#b00020" onclick="deleteAllInvoicesEverywhere()">Alle Rechnungen löschen</button>
+      <button class="btn outline" onclick="cloudLogout()">Abmelden</button>
+      <p class="small">iPhone: Wenn der E-Mail-Link Safari öffnet, dort Cloud Login kopieren. Danach FR-App öffnen und Cloud Login einfügen.</p>
+    </div>
+
+    <div id="settings-security" class="settings-section hidden">
+      <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
+      <h2>Face ID & PIN</h2>
+      <p id="faceSettingsStatus" class="small">Face ID Status wird geprüft…</p>
+      <button class="btn outline" type="button" onclick="registerFaceId()">Face ID einrichten</button>
+      <button class="btn outline" type="button" onclick="removeFaceId()">Face ID entfernen</button>
+      <div style="border-top:1px solid #e3e3e3;margin:16px 0"></div>
+      <label>Neuer PIN</label>
+      <input id="newPin" type="password" inputmode="numeric" maxlength="6" placeholder="4–6 Ziffern">
+      <button class="btn outline" onclick="changePin()">PIN ändern</button>
+      <button class="btn outline" onclick="lockNow()">Jetzt sperren</button>
+      <p class="small">Face ID funktioniert über HTTPS / Vercel. Bei direkter HTML-Datei bleibt PIN verfügbar.</p>
+    </div>
+
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 
 const SUPABASE_URL='https://xvdrcbqnyxgugbhtrxgl.supabase.co';
 const SUPABASE_KEY='sb_publishable_SI2AWx0-d_Uj7uc75jrfVw_srMJPuB-';
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+  auth:{
+    persistSession:true,
+    autoRefreshToken:true,
+    detectSessionInUrl:true,
+    storage:window.localStorage,
+    storageKey:'fr-rechnung-auth'
+  }
+});
 let cloudUser=null;
+
+const LEGACY_COMPANY_PROFILE={
+  name:'FR Fliesen Rechteck',
+  address:'Kamerlweg 58 · 4600 Wels',
+  uid:'ATU79163806',
+  taxNr:'54 347/6998',
+  email:'office@fliesen-rechteck.at',
+  phone:'06649277777',
+  website:'www.fliesen-rechteck.at',
+  bank:'SPARKASSE',
+  bic:'ASPKAT2LXXX',
+  iban:'AT09 2032 0321 0067 2132'
+};
+
+function userKey(base){
+  return cloudUser&&cloudUser.id ? `${base}:${cloudUser.id}` : `${base}:no-user`;
+}
+function getCompanyProfile(){
+  if(!cloudUser)return {name:'FR Rechnung',address:'',uid:'',taxNr:'',email:'',phone:'',website:'',bank:'',bic:'',iban:''};
+  try{
+    const v=JSON.parse(localStorage.getItem(userKey('frCompanyProfile'))||'null');
+    if(v)return {...{name:'',address:'',uid:'',taxNr:'',email:'',phone:'',website:'',bank:'',bic:'',iban:''},...v};
+  }catch(e){}
+  return {name:'',address:'',uid:'',taxNr:'',email:'',phone:'',website:'',bank:'',bic:'',iban:''};
+}
+function setCompanyProfile(v){
+  localStorage.setItem(userKey('frCompanyProfile'),JSON.stringify(v||{}));
+}
+function companyDisplayName(){
+  const c=getCompanyProfile();
+  return (c.name||'FR Rechnung').trim()||'FR Rechnung';
+}
+function cleanIban(v){return String(v||'').replace(/\s+/g,'').toUpperCase()}
+function hasLegacyUserData(){
+  return ['frInvoices','frOffers','frCustomers','frInvoiceTrash','frLogo','frPin','frImportToken','frDeletedInvoiceNumbers']
+    .some(k=>!!localStorage.getItem(k));
+}
+function migrateLegacyDataToCurrentUser(){
+  if(!cloudUser)return;
+  let owner=localStorage.getItem('frLegacyOwnerUserId')||'';
+  if(!owner && hasLegacyUserData()){
+    owner=cloudUser.id;
+    localStorage.setItem('frLegacyOwnerUserId',owner);
+  }
+  if(owner!==cloudUser.id)return;
+  const pairs=[
+    ['frInvoices','frInvoices'],['frOffers','frOffers'],['frCustomers','frCustomers'],
+    ['frInvoiceTrash','frInvoiceTrash'],['frLogo','frLogo'],['frPin','frPin'],
+    ['frFaceCredentialId','frFaceCredentialId'],['frFaceUserId','frFaceUserId'],
+    ['frChatgptImportToken','frChatgptImportToken'],['frDeletedInvoiceNumbers','frDeletedInvoiceNumbers']
+  ];
+  for(const [legacy,base] of pairs){
+    const val=localStorage.getItem(legacy);
+    const scoped=userKey(base);
+    if(val!==null && localStorage.getItem(scoped)===null)localStorage.setItem(scoped,val);
+  }
+  const profileKey=userKey('frCompanyProfile');
+  if(localStorage.getItem(profileKey)===null){
+    localStorage.setItem(profileKey,JSON.stringify(LEGACY_COMPANY_PROFILE));
+  }
+}
+function updateCompanyUi(){
+  const c=getCompanyProfile();
+  const title=document.getElementById('appCompanyTitle');
+  if(title)title.textContent=c.name||'FR Rechnung';
+  const fields={
+    companyName:c.name,companyAddress:c.address,companyUid:c.uid,companyTaxNr:c.taxNr,
+    companyEmail:c.email,companyPhone:c.phone,companyWebsite:c.website,companyBank:c.bank,
+    companyBic:c.bic,companyIban:c.iban
+  };
+  for(const [id,val] of Object.entries(fields)){
+    const el=document.getElementById(id); if(el)el.value=val||'';
+  }
+}
+function saveCompanyProfile(){
+  const v={
+    name:(document.getElementById('companyName')?.value||'').trim(),
+    address:(document.getElementById('companyAddress')?.value||'').trim(),
+    uid:(document.getElementById('companyUid')?.value||'').trim(),
+    taxNr:(document.getElementById('companyTaxNr')?.value||'').trim(),
+    email:(document.getElementById('companyEmail')?.value||'').trim(),
+    phone:(document.getElementById('companyPhone')?.value||'').trim(),
+    website:(document.getElementById('companyWebsite')?.value||'').trim(),
+    bank:(document.getElementById('companyBank')?.value||'').trim(),
+    bic:(document.getElementById('companyBic')?.value||'').trim().toUpperCase(),
+    iban:(document.getElementById('companyIban')?.value||'').trim().toUpperCase()
+  };
+  if(!v.name){alert('Bitte Firmenname eingeben.');return}
+  setCompanyProfile(v);
+  updateCompanyUi();
+  alert('Firmendaten gespeichert');
+}
+
+const FR_DELETED_INVOICES_KEY='frDeletedInvoiceNumbers';
+function getDeletedInvoiceNumbers(){try{return JSON.parse(localStorage.getItem(userKey(FR_DELETED_INVOICES_KEY))||'[]')}catch(e){return []}}
+function setDeletedInvoiceNumbers(v){localStorage.setItem(userKey(FR_DELETED_INVOICES_KEY),JSON.stringify([...new Set(v||[])]))}
+function markInvoiceDeleted(nr){if(!nr)return;const a=getDeletedInvoiceNumbers();if(!a.includes(String(nr)))a.push(String(nr));setDeletedInvoiceNumbers(a)}
+function unmarkInvoiceDeleted(nr){setDeletedInvoiceNumbers(getDeletedInvoiceNumbers().filter(x=>String(x)!==String(nr)))}
+
+
+
+const BANK_CONN_KEY='frEnableBankingConnection';
+const BANK_NAME_KEY='frBankInstitutionName';
+const BANK_LAST_SYNC_KEY='frBankLastSyncAt';
+const BANK_PENDING_STATE_KEY='frEnableBankingPendingState';
+const BANK_AUTO_HOURS=6;
+
+function bankLocalGet(base){return localStorage.getItem(userKey(base))||''}
+function bankLocalSet(base,val){
+  if(val===null||val===undefined||val==='')localStorage.removeItem(userKey(base));
+  else localStorage.setItem(userKey(base),String(val));
+}
+function bankConnected(){return !!bankLocalGet(BANK_CONN_KEY)}
+function bankStatusText(){
+  const conn=bankLocalGet(BANK_CONN_KEY);
+  const name=bankLocalGet(BANK_NAME_KEY);
+  if(!conn)return 'Bank noch nicht verbunden.';
+  return 'Verbunden · Enable Banking'+(name?' · '+name:'');
+}
+function updateBankStatusUi(extra=''){
+  const st=document.getElementById('bankStatus');
+  if(st)st.textContent=bankStatusText()+(extra?' · '+extra:'');
+  const ls=document.getElementById('bankLastSync');
+  const last=bankLocalGet(BANK_LAST_SYNC_KEY);
+  if(ls)ls.textContent=last?('Letzte Prüfung: '+new Date(last).toLocaleString('de-AT')):'Noch keine Prüfung.';
+}
+async function bankAuthHeaders(){
+  const r=await sb.auth.getSession();
+  const token=r&&r.data&&r.data.session?r.data.session.access_token:'';
+  if(!token)throw new Error('Bitte zuerst anmelden.');
+  return {'Content-Type':'application/json','Authorization':'Bearer '+token};
+}
+async function bankApiJson(url,options={}){
+  const headers=await bankAuthHeaders();
+  const r=await fetch(url,{cache:'no-store',...options,headers:{...headers,...(options.headers||{})}});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||d.detail||('HTTP '+r.status));
+  return d;
+}
+async function bankLoadInstitutions(showMessage=true){
+  const sel=document.getElementById('bankInstitution');
+  try{
+    if(showMessage)updateBankStatusUi('Banken werden geladen…');
+    const d=await bankApiJson('/api/bank-institutions?country=AT&psu_type=business');
+    const banks=(d.institutions||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'de'));
+    if(sel){
+      sel.innerHTML='<option value="">– Bank auswählen –</option>'+banks.map(b=>`<option value="${escAttr(b.id)}">${esc(b.name||b.id)}</option>`).join('');
+    }
+    const mode=d.environment?(' · '+d.environment):'';
+    updateBankStatusUi(banks.length+' Banken verfügbar'+mode);
+    if(showMessage && !banks.length){
+      alert('Im aktuellen Enable-Banking-Umfeld wurden keine österreichischen Business-Banken gefunden. Sandbox hat nur eine begrenzte Bankauswahl.');
+    }
+  }catch(e){
+    updateBankStatusUi('Fehler');
+    if(showMessage)alert('Bank Sync Fehler: '+(e?.message||e));
+  }
+}
+async function bankConnect(){
+  const sel=document.getElementById('bankInstitution');
+  const institutionId=sel?.value||'';
+  const institutionName=sel?.options?.[sel.selectedIndex]?.text||'';
+  if(!institutionId){alert('Bitte zuerst Bank auswählen.');return}
+  try{
+    updateBankStatusUi('Verbindung wird vorbereitet…');
+    const redirect=location.origin+location.pathname;
+    const d=await bankApiJson('/api/bank-connect',{
+      method:'POST',
+      body:JSON.stringify({institution_id:institutionId,redirect})
+    });
+    if(!d.link||!d.state)throw new Error('Bank-Link fehlt.');
+    bankLocalSet(BANK_PENDING_STATE_KEY,d.state);
+    bankLocalSet(BANK_NAME_KEY,institutionName);
+    location.href=d.link;
+  }catch(e){
+    updateBankStatusUi('Fehler');
+    alert('Bank verbinden Fehler: '+(e?.message||e));
+  }
+}
+async function bankCompleteReturn(){
+  const p=new URLSearchParams(location.search);
+  const code=p.get('code')||'';
+  const state=p.get('state')||'';
+  const error=p.get('error')||'';
+  const errorDescription=p.get('error_description')||'';
+
+  if(error){
+    try{history.replaceState({},'',location.pathname)}catch(e){}
+    alert('Bank-Verbindung abgebrochen: '+(errorDescription||error));
+    return false;
+  }
+  if(!code)return false;
+
+  const expected=bankLocalGet(BANK_PENDING_STATE_KEY);
+  if(expected && state && expected!==state){
+    try{history.replaceState({},'',location.pathname)}catch(e){}
+    alert('Bank-Verbindung konnte nicht bestätigt werden: State stimmt nicht.');
+    return false;
+  }
+
+  try{
+    updateBankStatusUi('Bank-Verbindung wird abgeschlossen…');
+    const d=await bankApiJson('/api/bank-session',{
+      method:'POST',
+      body:JSON.stringify({code,state})
+    });
+    if(!d.connection_token)throw new Error('Verbindungstoken fehlt.');
+    bankLocalSet(BANK_CONN_KEY,d.connection_token);
+    bankLocalSet(BANK_PENDING_STATE_KEY,'');
+    if(d.bank_name)bankLocalSet(BANK_NAME_KEY,d.bank_name);
+    try{history.replaceState({},'',location.pathname)}catch(e){}
+    updateBankStatusUi('Verbunden');
+    await bankSync(false);
+    alert('Bank erfolgreich verbunden.');
+    return true;
+  }catch(e){
+    try{history.replaceState({},'',location.pathname)}catch(err){}
+    updateBankStatusUi('Fehler');
+    alert('Bank-Verbindung Fehler: '+(e?.message||e));
+    return false;
+  }
+}
+async function bankDisconnect(){
+  if(!confirm('Bank-Verbindung in der FR App entfernen?'))return;
+  const connection=bankLocalGet(BANK_CONN_KEY);
+  if(connection){
+    try{
+      await bankApiJson('/api/bank-disconnect',{
+        method:'POST',
+        body:JSON.stringify({connection_token:connection})
+      });
+    }catch(e){}
+  }
+  bankLocalSet(BANK_CONN_KEY,'');
+  bankLocalSet(BANK_NAME_KEY,'');
+  bankLocalSet(BANK_LAST_SYNC_KEY,'');
+  bankLocalSet(BANK_PENDING_STATE_KEY,'');
+  updateBankStatusUi();
+}
+function bankNormalizeRef(v){
+  return String(v||'').toUpperCase().replace(/\s+/g,'').replace(/[^\p{L}\p{N}\-_.]/gu,'');
+}
+function bankAmountEqual(a,b){
+  return Math.abs((Number(a)||0)-(Number(b)||0))<0.02;
+}
+function bankMatchTransactions(transactions){
+  const invoices=getInvoices();
+  let matched=0;
+  let changed=false;
+
+  for(const tx of (transactions||[])){
+    const amount=Number(tx.amount)||0;
+    if(amount<=0)continue;
+    const textRef=bankNormalizeRef([tx.text,tx.referenceNumber,tx.debtorName].filter(Boolean).join(' '));
+
+    for(const inv of invoices){
+      if(inv.paid||!inv.nr)continue;
+      if(!bankAmountEqual(amount,inv.total))continue;
+
+      const nr=bankNormalizeRef(inv.nr);
+      if(!nr||!textRef.includes(nr))continue;
+
+      inv.paid=true;
+      inv.paidAt=tx.date||new Date().toISOString().slice(0,10);
+      inv.bankMatch={
+        provider:'Enable Banking',
+        transactionId:tx.id||'',
+        date:tx.date||'',
+        amount,
+        debtorName:tx.debtorName||'',
+        text:tx.text||''
+      };
+      inv.savedAt=new Date().toISOString();
+      matched++;
+      changed=true;
+      break;
+    }
+  }
+
+  if(changed){
+    setInvoices(invoices);
+    renderDashboard();
+    for(const inv of invoices.filter(x=>x.paid&&x.bankMatch)){
+      cloudUpsertInvoice(inv).catch(()=>{});
+    }
+  }
+  return matched;
+}
+async function bankSync(showMessage=true){
+  if(!cloudUser)return false;
+  const connection=bankLocalGet(BANK_CONN_KEY);
+  if(!connection){
+    updateBankStatusUi();
+    if(showMessage)alert('Prvo poveži banku u Einstellungen → Bank Sync.');
+    return false;
+  }
+  try{
+    updateBankStatusUi('Zahlungen werden geprüft…');
+    const d=await bankApiJson('/api/bank-transactions?connection_token='+encodeURIComponent(connection));
+    if(d.status && d.status!=='AUTHORIZED'){
+      updateBankStatusUi('Bank Status: '+d.status);
+      if(showMessage)alert('Bank-Verbindung nije aktivna. Status: '+d.status);
+      return false;
+    }
+    const matched=bankMatchTransactions(d.transactions||[]);
+    const now=new Date().toISOString();
+    bankLocalSet(BANK_LAST_SYNC_KEY,now);
+    if(d.bank_name)bankLocalSet(BANK_NAME_KEY,d.bank_name);
+    updateBankStatusUi(matched?(`${matched} Zahlung(en) erkannt`):'Keine neue passende Zahlung');
+    if(showMessage){
+      alert(matched?`${matched} Rechnung(en) automatisch auf Bezahlt gesetzt.`:'Keine neue passende Zahlung gefunden.');
+    }
+    return true;
+  }catch(e){
+    updateBankStatusUi('Fehler');
+    if(showMessage)alert('Bank Sync Fehler: '+(e?.message||e));
+    return false;
+  }
+}
+async function autoBankSync(force=false){
+  if(!cloudUser)return;
+  const p=new URLSearchParams(location.search);
+  if(p.get('code')||p.get('error')){
+    await bankCompleteReturn();
+    return;
+  }
+  if(!bankConnected())return;
+  const last=bankLocalGet(BANK_LAST_SYNC_KEY);
+  const age=last?(Date.now()-new Date(last).getTime()):Infinity;
+  const due=age>=BANK_AUTO_HOURS*60*60*1000;
+  if(force||due)await bankSync(false);
+}
+
 async function refreshCloudUser(){
- const r=await sb.auth.getUser(); cloudUser=r.data&&r.data.user?r.data.user:null;
- const s=document.getElementById('cloudStatus'); if(s)s.textContent=cloudUser?'Angemeldet: '+cloudUser.email:'Nicht angemeldet';
+  const r=await sb.auth.getUser();
+  cloudUser=r.data&&r.data.user?r.data.user:null;
+  const s=document.getElementById('cloudStatus');
+  if(s)s.textContent=cloudUser?'Angemeldet: '+cloudUser.email:'Nicht angemeldet';
+  return cloudUser;
+}
+function setAccountStatus(msg,type=''){
+  const el=document.getElementById('accountStatus');
+  if(!el)return;
+  el.textContent=msg||'';
+  el.className='accountStatus '+(type==='error'?'accountError':type==='ok'?'accountOk':'');
+}
+function showAccountScreen(){
+  document.getElementById('accountScreen').style.display='flex';
+  document.getElementById('lockScreen').style.display='none';
+  document.getElementById('mainApp').style.display='none';
+}
+async function afterAccountLogin(){
+  await refreshCloudUser();
+  if(!cloudUser){showAccountScreen();return}
+  migrateLegacyDataToCurrentUser();
+  frPin=localStorage.getItem(userKey('frPin'))||'';
+  logo=localStorage.getItem(userKey('frLogo'))||'';
+  updateCompanyUi();
+  showLogo();
+  loadChatgptImportToken();
+  renderCustomerList();
+  renderDashboard();
+  renderTrash();
+  document.getElementById('accountScreen').style.display='none';
+  document.getElementById('mainApp').style.display='none';
+  document.getElementById('lockScreen').style.display='flex';
+  setupLock();
+  setTimeout(()=>syncCloud(false),300);
+  setTimeout(()=>autoBankSync(false),900);
+}
+async function accountSignIn(){
+  const email=(document.getElementById('accountEmail')?.value||'').trim();
+  const password=document.getElementById('accountPassword')?.value||'';
+  if(!email||!password){setAccountStatus('E-Mail und Passwort eingeben.','error');return}
+  setAccountStatus('Anmeldung…');
+  const r=await sb.auth.signInWithPassword({email,password});
+  if(r.error){setAccountStatus('Anmeldung Fehler: '+r.error.message,'error');return}
+  setAccountStatus('Angemeldet.','ok');
+  await afterAccountLogin();
+}
+async function accountSignUp(){
+  const email=(document.getElementById('accountEmail')?.value||'').trim();
+  const password=document.getElementById('accountPassword')?.value||'';
+  if(!email||password.length<6){setAccountStatus('E-Mail und Passwort mit mindestens 6 Zeichen eingeben.','error');return}
+  setAccountStatus('Konto wird erstellt…');
+  const r=await sb.auth.signUp({
+    email,password,
+    options:{emailRedirectTo:'https://fliesen-rechteck-rechnung.vercel.app/'}
+  });
+  if(r.error){setAccountStatus('Registrierung Fehler: '+r.error.message,'error');return}
+  if(r.data&&r.data.session){
+    setAccountStatus('Konto erstellt.','ok');
+    await afterAccountLogin();
+  }else{
+    setAccountStatus('Konto erstellt. Bitte Bestätigungs-E-Mail öffnen und danach anmelden.','ok');
+  }
+}
+async function accountForgotPassword(){
+  const email=(document.getElementById('accountEmail')?.value||'').trim();
+  if(!email){setAccountStatus('Bitte zuerst E-Mail eingeben.','error');return}
+  const r=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://fliesen-rechteck-rechnung.vercel.app/'});
+  if(r.error){setAccountStatus('Fehler: '+r.error.message,'error');return}
+  setAccountStatus('E-Mail zum Passwort setzen wurde gesendet.','ok');
+}
+async function accountSetNewPassword(){
+  const password=document.getElementById('accountNewPassword')?.value||'';
+  if(password.length<6){setAccountStatus('Passwort muss mindestens 6 Zeichen haben.','error');return}
+  const r=await sb.auth.updateUser({password});
+  if(r.error){setAccountStatus('Fehler: '+r.error.message,'error');return}
+  document.getElementById('accountRecovery').classList.add('hidden');
+  document.getElementById('accountNormal').classList.remove('hidden');
+  setAccountStatus('Neues Passwort gespeichert.','ok');
+  await afterAccountLogin();
+}
+async function accountLogout(){
+  await sb.auth.signOut();
+  cloudUser=null;
+  frPin='';
+  logo='';
+  measurementList=[];
+  measurementMaterials=[];
+  showAccountScreen();
+  setAccountStatus('Abgemeldet.','ok');
 }
 async function cloudLogin(){
- const email=(document.getElementById('cloudEmail').value||'').trim(); if(!email)return alert('Bitte E-Mail eingeben.');
- const r=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:'https://fliesen-rechteck-rechnung.vercel.app/'}});
- if(r.error)return alert('Anmeldung Fehler: '+r.error.message); alert('E-Mail gesendet. Link in der E-Mail öffnen.');
+  const email=(document.getElementById('cloudEmail')?.value||'').trim();
+  if(!email)return alert('Bitte E-Mail eingeben.');
+  const r=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:'https://fliesen-rechteck-rechnung.vercel.app/'}});
+  if(r.error)return alert('Anmeldung Fehler: '+r.error.message);
+  alert('E-Mail gesendet. Link in der E-Mail öffnen.');
 }
-async function cloudLogout(){await sb.auth.signOut();await refreshCloudUser();alert('Abgemeldet');}
-async function syncCloud(){
- await refreshCloudUser(); if(!cloudUser)return alert('Bitte zuerst per E-Mail anmelden.');
- let a=[];try{a=JSON.parse(localStorage.getItem('frInvoices')||localStorage.getItem('invoices')||'[]')}catch(e){}
- for(const x of a){
-  const nr=x.nr||x.invoice_number||''; if(!nr)continue;
-  const row={user_id:cloudUser.id,invoice_number:nr,invoice_date:x.date||null,customer_name:x.kunde||'',customer_address:x.adresse||'',customer_email:x.email||'',baustelle:x.bau||'',nachricht:x.nachricht||'',material_cost:Number(x.material||0),payment_days:Number(x.tage||14),skonto:Number(x.skonto||0),steuer:x.steuer||'rc',footer:x.footer||'',items:x.items||[],total:Number(x.total||0),paid:!!x.paid,updated_at:new Date().toISOString()};
-  const q=await sb.from('invoices').select('id').eq('user_id',cloudUser.id).eq('invoice_number',nr).maybeSingle();
-  if(q.error)return alert('Cloud Fehler: '+q.error.message);
-  const z=q.data?await sb.from('invoices').update(row).eq('id',q.data.id):await sb.from('invoices').insert(row);
-  if(z.error)return alert('Cloud Fehler: '+z.error.message);
- }
- const d=await sb.from('invoices').select('*').order('created_at',{ascending:true});
- if(d.error)return alert('Cloud Fehler: '+d.error.message);
- alert('Cloud Sync fertig: '+(d.data||[]).length+' Rechnung(en)');
-}
-sb.auth.onAuthStateChange(()=>setTimeout(refreshCloudUser,0));setTimeout(refreshCloudUser,300);
+async function cloudLogout(){await accountLogout();}
 
-let frPin=localStorage.getItem('frPin')||'';
+async function copyCloudSession(){
+  try{
+    const r=await sb.auth.getSession();
+    const s=r&&r.data?r.data.session:null;
+    if(!s||!s.access_token||!s.refresh_token){
+      alert('Bitte zuerst per E-Mail anmelden.');
+      return;
+    }
+    const payload=JSON.stringify({
+      access_token:s.access_token,
+      refresh_token:s.refresh_token
+    });
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(payload);
+      alert('Cloud Login kopiert. Jetzt FR-App öffnen und „Cloud Login einfügen“ drücken.');
+    }else{
+      prompt('Cloud Login kopieren:',payload);
+    }
+  }catch(e){
+    alert('Kopieren Fehler: '+(e&&e.message?e.message:e));
+  }
+}
+
+async function pasteCloudSession(){
+  try{
+    let payload='';
+    if(navigator.clipboard&&navigator.clipboard.readText){
+      try{ payload=await navigator.clipboard.readText(); }catch(e){}
+    }
+    if(!payload){
+      payload=prompt('Cloud Login hier einfügen:')||'';
+    }
+    if(!payload) return;
+    let obj;
+    try{ obj=JSON.parse(payload); }
+    catch(e){ alert('Cloud Login ist ungültig.'); return; }
+    if(!obj.access_token||!obj.refresh_token){
+      alert('Cloud Login ist unvollständig.');
+      return;
+    }
+    const r=await sb.auth.setSession({
+      access_token:obj.access_token,
+      refresh_token:obj.refresh_token
+    });
+    if(r.error) throw r.error;
+    await refreshCloudUser();
+    await syncCloud(false);
+    alert('Cloud Login übernommen. Auto Sync ist jetzt aktiv.');
+  }catch(e){
+    alert('Cloud Login Fehler: '+(e&&e.message?e.message:e));
+  }
+}
+
+function invoiceToCloudRow(x){
+  const nr=x.nr||x.invoice_number||'';
+  return {
+    user_id:cloudUser.id,
+    invoice_number:nr,
+    invoice_date:x.date||null,
+    customer_name:x.kunde||'',
+    customer_address:x.adresse||'',
+    customer_email:x.email||'',
+    baustelle:x.bau||'',
+    nachricht:x.nachricht||'',
+    material_cost:Number(x.material||0),
+    payment_days:Number(x.tage||14),
+    skonto:Number(x.skonto||0),
+    steuer:x.steuer||'rc',
+    footer:x.footer||'',
+    items:(()=>{
+      const arr=Array.isArray(x.items)?x.items.map(it=>({...it})):[];
+      if(arr.length){
+        arr[0]._frmeta={
+          invoiceKind:x.invoiceKind||'Rechnung',
+          offerNr:x.offerNr||'',
+          anzahlungPercent:Number(x.anzahlungPercent||0),
+          paidAt:x.paidAt||'',
+          bankMatch:x.bankMatch||null
+        };
+      }
+      return arr;
+    })(),
+    total:Number(x.total||0),
+    paid:!!x.paid,
+    updated_at:new Date().toISOString()
+  };
+}
+function cloudRowToInvoice(row){
+  const items=Array.isArray(row.items)?row.items:[];
+  const net=items.reduce((s,it)=>s+Number(it.sum!=null?it.sum:(Number(it.qty||0)*Number(it.price||0))),0);
+  const steuer=String(row.steuer||'rc');
+  const ust=steuer==='20'?net*0.20:0;
+  const meta=(items[0]&&items[0]._frmeta)||{};
+  return {
+    id:row.invoice_number||('FR-'+Date.now()),type:'Rechnung',nr:row.invoice_number||'',
+    date:row.invoice_date||new Date().toISOString().slice(0,10),kunde:row.customer_name||'',
+    adresse:row.customer_address||'',kundeUid:'',email:row.customer_email||'',bau:row.baustelle||'',
+    typ:'Privat',steuer:steuer,nachricht:row.nachricht||'',tage:String(row.payment_days||14),
+    skonto:String(row.skonto||0),material:Number(row.material_cost||0),footer:row.footer||'',items:items,
+    invoiceKind:meta.invoiceKind||'Rechnung',offerNr:meta.offerNr||'',anzahlungPercent:Number(meta.anzahlungPercent||0),
+    paidAt:meta.paidAt||'',bankMatch:meta.bankMatch||null,
+    net:net,ust:ust,total:Number(row.total||net+ust),paid:!!row.paid,
+    savedAt:row.updated_at||row.created_at||new Date().toISOString(),source:'cloud'
+  };
+}
+async function cloudUpsertInvoice(x){
+  await refreshCloudUser();
+  if(!cloudUser||!x||!x.nr) return false;
+  unmarkInvoiceDeleted(x.nr);
+  const row=invoiceToCloudRow(x);
+  const q=await sb.from('invoices').select('id').eq('user_id',cloudUser.id).eq('invoice_number',x.nr).maybeSingle();
+  if(q.error) throw q.error;
+  const z=q.data?await sb.from('invoices').update(row).eq('id',q.data.id):await sb.from('invoices').insert(row);
+  if(z.error) throw z.error;
+  return true;
+}
+async function cloudDeleteInvoice(nr){
+  if(!nr) return false;
+  markInvoiceDeleted(nr);
+  await refreshCloudUser();
+  if(!cloudUser) return false;
+  const z=await sb.from('invoices').delete().eq('user_id',cloudUser.id).eq('invoice_number',nr);
+  if(z.error) throw z.error;
+  return true;
+}
+
+async function deleteAllInvoicesEverywhere(){
+  if(!confirm('Wirklich ALLE Rechnungen auf diesem Gerät UND in der Cloud löschen?')) return;
+  if(!confirm('Letzte Bestätigung: Alle Rechnungen werden dauerhaft gelöscht.')) return;
+
+  try{
+    await refreshCloudUser();
+
+    // Remember every known number as deleted before clearing local data.
+    const local=getInvoices();
+    for(const x of local){
+      if(x&&x.nr) markInvoiceDeleted(x.nr);
+    }
+
+    // Clear local invoices and trash immediately.
+    setInvoices([]);
+    setTrash([]);
+    renderDashboard();
+    renderTrash();
+
+    // Clear ChatGPT import queue too, otherwise old test invoices would return.
+    const importToken=localStorage.getItem(userKey(FR_IMPORT_TOKEN_KEY))||'';
+    if(importToken){
+      const qr=await fetch('/api/import?mode=clear&token='+encodeURIComponent(importToken),{cache:'no-store'});
+      const qd=await qr.json().catch(()=>({}));
+      if(!qr.ok) throw new Error(qd.error||('Import Queue HTTP '+qr.status));
+    }
+
+    if(cloudUser){
+      // Delete all cloud rows belonging to this logged-in user.
+      const d=await sb.from('invoices').delete().eq('user_id',cloudUser.id);
+      if(d.error) throw d.error;
+
+      // Verify cloud is really empty.
+      const check=await sb.from('invoices').select('id,invoice_number').eq('user_id',cloudUser.id);
+      if(check.error) throw check.error;
+
+      if((check.data||[]).length){
+        throw new Error('Cloud enthält noch '+check.data.length+' Rechnung(en).');
+      }
+    }
+
+    // Cloud + import queue are now empty, so old deletion markers are no longer needed.
+    // This allows numbering to restart cleanly from 01.
+    setDeletedInvoiceNumbers([]);
+    localStorage.setItem(userKey('frCloudResetAt'),new Date().toISOString());
+
+    alert('Alle Rechnungen wurden lokal, in der Cloud und im ChatGPT-Import gelöscht. Nummerierung startet wieder bei 01.');
+  }catch(e){
+    alert('Löschen Fehler: '+(e&&e.message?e.message:e));
+  }
+}
+
+async function syncCloud(showMessage=true){
+  await refreshCloudUser();
+  if(!cloudUser){if(showMessage)alert('Bitte zuerst per E-Mail anmelden.');return false}
+  try{
+    const deleted=new Set(getDeletedInvoiceNumbers().map(String));
+    for(const nr of deleted){
+      const del=await sb.from('invoices').delete().eq('user_id',cloudUser.id).eq('invoice_number',nr);
+      if(del.error)throw del.error;
+    }
+    let local=getInvoices().filter(x=>!deleted.has(String(x.nr||'')));
+    setInvoices(local);
+    for(const x of local){if(x.nr)await cloudUpsertInvoice(x)}
+    const d=await sb.from('invoices').select('*').eq('user_id',cloudUser.id).order('created_at',{ascending:false});
+    if(d.error)throw d.error;
+    const byNr=new Map(local.filter(x=>x.nr).map(x=>[String(x.nr),x]));
+    for(const row of (d.data||[])){
+      const remote=cloudRowToInvoice(row);
+      if(deleted.has(String(remote.nr||'')))continue;
+      const existing=byNr.get(String(remote.nr));
+      if(!existing||String(remote.savedAt||'')>String(existing.savedAt||''))byNr.set(String(remote.nr),remote);
+    }
+    local=Array.from(byNr.values()).filter(x=>!deleted.has(String(x.nr||''))).sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||'')));
+    setInvoices(local);renderDashboard();
+    const st=document.getElementById('cloudStatus');if(st)st.textContent='Angemeldet: '+cloudUser.email+' · Auto Sync aktiv';
+    if(showMessage)alert('Cloud Sync fertig: '+local.length+' Rechnung(en)');
+    return true;
+  }catch(e){
+    if(showMessage)alert('Cloud Fehler: '+(e&&e.message?e.message:e));
+    return false;
+  }
+}
+let frCloudSyncBusy=false;
+async function autoCloudSync(){
+  if(frCloudSyncBusy) return;
+  frCloudSyncBusy=true;
+  try{ await syncCloud(false); }finally{ frCloudSyncBusy=false; }
+}
+sb.auth.onAuthStateChange((event,session)=>{
+  cloudUser=session&&session.user?session.user:null;
+  if(event==='PASSWORD_RECOVERY'){
+    showAccountScreen();
+    document.getElementById('accountNormal').classList.add('hidden');
+    document.getElementById('accountRecovery').classList.remove('hidden');
+    setAccountStatus('Neues Passwort festlegen.','ok');
+    return;
+  }
+  if(event==='SIGNED_OUT'){
+    showAccountScreen();
+    return;
+  }
+  if(event==='SIGNED_IN' && session&&session.user){
+    const screen=document.getElementById('accountScreen');
+    if(screen && screen.style.display!=='none') setTimeout(()=>afterAccountLogin(),0);
+  }
+});
+let frPin='';
 
 
 function getUrlParams(){
@@ -216,6 +1423,7 @@ function applyUrlInvoice(){
   set('docDate','date','doc_date');
   set('kunde','customer_name','kunde');
   set('adresse','address','adresse');
+  set('kundeUid','customer_uid','kunde_uid','uid');
   set('kundeEmail','email','customer_email');
   set('bau','baustelle','bau');
   set('materialCost','material','material_cost');
@@ -231,6 +1439,7 @@ function applyUrlInvoice(){
   if(p.has('skonto')){
     document.getElementById('skonto').value=(p.get('skonto')==='0')?'0':'3';
   }
+  updateDueDate();
 
   // Build positions from URL.
   document.getElementById('items').innerHTML='';
@@ -254,129 +1463,523 @@ function applyUrlInvoice(){
 
   if(document.querySelectorAll('.item').length===0) addItem();
 
+  // Optional one-tap ChatGPT import: add &autosave=1 to the import URL.
+  // The invoice is stored on this device without Cloud Sync.
+  const autoSave = p.get('autosave') === '1';
+
   // Remove URL params from address bar so PIN/app reload is cleaner.
   try{
     history.replaceState({},document.title,window.location.pathname);
   }catch(e){}
-}
 
-function setupLock(){
-  const title=document.getElementById('lockTitle');
-  const info=document.getElementById('lockInfo');
-  if(!frPin){
-    title.textContent='PIN erstellen';
-    info.textContent='Erstelle einen PIN mit 4–6 Ziffern.';
-  }else{
-    title.textContent='FR Fliesen Rechteck';
-    info.textContent='PIN eingeben';
+  if(autoSave){
+    setTimeout(()=>{
+      try{
+        saveInvoice();
+        home();
+      }catch(e){
+        alert('ChatGPT Import Fehler: '+(e&&e.message?e.message:e));
+      }
+    },150);
   }
-  setTimeout(()=>document.getElementById('pinInput').focus(),150);
 }
 
-function unlockApp(){
-  const input=document.getElementById('pinInput');
-  const pin=(input.value||'').trim();
-  const err=document.getElementById('lockError');
-  err.textContent='';
 
-  if(!frPin){
-    if(!/^[0-9]{4,6}$/.test(pin)){
-      err.textContent='Bitte 4–6 Ziffern eingeben.';
-      return;
-    }
-    localStorage.setItem('frPin',pin);
-    frPin=pin;
-  }else if(pin!==frPin){
-    err.textContent='Falscher PIN.';
-    input.value='';
-    input.focus();
+const FR_IMPORT_TOKEN_KEY='frChatgptImportToken';
+function loadChatgptImportToken(){
+  const el=document.getElementById('chatgptImportToken');
+  if(el) el.value=localStorage.getItem(userKey(FR_IMPORT_TOKEN_KEY))||'';
+  updateChatgptImportStatus();
+}
+function saveChatgptImportToken(){
+  const el=document.getElementById('chatgptImportToken');
+  const v=(el&&el.value||'').trim();
+  if(!v){ alert('Bitte Import-Schlüssel eingeben.'); return; }
+  localStorage.setItem(userKey(FR_IMPORT_TOKEN_KEY),v);
+  updateChatgptImportStatus('Schlüssel gespeichert.');
+}
+function updateChatgptImportStatus(msg){
+  const s=document.getElementById('chatgptImportStatus');
+  if(!s)return;
+  if(msg){s.textContent=msg;return;}
+  s.textContent=localStorage.getItem(userKey(FR_IMPORT_TOKEN_KEY))?'Import-Schlüssel gespeichert.':'Noch nicht eingerichtet.';
+}
+async function pullChatgptInvoices(showMessage){
+  const token=localStorage.getItem(userKey(FR_IMPORT_TOKEN_KEY))||'';
+  if(!token){
+    if(showMessage) alert('Bitte zuerst Import-Schlüssel speichern.');
     return;
   }
 
+  try{
+    const r=await fetch('/api/import?mode=pull&token='+encodeURIComponent(token),{cache:'no-store'});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+
+    const remote=Array.isArray(d.invoices)?d.invoices:[];
+    let local=getInvoices();
+
+    function nextInvoiceNumber(dateValue){
+      const date=dateValue ? new Date(dateValue) : new Date();
+      const year=date.getFullYear();
+      const month=String(date.getMonth()+1).padStart(2,'0');
+      const prefix=year+'-'+month+'-';
+      let max=0;
+      for(const inv of local){
+        const nr=String(inv.nr||'');
+        if(nr.startsWith(prefix)){
+          const n=parseInt(nr.slice(prefix.length),10);
+          if(!isNaN(n) && n>max) max=n;
+        }
+      }
+      return prefix+String(max+1).padStart(2,'0');
+    }
+
+    let imported=0;
+
+    for(const row of remote){
+      const sourceCreatedAt=String(row.created_at||'');
+      const alreadyExists=local.some(inv => sourceCreatedAt && String(inv.sourceCreatedAt||'')===sourceCreatedAt);
+      if(alreadyExists) continue;
+
+      const date=row.invoice_date||new Date().toISOString().slice(0,10);
+      const invoiceNumber=row.invoice_number||nextInvoiceNumber(date);
+
+      // Novi račun sme ponovo koristiti broj koji je ranije bio obrisan.
+      unmarkInvoiceDeleted(invoiceNumber);
+
+      const items=[];
+
+      if(Number(row.wand_m2||0)>0){
+        const qty=Number(row.wand_m2||0);
+        const price=Number(row.wand_price||0);
+        items.push({desc:'Wandfliesen verlegen',qty,unit:'m²',price,sum:qty*price});
+      }
+
+      if(Number(row.boden_m2||0)>0){
+        const qty=Number(row.boden_m2||0);
+        const price=Number(row.boden_price||0);
+        items.push({desc:'Bodenfliesen verlegen',qty,unit:'m²',price,sum:qty*price});
+      }
+
+      if(Array.isArray(row.items)){
+        for(const item of row.items){
+          const qty=Number(item.qty||0);
+          const price=Number(item.price||0);
+          items.push({desc:item.desc||'',qty,unit:item.unit||'m²',price,sum:qty*price,kind:item.kind||'',costPrice:Number(item.costPrice||0),hidePrice:!!item.hidePrice});
+        }
+      }
+
+      const net=items.reduce((sum,item)=>sum+Number(item.sum||0),0);
+      const steuer=String(row.steuer||'20');
+      const ust=steuer==='20'?net*0.20:0;
+      const total=net+ust;
+
+      const x={
+        id:invoiceNumber,
+        type:'Rechnung',
+        nr:invoiceNumber,
+        date,
+        kunde:row.customer_name||'',
+        adresse:row.customer_address||'',
+        kundeUid:row.customer_uid||'',
+        email:row.customer_email||'',
+        bau:row.baustelle||'',
+        typ:row.customer_type||'Privat',
+        steuer,
+        nachricht:row.nachricht||'',
+        tage:String(row.payment_days||14),
+        skonto:String(row.skonto||0),
+        material:Number(row.material_cost||0),
+        footer:row.footer||'',
+        items,
+        net,
+        ust,
+        total,
+        paid:false,
+        savedAt:row.updated_at||row.created_at||new Date().toISOString(),
+        source:'chatgpt-api',
+        sourceCreatedAt
+      };
+
+      local.unshift(x);
+      imported++;
+    }
+
+    local.sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||'')));
+    setInvoices(local);
+    renderDashboard();
+    updateChatgptImportStatus('Importiert: '+imported+' Rechnung(en).');
+    if(showMessage) alert('ChatGPT Import fertig: '+imported+' Rechnung(en)');
+  }catch(e){
+    updateChatgptImportStatus('Fehler: '+(e&&e.message?e.message:e));
+    if(showMessage) alert('ChatGPT Import Fehler: '+(e&&e.message?e.message:e));
+  }
+}
+
+function b64urlEncode(buf){
+  const bytes=new Uint8Array(buf);
+  let s=''; for(const b of bytes)s+=String.fromCharCode(b);
+  return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64urlDecode(s){
+  s=String(s||'').replace(/-/g,'+').replace(/_/g,'/');
+  while(s.length%4)s+='=';
+  const raw=atob(s), out=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);
+  return out;
+}
+function faceIdSupported(){
+  return !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext && location.protocol==='https:');
+}
+function faceCredentialId(){
+  return localStorage.getItem(userKey('frFaceCredentialId'))||'';
+}
+function updateFaceStatus(){
+  const enabled=!!faceCredentialId();
+  const supported=faceIdSupported();
+  const msg = !supported
+    ? 'Face ID nije dostupan u direktnoj HTML datoteci. Koristi HTTPS / Vercel.'
+    : enabled ? 'Face ID je uključen na ovom uređaju.' : 'Face ID još nije podešen.';
+  const lock=document.getElementById('faceStatus');
+  const settings=document.getElementById('faceSettingsStatus');
+  if(lock)lock.textContent=msg;
+  if(settings)settings.textContent=msg;
+  const btn=document.getElementById('faceUnlockBtn');
+  if(btn)btn.style.display=(supported && enabled)?'block':'none';
+}
+function finishUnlock(){
   document.getElementById('lockScreen').style.display='none';
   document.getElementById('mainApp').style.display='block';
-  input.value='';
-
+  const input=document.getElementById('pinInput');
+  if(input)input.value='';
   if(!sessionStorage.getItem('frUrlPrefillDone') && hasInvoiceParams()){
     sessionStorage.setItem('frUrlPrefillDone','1');
     setTimeout(applyUrlInvoice,50);
   }
 }
+function setupLock(){
+  const title=document.getElementById('lockTitle');
+  const info=document.getElementById('lockInfo');
+  const input=document.getElementById('pinInput');
+  const err=document.getElementById('lockError');
+  if(err)err.textContent='';
+  updateFaceStatus();
 
+  if(!frPin){
+    title.textContent='PIN erstellen';
+    info.textContent='Prvo napravi PIN 4–6 brojeva. Posle može Face ID.';
+    if(input)input.placeholder='Neuer PIN 4–6';
+  }else{
+    title.textContent='FR Fliesen Rechteck';
+    info.textContent=faceCredentialId() && faceIdSupported() ? 'Face ID oder PIN' : 'PIN eingeben';
+    if(input)input.placeholder='PIN ••••';
+  }
+
+  // Pokušaj Face ID automatski pri otvaranju. Ako Safari traži dodir,
+  // dugme Face ID öffnen ostaje kao rezerva.
+  if(frPin && faceCredentialId() && faceIdSupported()){
+    setTimeout(()=>faceUnlock(true),350);
+  }else{
+    setTimeout(()=>input?.focus(),150);
+  }
+}
+function unlockApp(){
+  const input=document.getElementById('pinInput');
+  const pin=(input?.value||'').trim();
+  const err=document.getElementById('lockError');
+  if(err)err.textContent='';
+
+  if(!frPin){
+    if(!/^[0-9]{4,6}$/.test(pin)){
+      if(err)err.textContent='Bitte 4–6 Ziffern eingeben.';
+      return;
+    }
+    localStorage.setItem(userKey('frPin'),pin);
+    frPin=pin;
+  }else if(pin!==frPin){
+    if(err)err.textContent='Falscher PIN.';
+    if(input){input.value='';input.focus();}
+    return;
+  }
+  finishUnlock();
+}
+async function registerFaceId(){
+  if(!frPin){
+    alert('Zuerst PIN erstellen.');
+    return;
+  }
+  if(!faceIdSupported()){
+    alert('Face ID braucht HTTPS / Vercel. Bei direkter HTML-Datei funktioniert nur PIN.');
+    updateFaceStatus();
+    return;
+  }
+  try{
+    let userId=localStorage.getItem(userKey('frFaceUserId'));
+    if(!userId){
+      userId=b64urlEncode(crypto.getRandomValues(new Uint8Array(16)));
+      localStorage.setItem(userKey('frFaceUserId'),userId);
+    }
+    const cred=await navigator.credentials.create({
+      publicKey:{
+        challenge:crypto.getRandomValues(new Uint8Array(32)),
+        rp:{name:'FR Fliesen Rechteck'},
+        user:{
+          id:b64urlDecode(userId),
+          name:'fr-rechnung-device',
+          displayName:'FR Rechnung'
+        },
+        pubKeyCredParams:[
+          {type:'public-key',alg:-7},
+          {type:'public-key',alg:-257}
+        ],
+        authenticatorSelection:{
+          authenticatorAttachment:'platform',
+          residentKey:'required',
+          userVerification:'required'
+        },
+        timeout:60000,
+        attestation:'none'
+      }
+    });
+    if(!cred)throw new Error('Keine Anmeldung erstellt');
+    localStorage.setItem(userKey('frFaceCredentialId'),b64urlEncode(cred.rawId));
+    updateFaceStatus();
+    alert('Face ID aktiviert.');
+  }catch(e){
+    if(e && e.name==='InvalidStateError'){
+      alert('Face ID/Passkey ist bereits für diese App vorhanden.');
+    }else if(e && e.name!=='NotAllowedError'){
+      alert('Face ID konnte nicht eingerichtet werden: '+(e?.message||e));
+    }
+    updateFaceStatus();
+  }
+}
+async function faceUnlock(automatic=false){
+  if(!faceIdSupported() || !faceCredentialId()){
+    updateFaceStatus();
+    if(!automatic)document.getElementById('pinInput')?.focus();
+    return;
+  }
+  const status=document.getElementById('faceStatus');
+  try{
+    if(status)status.textContent='Face ID…';
+    const assertion=await navigator.credentials.get({
+      publicKey:{
+        challenge:crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials:[{
+          type:'public-key',
+          id:b64urlDecode(faceCredentialId())
+        }],
+        userVerification:'required',
+        timeout:60000
+      }
+    });
+    if(assertion){
+      if(status)status.textContent='Face ID OK';
+      finishUnlock();
+    }
+  }catch(e){
+    if(status)status.textContent='Face ID nije potvrđen. Koristi PIN.';
+    if(!automatic || e?.name!=='NotAllowedError')document.getElementById('pinInput')?.focus();
+  }
+}
+function removeFaceId(){
+  localStorage.removeItem(userKey('frFaceCredentialId'));
+  localStorage.removeItem(userKey('frFaceUserId'));
+  updateFaceStatus();
+  alert('Face ID uklonjen iz FR aplikacije.');
+}
 function lockNow(){
   document.getElementById('mainApp').style.display='none';
   document.getElementById('lockScreen').style.display='flex';
-  document.getElementById('pinInput').value='';
-  document.getElementById('lockError').textContent='';
+  const input=document.getElementById('pinInput');
+  if(input)input.value='';
+  const err=document.getElementById('lockError');
+  if(err)err.textContent='';
   setupLock();
 }
-
 function changePin(){
   const el=document.getElementById('newPin');
-  const pin=(el.value||'').trim();
+  const pin=(el?.value||'').trim();
   if(!/^[0-9]{4,6}$/.test(pin)){
     alert('Bitte neuen PIN mit 4–6 Ziffern eingeben.');
     return;
   }
-  localStorage.setItem('frPin',pin);
+  localStorage.setItem(userKey('frPin'),pin);
   frPin=pin;
   el.value='';
   alert('PIN geändert');
 }
 
-document.addEventListener('visibilitychange',()=>{
-  if(document.hidden && frPin){
-    sessionStorage.setItem('frShouldLock','1');
-  }else if(!document.hidden && frPin && sessionStorage.getItem('frShouldLock')==='1'){
-    sessionStorage.removeItem('frShouldLock');
-    lockNow();
-  }
-});
-
-setupLock();
-
 let docType='Rechnung';
-const H=['home','form','settings'];
-const units=['m²','lfm','Std.','Stk.','Pauschal','kg'];
+let currentInvoiceKind='Rechnung';
+let currentLinkedOfferNr='';
+let currentAnzahlungPercent=0;
+
+function invoiceKindLabel(kind){
+  if(kind==='Anzahlungsrechnung')return 'Anzahlungsrechnung';
+  if(kind==='Schlussrechnung')return 'Schlussrechnung';
+  return 'Rechnung';
+}
+function currentDocumentLabel(){
+  return docType==='Angebot' ? 'Angebot' : invoiceKindLabel(currentInvoiceKind);
+}
+function invoiceDocumentLabel(x){
+  return invoiceKindLabel((x&&x.invoiceKind)||'Rechnung');
+}
+function setInvoiceContext(kind='Rechnung',offerNr='',percent=0){
+  currentInvoiceKind=invoiceKindLabel(kind);
+  currentLinkedOfferNr=String(offerNr||'');
+  currentAnzahlungPercent=Number(percent||0);
+  const title=document.getElementById('formTitle');
+  if(title && docType==='Rechnung') title.textContent='Neue '+currentDocumentLabel();
+}
+const H=['home','form','settings','trash','messen','regie'];
+const units=['m²','lfm','Std.','Stk.','ST','Sack','Dose','m','Kübel','SET','5 KG','20 KG','Kanister','Pauschal','kg'];
 let itemCount=0;
 
 function hide(){H.forEach(x=>document.getElementById(x).classList.add('hidden'))}
 function home(){hide();document.getElementById('home').classList.remove('hidden');renderDashboard()}
+
+function nextDocNumber(type,dateValue){
+  const raw=dateValue||new Date().toISOString().slice(0,10);
+  const p=raw.split('-');
+  const y=p[0]||String(new Date().getFullYear());
+  const m=p[1]||String(new Date().getMonth()+1).padStart(2,'0');
+  const isOffer=type==='Angebot';
+  const prefix=isOffer?`A-${y}-${m}-`:`${y}-${m}-`;
+  const list=isOffer?getOffers():getInvoices();
+  let max=0;
+  (list||[]).forEach(x=>{
+    const n=String(x.nr||'');
+    if(n.startsWith(prefix)){
+      const tail=parseInt(n.slice(prefix.length),10);
+      if(Number.isFinite(tail)&&tail>max)max=tail;
+    }
+  });
+  return prefix+String(max+1).padStart(3,'0');
+}
+function assignNextDocNumber(){
+  const el=document.getElementById('docNr');
+  if(!el)return;
+  el.value=nextDocNumber(docType,document.getElementById('docDate').value);
+}
+function updateAutoNumberForDate(){
+  const el=document.getElementById('docNr');
+  if(!el)return;
+  const n=(el.value||'').trim();
+  if(!n || /^(A-)?\d{4}-\d{2}-\d{3}$/.test(n)) assignNextDocNumber();
+}
+
 function showForm(t){
-  docType=t;hide();document.getElementById('form').classList.remove('hidden');
-  document.getElementById('formTitle').textContent=t==='Rechnung'?'Neue Rechnung':'Neues Angebot';
+  docType=t;
+  if(t==='Rechnung')setInvoiceContext('Rechnung','',0);
+  hide();document.getElementById('form').classList.remove('hidden');
+  document.getElementById('formTitle').textContent=t==='Rechnung'?'Neue '+currentDocumentLabel():'Neues Angebot';
   if(!document.getElementById('docDate').value)document.getElementById('docDate').value=new Date().toISOString().slice(0,10);
+  updateDueDate();
+  if(!document.getElementById('docNr').value)assignNextDocNumber();
   if(document.querySelectorAll('.item').length===0)addItem();
 }
-function settings(){hide();document.getElementById('settings').classList.remove('hidden')}
+function settings(){
+  hide();
+  document.getElementById('settings').classList.remove('hidden');
+  settingsBack();
+  try{refreshCloudUser()}catch(e){}
+}
+function settingsBack(){
+  const menu=document.getElementById('settingsMenu');
+  if(menu)menu.classList.remove('hidden');
+  document.querySelectorAll('.settings-section').forEach(x=>x.classList.add('hidden'));
+}
+function openSettingsSection(name){
+  const menu=document.getElementById('settingsMenu');
+  if(menu)menu.classList.add('hidden');
+  document.querySelectorAll('.settings-section').forEach(x=>x.classList.add('hidden'));
+  const sec=document.getElementById('settings-'+name);
+  if(sec)sec.classList.remove('hidden');
+  if(name==='cloud'){try{refreshCloudUser()}catch(e){}}
+  if(name==='bank'){
+    try{
+      updateBankStatusUi();
+      if(!(document.getElementById('bankInstitution')?.options?.length>1))bankLoadInstitutions(false);
+    }catch(e){}
+  }
+}
+function calcDueDate(dateValue,daysValue){
+  if(!dateValue)return '';
+  const p=dateValue.split('-');
+  if(p.length!==3)return '';
+  const d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]));
+  d.setDate(d.getDate()+(parseInt(daysValue)||14));
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function updateDueDate(){
+  const el=document.getElementById('dueDate');
+  if(!el)return;
+  el.value=calcDueDate(document.getElementById('docDate').value,document.getElementById('tage').value);
+}
+function applyPaymentCondition(){
+  const v=document.getElementById('paymentCondition').value;
+  const map={'7_3':['7','3'],'14_3':['14','3'],'14_0':['14','0']};
+  const a=map[v]||map['14_3'];
+  document.getElementById('tage').value=a[0];
+  document.getElementById('skonto').value=a[1];
+}
+function setPaymentConditionFromValues(){
+  const t=String(document.getElementById('tage').value||'14');
+  const s=String(document.getElementById('skonto').value||'0');
+  const el=document.getElementById('paymentCondition');
+  if(!el)return;
+  if(t==='7'&&s==='3')el.value='7_3';
+  else if(t==='14'&&s==='3')el.value='14_3';
+  else el.value='14_0';
+  applyPaymentCondition();
+}
 
-let logo=localStorage.getItem('frLogo')||'';
+let logo='';
 function showLogo(){let i=document.getElementById('logoPreview');if(logo){i.src=logo;i.classList.remove('hidden')}else i.classList.add('hidden')}
-showLogo();
-
 document.getElementById('logoInput').addEventListener('change',e=>{
   let f=e.target.files[0];if(!f)return;
   let r=new FileReader();
-  r.onload=()=>{logo=r.result;localStorage.setItem('frLogo',logo);showLogo();alert('Logo gespeichert')};
+  r.onload=()=>{logo=r.result;localStorage.setItem(userKey('frLogo'),logo);showLogo();alert('Logo gespeichert')};
   r.readAsDataURL(f)
 });
 
 function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function escAttr(s){return esc(s).replace(/'/g,'&#39;')}
 
-function addItem(desc='',qty='',unit='m²',price=''){
+function addItem(desc='',qty='',unit='m²',price='',kind='',costPrice=''){
   itemCount++;
   const box=document.createElement('div');
   box.className='item';
+  box.dataset.kind=kind||'';
+  box.dataset.costPrice=costPrice===''?'':String(costPrice);
   box.innerHTML=`
     <div class="itemline">
-      <div class="wide"><label>Beschreibung</label><input class="i-desc" value="${escAttr(desc)}" placeholder="z.B. Bodenfliesen verlegen"></div>
-      <div><label>Menge</label><input class="i-qty" type="number" step="0.01" value="${qty}"></div>
+      <div class="wide"><label>Beschreibung${kind==='material'?' · Material':kind==='regieinfo'?' · Preisinfo':''}</label><input class="i-desc" value="${escAttr(desc)}" placeholder="z.B. Bodenfliesen verlegen"></div>
+      <div><label>Menge</label><input class="i-qty" type="number" step="0.01" value="${qty}" oninput="recalcMaterialCostFromItems()"></div>
       <div><label>Einheit</label><select class="i-unit">${units.map(u=>`<option ${u===unit?'selected':''}>${u}</option>`).join('')}</select></div>
       <div><label>Preis €</label><input class="i-price" type="number" step="0.01" value="${price}"></div>
-      <button type="button" class="remove" onclick="this.closest('.item').remove()">✕</button>
+      <button type="button" class="remove" onclick="removeInvoiceItem(this)">✕</button>
     </div>`;
   document.getElementById('items').appendChild(box);
+}
+function removeInvoiceItem(btn){
+  const el=btn&&btn.closest?btn.closest('.item'):null;
+  if(el)el.remove();
+  recalcMaterialCostFromItems();
+}
+function recalcMaterialCostFromItems(){
+  const mats=[...document.querySelectorAll('.item')].filter(el=>el.dataset.kind==='material' && Number(el.dataset.costPrice||0)>0);
+  if(!mats.length)return;
+  const total=mats.reduce((sum,el)=>sum+(parseFloat(el.querySelector('.i-qty').value)||0)*Number(el.dataset.costPrice||0),0);
+  const target=document.getElementById('materialCost');
+  if(target)target.value=total.toFixed(2);
 }
 
 function euro(n){return new Intl.NumberFormat('de-AT',{style:'currency',currency:'EUR'}).format(Number(n||0))}
@@ -384,17 +1987,74 @@ function num(n){return new Intl.NumberFormat('de-AT',{minimumFractionDigits:2,ma
 function fmtDate(v){if(!v)return '';const [y,m,d]=v.split('-');return d+'.'+m+'.'+y}
 
 function collectItems(){
+  const hideMaterial=(document.getElementById('materialPdfPriceMode')?.value||'on')==='off';
   return [...document.querySelectorAll('.item')].map(el=>{
     const q=parseFloat(el.querySelector('.i-qty').value)||0;
     const p=parseFloat(el.querySelector('.i-price').value)||0;
-    return {desc:el.querySelector('.i-desc').value,qty:q,unit:el.querySelector('.i-unit').value,price:p,sum:q*p}
+    const kind=el.dataset.kind||'';
+    const costPrice=parseFloat(el.dataset.costPrice||'')||0;
+    return {desc:el.querySelector('.i-desc').value,qty:q,unit:el.querySelector('.i-unit').value,price:p,sum:q*p,kind,costPrice,hidePrice:kind==='material'&&hideMaterial}
   }).filter(x=>x.desc||x.qty||x.price)
+}
+function materialPdfModeForInvoice(x){
+  if(x&&x.materialPdfPriceMode)return x.materialPdfPriceMode;
+  return x&&Array.isArray(x.items)&&x.items.some(it=>it&&it.kind==='material'&&it.hidePrice)?'off':'on';
+}
+
+
+function getCustomers(){
+  try{return JSON.parse(localStorage.getItem(userKey('frCustomers'))||'[]')}catch(e){return []}
+}
+function setCustomers(v){
+  localStorage.setItem(userKey('frCustomers'),JSON.stringify(v||[]));
+  renderCustomerList();
+}
+function renderCustomerList(){
+  const el=document.getElementById('kundenListe');
+  if(!el)return;
+  el.innerHTML=getCustomers().map(c=>`<option value="${escAttr(c.name||'')}"></option>`).join('');
+}
+function saveCustomer(){
+  const c={
+    name:(document.getElementById('kunde').value||'').trim(),
+    adresse:(document.getElementById('adresse').value||'').trim(),
+    uid:(document.getElementById('kundeUid').value||'').trim(),
+    email:(document.getElementById('kundeEmail').value||'').trim(),
+    typ:document.getElementById('typ').value||'Firma',
+    steuer:document.getElementById('steuer').value||'rc'
+  };
+  if(!c.name){alert('Bitte Kundenname eingeben.');return}
+  let a=getCustomers();
+  const i=a.findIndex(x=>(x.name||'').toLowerCase()===c.name.toLowerCase());
+  if(i>=0)a[i]=c;else a.unshift(c);
+  setCustomers(a);
+  alert('Kunde gespeichert');
+}
+function loadCustomerByName(){
+  const n=(document.getElementById('kunde').value||'').trim().toLowerCase();
+  if(!n)return;
+  const c=getCustomers().find(x=>(x.name||'').toLowerCase()===n);
+  if(!c)return;
+  document.getElementById('adresse').value=c.adresse||'';
+  document.getElementById('kundeUid').value=c.uid||'';
+  document.getElementById('kundeEmail').value=c.email||'';
+  if(c.typ)document.getElementById('typ').value=c.typ;
+  if(c.steuer)document.getElementById('steuer').value=c.steuer;
 }
 
 function getInvoices(){
-  try{return JSON.parse(localStorage.getItem('frInvoices')||'[]')}catch(e){return []}
+  try{return JSON.parse(localStorage.getItem(userKey('frInvoices'))||'[]')}catch(e){return []}
 }
-function setInvoices(v){localStorage.setItem('frInvoices',JSON.stringify(v))}
+function setInvoices(v){localStorage.setItem(userKey('frInvoices'),JSON.stringify(v))}
+function getTrash(){try{return JSON.parse(localStorage.getItem(userKey('frInvoiceTrash'))||'[]')}catch(e){return[]}}
+function setTrash(v){localStorage.setItem(userKey('frInvoiceTrash'),JSON.stringify(v||[]))}
+function addToTrash(x){
+  if(!x)return;
+  const t=getTrash().filter(z=>String(z.nr||'')!==String(x.nr||''));
+  t.unshift({...x,trashedAt:new Date().toISOString()});
+  setTrash(t);
+}
+
 function currentInvoiceData(){
   const items=collectItems();
   const net=items.reduce((a,b)=>a+b.sum,0);
@@ -407,6 +2067,7 @@ function currentInvoiceData(){
     date:document.getElementById('docDate').value,
     kunde:document.getElementById('kunde').value,
     adresse:document.getElementById('adresse').value,
+    kundeUid:document.getElementById('kundeUid').value,
     email:document.getElementById('kundeEmail').value,
     bau:document.getElementById('bau').value,
     typ:document.getElementById('typ').value,
@@ -416,6 +2077,11 @@ function currentInvoiceData(){
     skonto:document.getElementById('skonto').value,
     material:parseFloat(document.getElementById('materialCost').value)||0,
     footer:document.getElementById('invoiceFooter').value,
+    pdfPriceMode:(document.getElementById('pdfPriceMode').value||'on'),
+    materialPdfPriceMode:(document.getElementById('materialPdfPriceMode').value||'on'),
+    invoiceKind:docType==='Rechnung'?currentInvoiceKind:'',
+    offerNr:docType==='Rechnung'?currentLinkedOfferNr:'',
+    anzahlungPercent:docType==='Rechnung'?currentAnzahlungPercent:0,
     items, net, ust, total:net+ust, paid:false,
     savedAt:new Date().toISOString()
   }
@@ -429,7 +2095,271 @@ function saveInvoice(){
   const i=arr.findIndex(x=>x.nr===d.nr);
   if(i>=0){d.paid=arr[i].paid;arr[i]=d}else arr.unshift(d);
   setInvoices(arr);alert('Rechnung gespeichert');renderDashboard();
+  cloudUpsertInvoice(d).catch(()=>{});
 }
+
+function getOffers(){
+  try{return JSON.parse(localStorage.getItem(userKey('frOffers'))||'[]')}catch(e){return []}
+}
+function setOffers(v){localStorage.setItem(userKey('frOffers'),JSON.stringify(v||[]))}
+function saveOffer(){
+  const d=currentInvoiceData();
+  d.type='Angebot';
+  d.status='Offen';
+  if(!d.nr){alert('Bitte Angebotsnummer eingeben.');return}
+  if(d.items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
+  let arr=getOffers();
+  const i=arr.findIndex(x=>x.nr===d.nr);
+  if(i>=0){
+    d.status=arr[i].status||'Offen';
+    arr[i]=d;
+  }else arr.unshift(d);
+  setOffers(arr);
+  alert('Angebot gespeichert');
+  renderDashboard();
+}
+function loadOffer(i){
+  const x=getOffers()[i];if(!x)return;
+  showForm('Angebot');
+  document.getElementById('docNr').value=x.nr||'';
+  document.getElementById('docDate').value=x.date||'';
+  document.getElementById('kunde').value=x.kunde||'';
+  document.getElementById('adresse').value=x.adresse||'';
+  document.getElementById('kundeUid').value=x.kundeUid||'';
+  document.getElementById('kundeEmail').value=x.email||'';
+  document.getElementById('bau').value=x.bau||'';
+  document.getElementById('typ').value=x.typ||'Firma';
+  document.getElementById('steuer').value=x.steuer||'rc';
+  document.getElementById('nachricht').value=x.nachricht||'';
+  document.getElementById('tage').value=x.tage||'14';
+  document.getElementById('skonto').value=x.skonto||'0';
+  updateDueDate();
+  document.getElementById('materialCost').value=x.material||'';
+  document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
+  document.getElementById('materialPdfPriceMode').value=materialPdfModeForInvoice(x);
+  document.getElementById('items').innerHTML='';
+  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price,it.kind||'',it.costPrice||''));
+}
+function setOfferStatus(i,status){
+  let a=getOffers();if(!a[i])return;
+  a[i].status=status;setOffers(a);renderDashboard();
+}
+function deleteOffer(i){
+  if(!confirm('Angebot wirklich löschen?'))return;
+  let a=getOffers();a.splice(i,1);setOffers(a);renderDashboard();
+}
+function offerNetValue(x){
+  if(Number.isFinite(Number(x&&x.net)))return Number(x.net)||0;
+  return (x&&Array.isArray(x.items)?x.items:[]).reduce((s,it)=>s+(Number(it.sum)||((Number(it.qty)||0)*(Number(it.price)||0))),0);
+}
+function invoiceLinkedOfferNr(inv){
+  if(inv&&inv.offerNr)return String(inv.offerNr);
+  const source=[
+    inv&&inv.nachricht||'',
+    ...((inv&&Array.isArray(inv.items)?inv.items:[]).map(it=>it&&it.desc||''))
+  ].join(' ');
+  const m=source.match(/\b(A-\d{4}-\d{2}-\d{3})\b/i);
+  return m?m[1]:'';
+}
+function invoiceIsAnzahlung(inv){
+  if(!inv)return false;
+  if(inv.invoiceKind==='Anzahlungsrechnung')return true;
+  return (inv.items||[]).some(it=>/^\s*Anzahlung\b/i.test(String(it.desc||'')));
+}
+function linkedAnzahlungen(offerNr){
+  return getInvoices().filter(inv=>invoiceIsAnzahlung(inv) && invoiceLinkedOfferNr(inv)===String(offerNr||''));
+}
+function fillInvoiceCustomerFromOffer(x){
+  document.getElementById('docNr').value='';
+  document.getElementById('docDate').value=new Date().toISOString().slice(0,10);
+  assignNextDocNumber();
+  document.getElementById('kunde').value=x.kunde||'';
+  document.getElementById('adresse').value=x.adresse||'';
+  document.getElementById('kundeUid').value=x.kundeUid||'';
+  document.getElementById('kundeEmail').value=x.email||'';
+  document.getElementById('bau').value=x.bau||'';
+  document.getElementById('typ').value=x.typ||'Firma';
+  document.getElementById('steuer').value=x.steuer||'rc';
+  document.getElementById('tage').value=x.tage||'14';
+  document.getElementById('skonto').value=x.skonto||'0';
+  document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
+  document.getElementById('materialPdfPriceMode').value=materialPdfModeForInvoice(x);
+  document.getElementById('items').innerHTML='';
+  updateDueDate();
+}
+function markOfferAccepted(i,statusText='Angenommen'){
+  let a=getOffers();
+  if(!a[i])return null;
+  a[i].status=statusText;
+  setOffers(a);
+  renderDashboard();
+  return a[i];
+}
+function offerToInvoice(i){
+  const x=markOfferAccepted(i,'Angenommen');
+  if(!x)return;
+  showForm('Rechnung');
+  setInvoiceContext('Rechnung',x.nr,100);
+  fillInvoiceCustomerFromOffer(x);
+  document.getElementById('nachricht').value=x.nachricht||'';
+  document.getElementById('materialCost').value=x.material||'';
+  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price,it.kind||'',it.costPrice||''));
+  document.getElementById('formTitle').textContent='Neue Rechnung';
+  alert('Angebot wurde übernommen. 100% Rechnung ist bereit.');
+}
+function createAnzahlungFromOffer(i,percent){
+  const p=Math.max(0,Math.min(100,Number(percent)||0));
+  if(p<=0 || p>=100){alert('Bitte Anzahlung zwischen 1% und 99% wählen.');return}
+  const x=markOfferAccepted(i,`Angenommen · Anzahlung ${num(p).replace(',00','')}%`);
+  if(!x)return;
+
+  showForm('Rechnung');
+  setInvoiceContext('Anzahlungsrechnung',x.nr,p);
+  fillInvoiceCustomerFromOffer(x);
+
+  const net=offerNetValue(x);
+  const amount=Math.round(net*(p/100)*100)/100;
+  document.getElementById('nachricht').value=`Anzahlung ${num(p).replace(',00','')}% gemäß Angebot ${x.nr}.`;
+  document.getElementById('materialCost').value='0';
+  addItem(`Anzahlung ${num(p).replace(',00','')}% gemäß Angebot ${x.nr}`,1,'Pauschal',amount.toFixed(2),'anzahlung','');
+  document.getElementById('formTitle').textContent=`Neue Anzahlungsrechnung ${num(p).replace(',00','')}%`;
+  alert(`Anzahlungsrechnung ${num(p).replace(',00','')}% ist bereit.`);
+}
+function offerAnzahlung50(i){
+  createAnzahlungFromOffer(i,50);
+}
+function offerCustomAnzahlung(i){
+  const raw=prompt('Anzahlung in % eingeben','50');
+  if(raw===null)return;
+  const p=parseFloat(String(raw).replace(',','.'));
+  if(!Number.isFinite(p)||p<=0||p>=100){alert('Bitte Zahl zwischen 1 und 99 eingeben.');return}
+  createAnzahlungFromOffer(i,p);
+}
+function offerToSchlussrechnung(i){
+  let offers=getOffers();
+  const x=offers[i];
+  if(!x)return;
+
+  const deposits=linkedAnzahlungen(x.nr);
+  if(!deposits.length){
+    alert('Keine Anzahlungsrechnung zu diesem Angebot gefunden. Zuerst Anzahlung erstellen.');
+    return;
+  }
+  const unpaid=deposits.filter(d=>!d.paid);
+  if(unpaid.length){
+    const ok=confirm(`${unpaid.length} Anzahlungsrechnung(en) sind noch als OFFEN markiert. Trotzdem in der Schlussrechnung abziehen?`);
+    if(!ok)return;
+  }
+
+  x.status='Angenommen · Schlussrechnung';
+  offers[i]=x;
+  setOffers(offers);
+  renderDashboard();
+
+  showForm('Rechnung');
+  setInvoiceContext('Schlussrechnung',x.nr,0);
+  fillInvoiceCustomerFromOffer(x);
+  document.getElementById('nachricht').value=`Schlussrechnung gemäß Angebot ${x.nr}. Bereits verrechnete Anzahlungen werden abgezogen.`;
+  document.getElementById('materialCost').value=x.material||'';
+
+  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price,it.kind||'',it.costPrice||''));
+
+  deposits.forEach(d=>{
+    const depNet=Number(d.net)||((d.items||[]).reduce((s,it)=>s+(Number(it.sum)||0),0));
+    if(depNet>0){
+      addItem(`Abzüglich Anzahlungsrechnung ${d.nr||''}`,1,'Pauschal',(-depNet).toFixed(2),'anzahlung-abzug','');
+    }
+  });
+
+  document.getElementById('formTitle').textContent='Neue Schlussrechnung';
+  alert('Schlussrechnung ist bereit. Anzahlungen wurden abgezogen.');
+}
+
+
+
+function showTrash(){
+  hide();
+  const el=document.getElementById('trash');
+  if(el)el.classList.remove('hidden');
+  renderTrash();
+}
+
+function renderTrash(){
+  const box=document.getElementById('trashList');
+  if(!box)return;
+  const arr=getTrash();
+  if(!arr.length){
+    box.innerHTML='<p class="small">Papierkorb ist leer.</p>';
+    return;
+  }
+  box.innerHTML=arr.map((x,i)=>`<div class="invoice">
+    <div class="invoice-top">
+      <div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br>
+      <span class="small">${fmtDate(x.date)} · gelöscht ${x.trashedAt?fmtDate(String(x.trashedAt).slice(0,10)):''}</span></div>
+      <div style="text-align:right"><b>${euro(x.total||0)}</b></div>
+    </div>
+    <div class="actions">
+      <button onclick="restoreInvoice(${i})">Wiederherstellen</button>
+      <button onclick="deleteTrashInvoiceForever(${i})">Endgültig löschen</button>
+    </div>
+  </div>`).join('');
+}
+
+async function restoreInvoice(i){
+  const t=getTrash();
+  const x=t[i];
+  if(!x)return;
+  let a=getInvoices();
+  if(a.some(z=>String(z.nr||'')===String(x.nr||''))){
+    alert('Diese Rechnungsnummer ist bereits vorhanden.');
+    return;
+  }
+  t.splice(i,1);
+  setTrash(t);
+  if(x.nr)unmarkInvoiceDeleted(x.nr);
+  x.savedAt=new Date().toISOString();
+  delete x.trashedAt;
+  a.unshift(x);
+  setInvoices(a);
+  renderTrash();
+  renderDashboard();
+  try{
+    if(x.nr)await cloudUpsertInvoice(x);
+    await autoCloudSync();
+  }catch(e){}
+  alert('Rechnung wurde wiederhergestellt.');
+}
+
+async function deleteTrashInvoiceForever(i){
+  const t=getTrash();
+  const x=t[i];
+  if(!x)return;
+  if(!confirm('Rechnung endgültig löschen?'))return;
+  if(x.nr)markInvoiceDeleted(x.nr);
+  t.splice(i,1);
+  setTrash(t);
+  renderTrash();
+  try{
+    if(x.nr)await cloudDeleteInvoice(x.nr);
+  }catch(e){}
+}
+
+async function emptyTrash(){
+  const t=getTrash();
+  if(!t.length)return;
+  if(!confirm('Papierkorb wirklich vollständig leeren?'))return;
+  for(const x of t){
+    if(x&&x.nr)markInvoiceDeleted(x.nr);
+  }
+  setTrash([]);
+  renderTrash();
+  try{
+    await autoCloudSync();
+  }catch(e){}
+}
+
 function renderDashboard(){
   const arr=getInvoices();
   const total=arr.reduce((s,x)=>s+(Number(x.total)||0),0);
@@ -443,28 +2373,290 @@ function renderDashboard(){
   document.getElementById('statProfit').textContent=euro(total-material);
   document.getElementById('statOpenCount').textContent=arr.filter(x=>!x.paid).length;
   const box=document.getElementById('invoiceList');
-  if(!arr.length){box.innerHTML='<p class="small">Noch keine Rechnungen gespeichert.</p>';return}
-  box.innerHTML=arr.map((x,i)=>`<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?'Bezahlt':'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`).join('');
+  if(!arr.length){box.innerHTML='<p class="small">Noch keine Rechnungen gespeichert.</p>'}
+  else box.innerHTML=arr.map((x,i)=>{
+    const kind=invoiceDocumentLabel(x);
+    const percent=x.anzahlungPercent?` ${num(x.anzahlungPercent).replace(',00','')}%`:'';
+    return `<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${esc(kind)}${percent} · ${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?(x.bankMatch?'Bezahlt · Bank':'Bezahlt'):'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="pdfInvoice(${i})">PDF</button><button onclick="copyInvoice(${i})">Kopieren</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`;
+  }).join('');
+
+  const offers=getOffers();
+  const ob=document.getElementById('offerList');
+  if(ob){
+    if(!offers.length) ob.innerHTML='<p class="small">Noch keine Angebote gespeichert.</p>';
+    else ob.innerHTML=offers.map((x,i)=>{
+      const deps=linkedAnzahlungen(x.nr);
+      const depTotal=deps.reduce((s,d)=>s+(Number(d.total)||0),0);
+      const depPaid=deps.filter(d=>d.paid).reduce((s,d)=>s+(Number(d.total)||0),0);
+      const depInfo=deps.length?`<br><span class="small">Anzahlung: ${euro(depTotal)} · bezahlt ${euro(depPaid)}</span>`:'';
+      return `<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${fmtDate(x.date)} · ${esc(x.bau||'')}</span>${depInfo}</div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${esc(x.status||'Offen')}</span></div></div><div class="actions"><button onclick="loadOffer(${i})">Öffnen</button><button onclick="offerAnzahlung50(${i})">50% Anzahlung</button><button onclick="offerCustomAnzahlung(${i})">Anzahlung %</button><button onclick="offerToSchlussrechnung(${i})">Schlussrechnung</button><button onclick="offerToInvoice(${i})">100% Rechnung</button><button onclick="setOfferStatus(${i},'Abgelehnt')">Abgelehnt</button><button onclick="deleteOffer(${i})">Löschen</button></div></div>`;
+    }).join('');
+  }
 }
 function loadInvoice(i){
   const x=getInvoices()[i];if(!x)return;
   showForm('Rechnung');
+  setInvoiceContext(x.invoiceKind||'Rechnung',x.offerNr||invoiceLinkedOfferNr(x),x.anzahlungPercent||0);
+  document.getElementById('formTitle').textContent=invoiceDocumentLabel(x);
   document.getElementById('docNr').value=x.nr||'';document.getElementById('docDate').value=x.date||'';
   document.getElementById('kunde').value=x.kunde||'';document.getElementById('adresse').value=x.adresse||'';
-  document.getElementById('kundeEmail').value=x.email||'';document.getElementById('bau').value=x.bau||'';
+  document.getElementById('kundeUid').value=x.kundeUid||'';document.getElementById('kundeEmail').value=x.email||'';document.getElementById('bau').value=x.bau||'';
   document.getElementById('typ').value=x.typ||'Firma';document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('nachricht').value=x.nachricht||'';document.getElementById('tage').value=x.tage||'14';
-  document.getElementById('skonto').value=x.skonto||'3';document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
-  document.getElementById('items').innerHTML='';(x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price));
+  document.getElementById('skonto').value=x.skonto||'3';updateDueDate();document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
+  document.getElementById('materialPdfPriceMode').value=materialPdfModeForInvoice(x);
+  document.getElementById('items').innerHTML='';(x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price,it.kind||'',it.costPrice||''));
 }
-function togglePaid(i){let a=getInvoices();if(!a[i])return;a[i].paid=!a[i].paid;setInvoices(a);renderDashboard()}
-function deleteInvoice(i){if(!confirm('Rechnung wirklich löschen?'))return;let a=getInvoices();a.splice(i,1);setInvoices(a);renderDashboard()}
+
+
+async function pdfInvoice(i){
+  const x=getInvoices()[i];if(!x)return;
+  const {jsPDF}=window.jspdf||{};
+  if(!jsPDF){alert('PDF-Modul konnte nicht geladen werden. Bitte Internetverbindung prüfen.');return}
+
+  const items=(x.items||[]).map(it=>({
+    desc:it.desc||'',qty:Number(it.qty)||0,unit:it.unit||'',
+    price:Number(it.price)||0,sum:(Number(it.qty)||0)*(Number(it.price)||0),
+    kind:it.kind||'',costPrice:Number(it.costPrice||0),hidePrice:!!it.hidePrice
+  }));
+  if(!items.length){alert('Diese Rechnung hat keine Positionen.');return}
+  const showPrices=(x.pdfPriceMode||'on')!=='off';
+  const showMaterialPrices=materialPdfModeForInvoice(x)!=='off';
+
+  const net=Number(x.net)||items.reduce((a,b)=>a+b.sum,0);
+  const ust=Number(x.ust)||0;
+  const total=Number(x.total)||(net+ust);
+  const sk=parseFloat(x.skonto)||0;
+  const dueDays=parseInt(x.tage)||14;
+  const docNr=x.nr||'ohne-nummer';
+  const docDate=x.date||new Date().toISOString().slice(0,10);
+  const dueDateValue=calcDueDate(docDate,dueDays);
+  const epc=epcPayload(total,docNr); const qrData=epc?await makeQrDataUrl(epc):'';
+  const company=getCompanyProfile();
+  const companyName=company.name||'FR Rechnung';
+
+  const pdf=new jsPDF({unit:'mm',format:'a4'});
+  const left=16,right=194;
+  let y=18;
+
+  if(logo){
+    try{
+      const format=logo.startsWith('data:image/jpeg')?'JPEG':'PNG';
+      pdf.addImage(logo,format,left,y,36,18,'','FAST');
+    }catch(e){
+      pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text(companyName,left,y+7);
+    }
+  }else{
+    pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text(companyName,left,y+7);
+  }
+
+  pdf.setFontSize(8.5);pdf.setFont(undefined,'normal');
+  [
+    company.address,
+    [company.uid?('UID '+company.uid):'',company.taxNr?('StNr. '+company.taxNr):''].filter(Boolean).join(' · '),
+    [company.email,company.phone].filter(Boolean).join(' · '),
+    company.iban?('IBAN '+company.iban):'',
+    company.bic?('BIC '+company.bic):''
+  ].filter(Boolean).forEach((t,k)=>pdf.text(t,right,y+2+k*4,{align:'right'}));
+
+  y=42;
+  pdf.setDrawColor(201,45,41);pdf.setLineWidth(.6);pdf.line(left,y,right,y);
+  y+=10;
+  pdf.setTextColor(34,34,34);pdf.setFontSize(18);pdf.setFont(undefined,'bold');
+  pdf.text(invoiceDocumentLabel(x).toUpperCase(),left,y);
+  y+=7;
+
+  const nachricht=(x.nachricht||'').trim();
+  if(nachricht){
+    pdf.setFontSize(9.5);pdf.setFont(undefined,'normal');
+    const msgLines=pdf.splitTextToSize(nachricht,105);
+    pdf.text(msgLines,left,y);
+    y+=msgLines.length*4.5+2;
+  }
+
+  pdf.setFontSize(9);pdf.setFont(undefined,'normal');
+  pdf.text('Nr.: '+docNr,right,y-2,{align:'right'});
+  pdf.text('Rechnungsdatum: '+fmtDate(docDate),right,y+3,{align:'right'});
+  pdf.text('Fälligkeitsdatum: '+fmtDate(dueDateValue),right,y+8,{align:'right'});
+  y+=15;
+
+  pdf.setFontSize(9.5);pdf.setFont(undefined,'bold');pdf.text('Kunde:',left,y);
+  pdf.setFont(undefined,'normal');pdf.text(x.kunde||'',left+15,y);y+=5;
+  if(x.adresse){pdf.text(x.adresse,left,y);y+=5}
+  if(x.kundeUid){pdf.setFont(undefined,'bold');pdf.text('UID:',left,y);pdf.setFont(undefined,'normal');pdf.text(x.kundeUid,left+10,y);y+=5}
+  pdf.setFont(undefined,'bold');pdf.text('Baustelle:',left,y);pdf.setFont(undefined,'normal');pdf.text(x.bau||'',left+20,y);y+=10;
+
+  pdf.setFillColor(243,243,243);pdf.rect(left,y,right-left,7,'F');
+  pdf.setFont(undefined,'bold');pdf.setFontSize(8.5);
+  pdf.text('Beschreibung',left+2,y+4.8);
+  if(showPrices){
+    pdf.text('Menge',118,y+4.8,{align:'right'});
+    pdf.text('Einheit',126,y+4.8);
+    pdf.text('Preis',164,y+4.8,{align:'right'});pdf.text('Summe',192,y+4.8,{align:'right'});
+  }else{
+    pdf.text('Pauschal',192,y+4.8,{align:'right'});
+  }
+  y+=8;pdf.setFont(undefined,'normal');
+
+  for(const it of items){
+    if(y>205){pdf.addPage();y=18}
+    const lines=pdf.splitTextToSize(it.desc,78);
+    const rowH=Math.max(7,lines.length*4.2+2);
+    pdf.text(lines,left+2,y+4);
+    if(showPrices){
+      if(it.kind==='regieinfo'){
+        pdf.text(it.unit||'Std.',126,y+4);
+        pdf.text(euro(it.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
+      }else{
+        pdf.text(num(it.qty),118,y+4,{align:'right'});
+        pdf.text(it.unit,126,y+4);
+        const itemPriceVisible=it.kind!=='material'||showMaterialPrices;
+        if(itemPriceVisible){
+          pdf.text(euro(it.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
+          pdf.text(euro(it.sum).replace(/\u00a0/g,' '),192,y+4,{align:'right'});
+        }
+      }
+    }
+    pdf.setDrawColor(220);pdf.line(left,y+rowH,right,y+rowH);y+=rowH;
+  }
+
+  y+=8;pdf.setFontSize(10);
+  pdf.text('Netto',150,y);pdf.text(euro(net).replace(/\u00a0/g,' '),192,y,{align:'right'});
+  if(ust){y+=5;pdf.text('USt. 20%',150,y);pdf.text(euro(ust).replace(/\u00a0/g,' '),192,y,{align:'right'})}
+  y+=7;pdf.setDrawColor(34);pdf.line(148,y-4,right,y-4);
+  pdf.setFont(undefined,'bold');pdf.setFontSize(12);pdf.text('Zahlbetrag',150,y);pdf.text(euro(total).replace(/\u00a0/g,' '),192,y,{align:'right'});
+
+  y+=12;pdf.setFont(undefined,'normal');pdf.setFontSize(8.5);
+  const footerText=(x.footer||'').trim();
+  if(footerText){const fl=pdf.splitTextToSize(footerText,175);pdf.text(fl,left,y);y+=fl.length*4+4}
+  const skontoValue=total*sk/100;
+  const payText=sk>0?`Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue).replace(/\u00a0/g,' ')}) abgezogen werden.`:`Zahlungsziel: ${dueDays} Tage.`;
+  pdf.text(pdf.splitTextToSize(payText,175),left,y);
+
+  try{
+    if(qrData){
+    pdf.addImage(qrData,'PNG',16,222,42,42);
+    pdf.setFontSize(8);pdf.setFont(undefined,'bold');pdf.text('Per Banking-App bezahlen',62,229);
+    pdf.setFont(undefined,'normal');
+    pdf.text('QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.',62,234);
+    if(qrData){pdf.text('Empfänger: '+companyName,62,239);pdf.text('IBAN: '+(company.iban||''),62,244);}
+    pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),62,249);pdf.text('Verwendung: Rechnung '+docNr,62,254);
+    }
+  }catch(e){}
+
+  pdf.setDrawColor(80);pdf.setLineWidth(.3);pdf.line(left,276,right,276);
+  pdf.setFontSize(7.2);pdf.setFont(undefined,'normal');
+  pdf.text(['Adresse '+(company.address||''),company.taxNr?('Steuernummer (SN) '+company.taxNr):'',company.uid?('Umsatzsteuer-ID (UID) '+company.uid):''].filter(Boolean).join('    '),105,282,{align:'center'});
+  pdf.text([company.email?('E-Mail '+company.email):'',company.phone?('Tel. '+company.phone):'',company.website?('Website '+company.website):'',company.bank?('Bank '+company.bank):''].filter(Boolean).join('    '),105,286,{align:'center'});
+  pdf.text([company.bic?('SWIFT/BIC '+company.bic):'',company.iban?('IBAN '+company.iban):''].filter(Boolean).join('    '),105,290,{align:'center'});
+
+  // PDF zuerst zur Ansicht öffnen. Teilen erfolgt danach über den iPhone-PDF-Viewer.
+  const blob=pdf.output('blob');
+  const url=URL.createObjectURL(blob);
+  const w=window.open(url,'_blank');
+  if(!w){
+    // Falls Safari das neue Fenster blockiert, PDF im aktuellen Tab öffnen.
+    window.location.href=url;
+  }
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+
+function copyInvoice(i){
+  const x=getInvoices()[i];if(!x)return;
+  showForm('Rechnung');
+  setInvoiceContext('Rechnung','',0);
+  document.getElementById('docNr').value='';
+  document.getElementById('docDate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('kunde').value=x.kunde||'';
+  document.getElementById('adresse').value=x.adresse||'';
+  document.getElementById('kundeUid').value=x.kundeUid||'';
+  document.getElementById('kundeEmail').value=x.email||'';
+  document.getElementById('bau').value=x.bau||'';
+  document.getElementById('typ').value=x.typ||'Firma';
+  document.getElementById('steuer').value=x.steuer||'rc';
+  document.getElementById('nachricht').value=x.nachricht||'';
+  document.getElementById('tage').value=x.tage||'14';
+  document.getElementById('skonto').value=x.skonto||'0';
+  document.getElementById('materialCost').value=x.material||'';
+  document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
+  document.getElementById('materialPdfPriceMode').value=materialPdfModeForInvoice(x);
+  document.getElementById('items').innerHTML='';
+  (x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price,it.kind||'',it.costPrice||''));
+  updateDueDate();
+  alert('Rechnung kopiert. Neue Rechnungsnummer wurde automatisch erstellt. Jetzt nur gewünschte Menge ändern.');
+}
+
+function togglePaid(i){let a=getInvoices();if(!a[i])return;a[i].paid=!a[i].paid;a[i].savedAt=new Date().toISOString();setInvoices(a);renderDashboard();cloudUpsertInvoice(a[i]).catch(()=>{})}
+async function deleteInvoice(i){
+  if(!confirm('Rechnung in den Papierkorb verschieben?'))return;
+  let a=getInvoices();
+  const x=a[i];
+  if(!x)return;
+  const nr=x.nr;
+  addToTrash(x);
+  if(nr)markInvoiceDeleted(nr);
+  a.splice(i,1);
+  setInvoices(a);
+  renderDashboard();
+  if(nr){
+    try{
+      await cloudDeleteInvoice(nr);
+      await autoCloudSync();
+    }catch(e){}
+  }
+}
 
 
 
+
+
+function epcPayload(amount,invoiceNr){
+  const c=getCompanyProfile();
+  const eur=Number(amount||0).toFixed(2);
+  const purpose='Rechnung '+String(invoiceNr||'');
+  if(!c.iban||!c.bic||!c.name)return '';
+  return [
+    'BCD','002','1','SCT',
+    String(c.bic||'').replace(/\s+/g,'').toUpperCase(),
+    String(c.name||'').slice(0,70),
+    cleanIban(c.iban),
+    'EUR'+eur,'','',purpose,''
+  ].join('\n');
+}
+
+function makeQrDataUrl(text,size=260){
+  return new Promise((resolve,reject)=>{
+    try{
+      const box=document.createElement('div');
+      box.style.position='fixed';
+      box.style.left='-9999px';
+      box.style.top='-9999px';
+      document.body.appendChild(box);
+      new QRCode(box,{
+        text,
+        width:size,
+        height:size,
+        correctLevel:QRCode.CorrectLevel.M
+      });
+      setTimeout(()=>{
+        try{
+          const canvas=box.querySelector('canvas');
+          const img=box.querySelector('img');
+          const url=canvas?canvas.toDataURL('image/png'):(img?img.src:null);
+          box.remove();
+          if(url) resolve(url); else reject(new Error('QR failed'));
+        }catch(e){box.remove();reject(e)}
+      },100);
+    }catch(e){reject(e)}
+  });
+}
 
 async function sharePDF(){
   const items=collectItems();
+  const showPrices=(document.getElementById('pdfPriceMode').value||'on')!=='off';
+  const showMaterialPrices=(document.getElementById('materialPdfPriceMode').value||'on')!=='off';
   if(items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
 
   const {jsPDF}=window.jspdf||{};
@@ -478,10 +2670,15 @@ async function sharePDF(){
   const dueDays=parseInt(document.getElementById('tage').value)||14;
   const docNr=document.getElementById('docNr').value||'ohne-nummer';
   const docDate=document.getElementById('docDate').value;
+  const dueDateValue=calcDueDate(docDate,document.getElementById('tage').value);
   const kunde=document.getElementById('kunde').value;
   const adresse=document.getElementById('adresse').value;
+  const kundeUid=document.getElementById('kundeUid').value.trim();
   const bau=document.getElementById('bau').value;
   const nachricht=document.getElementById('nachricht').value.trim();
+  const epc=epcPayload(total,docNr); const qrData=epc?await makeQrDataUrl(epc):'';
+  const company=getCompanyProfile();
+  const companyName=company.name||'FR Rechnung';
 
   const pdf=new jsPDF({unit:'mm',format:'a4'});
   const left=16,right=194;
@@ -492,28 +2689,28 @@ async function sharePDF(){
       const format = logo.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
       pdf.addImage(logo,format,left,y,36,18,'','FAST');
     }catch(e){
-      pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text('FR Fliesen Rechteck',left,y+7);
+      pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text(companyName,left,y+7);
     }
   }else{
-    pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text('FR Fliesen Rechteck',left,y+7);
+    pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text(companyName,left,y+7);
   }
 
   pdf.setFontSize(8.5);pdf.setFont(undefined,'normal');
-  const company=[
-    'Kamerlweg 58 · 4600 Wels',
-    'UID ATU79163806 · StNr. 54 347/6998',
-    'office@fliesen-rechteck.at · 06649277777',
-    'IBAN AT09 2032 0321 0067 2132',
-    'BIC ASPKAT2LXXX'
-  ];
-  company.forEach((t,i)=>pdf.text(t,right,y+2+i*4,{align:'right'}));
+  const companyLines=[
+    company.address,
+    [company.uid?('UID '+company.uid):'',company.taxNr?('StNr. '+company.taxNr):''].filter(Boolean).join(' · '),
+    [company.email,company.phone].filter(Boolean).join(' · '),
+    company.iban?('IBAN '+company.iban):'',
+    company.bic?('BIC '+company.bic):''
+  ].filter(Boolean);
+  companyLines.forEach((t,i)=>pdf.text(t,right,y+2+i*4,{align:'right'}));
 
   y=42;
   pdf.setDrawColor(201,45,41);pdf.setLineWidth(.6);pdf.line(left,y,right,y);
   y+=10;
 
   pdf.setTextColor(34,34,34);pdf.setFontSize(18);pdf.setFont(undefined,'bold');
-  pdf.text(docType.toUpperCase(),left,y);
+  pdf.text(currentDocumentLabel().toUpperCase(),left,y);
   y+=7;
   if(nachricht){
     pdf.setTextColor(34,34,34);pdf.setFontSize(9.5);pdf.setFont(undefined,'normal');
@@ -523,14 +2720,16 @@ async function sharePDF(){
   }
   pdf.setFontSize(9);pdf.setFont(undefined,'normal');
   pdf.text('Nr.: '+docNr,right,y-2,{align:'right'});
-  pdf.text('Datum: '+fmtDate(docDate),right,y+3,{align:'right'});
+  pdf.text('Rechnungsdatum: '+fmtDate(docDate),right,y+3,{align:'right'});
+  pdf.text('Fälligkeitsdatum: '+fmtDate(dueDateValue),right,y+8,{align:'right'});
 
-  y+=10;
+  y+=15;
   pdf.setFontSize(9.5);
   pdf.setFont(undefined,'bold');pdf.text('Kunde:',left,y);
   pdf.setFont(undefined,'normal');pdf.text(kunde,left+15,y);
   y+=5;
   if(adresse){pdf.text(adresse,left,y);y+=5}
+  if(kundeUid){pdf.setFont(undefined,'bold');pdf.text('UID:',left,y);pdf.setFont(undefined,'normal');pdf.text(kundeUid,left+10,y);y+=5}
   pdf.setFont(undefined,'bold');pdf.text('Baustelle:',left,y);
   pdf.setFont(undefined,'normal');pdf.text(bau,left+20,y);
   y+=10;
@@ -538,10 +2737,14 @@ async function sharePDF(){
   pdf.setFillColor(243,243,243);pdf.rect(left,y,right-left,7,'F');
   pdf.setFont(undefined,'bold');pdf.setFontSize(8.5);
   pdf.text('Beschreibung',left+2,y+4.8);
-  pdf.text('Menge',118,y+4.8,{align:'right'});
-  pdf.text('Einheit',126,y+4.8);
-  pdf.text('Preis',164,y+4.8,{align:'right'});
-  pdf.text('Summe',192,y+4.8,{align:'right'});
+  if(showPrices){
+    pdf.text('Menge',118,y+4.8,{align:'right'});
+    pdf.text('Einheit',126,y+4.8);
+    pdf.text('Preis',164,y+4.8,{align:'right'});
+    pdf.text('Summe',192,y+4.8,{align:'right'});
+  }else{
+    pdf.text('Pauschal',192,y+4.8,{align:'right'});
+  }
   y+=8;
 
   pdf.setFont(undefined,'normal');
@@ -550,10 +2753,20 @@ async function sharePDF(){
     const lines=pdf.splitTextToSize(x.desc||'',78);
     const rowH=Math.max(7,lines.length*4.2+2);
     pdf.text(lines,left+2,y+4);
-    pdf.text(num(x.qty),118,y+4,{align:'right'});
-    pdf.text(x.unit||'',126,y+4);
-    pdf.text(euro(x.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
-    pdf.text(euro(x.sum).replace(/\u00a0/g,' '),192,y+4,{align:'right'});
+    if(showPrices){
+      if(x.kind==='regieinfo'){
+        pdf.text(x.unit||'Std.',126,y+4);
+        pdf.text(euro(x.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
+      }else{
+        pdf.text(num(x.qty),118,y+4,{align:'right'});
+        pdf.text(x.unit||'',126,y+4);
+        const itemPriceVisible=x.kind!=='material'||showMaterialPrices;
+        if(itemPriceVisible){
+          pdf.text(euro(x.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
+          pdf.text(euro(x.sum).replace(/\u00a0/g,' '),192,y+4,{align:'right'});
+        }
+      }
+    }
     pdf.setDrawColor(220);pdf.line(left,y+rowH,right,y+rowH);
     y+=rowH;
   }
@@ -586,18 +2799,33 @@ async function sharePDF(){
     : `Zahlungsziel: ${dueDays} Tage.`;
   pdf.text(pdf.splitTextToSize(payText,175),left,y);
 
+  // SEPA / EPC QR-Code für Überweisung
+  try{
+    if(qrData){
+    pdf.addImage(qrData,'PNG',16,222,42,42);
+    pdf.setFontSize(8);pdf.setFont(undefined,'bold');
+    pdf.text('Per Banking-App bezahlen',62,229);
+    pdf.setFont(undefined,'normal');
+    pdf.text('QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.',62,234);
+    pdf.text('Empfänger: '+companyName,62,239);
+    pdf.text('IBAN: '+(company.iban||''),62,244);
+    pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),62,249);
+    pdf.text('Verwendung: Rechnung '+docNr,62,254);
+    }
+  }catch(e){}
+
   // Fester Firmen-Fußbereich am Seitenende
   pdf.setDrawColor(80);pdf.setLineWidth(.3);pdf.line(left,276,right,276);
   pdf.setFontSize(7.2);pdf.setFont(undefined,'normal');
-  pdf.text('Adresse Kamerlweg 58 · Wels · 4600    Steuernummer (SN) 54 347/6998    Umsatzsteuer-ID (UID) ATU79163806',105,282,{align:'center'});
-  pdf.text('E-Mail office@fliesen-rechteck.at    Tel. 06649277777    Website www.fliesen-rechteck.at    Bank SPARKASSE',105,286,{align:'center'});
-  pdf.text('SWIFT/BIC ASPKAT2LXXX    IBAN AT09 2032 0321 0067 2132',105,290,{align:'center'});
+  pdf.text(['Adresse '+(company.address||''),company.taxNr?('Steuernummer (SN) '+company.taxNr):'',company.uid?('Umsatzsteuer-ID (UID) '+company.uid):''].filter(Boolean).join('    '),105,282,{align:'center'});
+  pdf.text([company.email?('E-Mail '+company.email):'',company.phone?('Tel. '+company.phone):'',company.website?('Website '+company.website):'',company.bank?('Bank '+company.bank):''].filter(Boolean).join('    '),105,286,{align:'center'});
+  pdf.text([company.bic?('SWIFT/BIC '+company.bic):'',company.iban?('IBAN '+company.iban):''].filter(Boolean).join('    '),105,290,{align:'center'});
 
   const blob=pdf.output('blob');
   const file=new File([blob],`${docType}_${docNr}.pdf`,{type:'application/pdf'});
   const shareData={
-    title:`${docType} ${docNr} - FR Fliesen Rechteck`,
-    text:`Guten Tag,\n\nanbei erhalten Sie die ${docType.toLowerCase()} ${docNr}.\n\nVielen Dank.\n\nMit freundlichen Grüßen\nFR Fliesen Rechteck`,
+    title:`${currentDocumentLabel()} ${docNr} - ${companyName}`,
+    text:`Guten Tag,\n\nanbei erhalten Sie die ${docType.toLowerCase()} ${docNr}.\n\nVielen Dank.\n\nMit freundlichen Grüßen\n${companyName}`,
     files:[file]
   };
 
@@ -615,6 +2843,8 @@ async function sharePDF(){
 
 function makeDoc(){
   const items=collectItems();
+  const showPrices=(document.getElementById('pdfPriceMode').value||'on')!=='off';
+  const showMaterialPrices=(document.getElementById('materialPdfPriceMode').value||'on')!=='off';
   if(items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
 
   const net=items.reduce((a,b)=>a+b.sum,0);
@@ -630,17 +2860,30 @@ function makeDoc(){
   dueDate.setDate(dueDate.getDate()+dueDays);
   const due=String(dueDate.getDate()).padStart(2,'0')+'.'+String(dueDate.getMonth()+1).padStart(2,'0')+'.'+dueDate.getFullYear();
   const customerEmail=document.getElementById('kundeEmail').value.trim();
+  const company=getCompanyProfile();
+  const companyName=company.name||'FR Rechnung';
 
   let w=window.open('','_blank');
   if(!w){alert('Popup blockiert. Bitte Popups erlauben.');return}
 
-  const lg=logo?`<img src="${logo}" style="max-width:190px;max-height:95px">`:`<div style="font-size:25px;font-weight:800">FR Fliesen Rechteck</div>`;
-  const rows=items.map(x=>`<tr><td>${esc(x.desc)}</td><td style="text-align:right">${num(x.qty)}</td><td>${esc(x.unit)}</td><td style="text-align:right">${euro(x.price)}</td><td style="text-align:right">${euro(x.sum)}</td></tr>`).join('');
+  const lg=logo?`<img src="${logo}" style="max-width:190px;max-height:95px">`:`<div style="font-size:25px;font-weight:800">${esc(companyName)}</div>`;
+  const rows=showPrices
+    ? items.map(x=>{
+        const itemPriceVisible=x.kind!=='material'||showMaterialPrices;
+        if(x.kind==='regieinfo'){
+          return `<tr><td>${esc(x.desc)}</td><td style="text-align:right"></td><td>${esc(x.unit)}</td><td style="text-align:right">${euro(x.price)}</td><td style="text-align:right"></td></tr>`;
+        }
+        return `<tr><td>${esc(x.desc)}</td><td style="text-align:right">${num(x.qty)}</td><td>${esc(x.unit)}</td><td style="text-align:right">${itemPriceVisible?euro(x.price):''}</td><td style="text-align:right">${itemPriceVisible?euro(x.sum):''}</td></tr>`;
+      }).join('')
+    : items.map(x=>`<tr><td>${esc(x.desc)}</td></tr>`).join('');
+  const tableHead=showPrices
+    ? '<tr><th>Beschreibung</th><th style="text-align:right">Menge</th><th>Einheit</th><th style="text-align:right">Preis</th><th style="text-align:right">Summe</th></tr>'
+    : '<tr><th>Beschreibung</th></tr>';
 
   const footerText=esc(document.getElementById('invoiceFooter').value).replace(/\n/g,'<br>');
   const steuerText=footerText?`<p class="note">${footerText}</p>`:'';
   const skontoText=sk>0?`<p>Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue)}) abgezogen werden.</p>`:`<p>Zahlungsziel: ${dueDays} Tage.</p>`;
-  const mailSubject=encodeURIComponent(`${docType} ${docNr} - FR Fliesen Rechteck`);
+  const mailSubject=encodeURIComponent(`${currentDocumentLabel()} ${docNr} - ${companyName}`);
   const mailBody=encodeURIComponent(`Guten Tag,
 
 anbei erhalten Sie die ${docType.toLowerCase()} ${docNr}.
@@ -648,8 +2891,9 @@ anbei erhalten Sie die ${docType.toLowerCase()} ${docNr}.
 Vielen Dank.
 
 Mit freundlichen Grüßen
-FR Fliesen Rechteck`);
+${companyName}`);
   const mailTo=encodeURIComponent(customerEmail);
+  const epcText=epcPayload(total,docNr);
 
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${docType} ${esc(docNr)}</title>
   <style>
@@ -666,30 +2910,1045 @@ FR Fliesen Rechteck`);
   .sum div{display:flex;justify-content:space-between;padding:5px 0}
   .big{font-weight:800;font-size:18px;border-top:2px solid #222;margin-top:5px;padding-top:9px!important}
   .note{margin-top:22px}
-  .footer{margin-top:28px;line-height:1.5}.companyfooter{margin-top:42px;border-top:1px solid #555;padding-top:9px;text-align:center;font-size:10px;line-height:1.45}
+  .footer{margin-top:28px;line-height:1.5}.payqr{display:flex;gap:18px;align-items:center;margin-top:28px;padding-top:14px;border-top:1px solid #ddd}.payqr #payQr{width:120px;height:120px}.companyfooter{margin-top:42px;border-top:1px solid #555;padding-top:9px;text-align:center;font-size:10px;line-height:1.45}
   .printbtn{margin-top:25px;padding:12px 18px;border:0;border-radius:9px;background:#111;color:white;font-weight:700;margin-right:6px}
   @media print{.printbtn{display:none}body{padding:0}}
   </style></head><body>
-  <div class="top"><div>${lg}</div><div class="right">Kamerlweg 58 · 4600 Wels<br>UID ATU79163806 · StNr. 54 347/6998<br>office@fliesen-rechteck.at · 06649277777<br>IBAN AT09 2032 0321 0067 2132<br>BIC ASPKAT2LXXX</div></div>
+  <div class="top"><div>${lg}</div><div class="right">${esc(company.address||'')}<br>${company.uid?'UID '+esc(company.uid):''}${company.taxNr?' · StNr. '+esc(company.taxNr):''}<br>${esc(company.email||'')}${company.phone?' · '+esc(company.phone):''}<br>${company.iban?'IBAN '+esc(company.iban):''}<br>${company.bic?'BIC '+esc(company.bic):''}</div></div>
   <hr class="redline">
   <div class="meta">
-    <div><b>Kunde:</b> ${esc(document.getElementById('kunde').value)}<br>${esc(document.getElementById('adresse').value)}<br><b>Baustelle:</b> ${esc(document.getElementById('bau').value)}</div>
-    <div style="text-align:right;line-height:1.6"><b>Nr.:</b> ${esc(docNr)}<br><b>Datum:</b> ${fmtDate(docDate)}<br><b>Fällig:</b> ${due}</div>
+    <div><b>Kunde:</b> ${esc(document.getElementById('kunde').value)}<br>${esc(document.getElementById('adresse').value)}${document.getElementById('kundeUid').value?`<br><b>UID:</b> ${esc(document.getElementById('kundeUid').value)}`:''}<br><b>Baustelle:</b> ${esc(document.getElementById('bau').value)}</div>
+    <div style="text-align:right;line-height:1.6"><b>Nr.:</b> ${esc(docNr)}<br><b>Rechnungsdatum:</b> ${fmtDate(docDate)}<br><b>Fälligkeitsdatum:</b> ${due}</div>
   </div>
-  <div class="title" style="margin-top:26px">${docType.toUpperCase()}</div>
+  <div class="title" style="margin-top:26px">${currentDocumentLabel().toUpperCase()}</div>
   ${document.getElementById('nachricht').value?`<div style="margin:0 0 22px;white-space:pre-line">${esc(document.getElementById('nachricht').value)}</div>`:''}
-  <table><tr><th>Beschreibung</th><th style="text-align:right">Menge</th><th>Einheit</th><th style="text-align:right">Preis</th><th style="text-align:right">Summe</th></tr>${rows}</table>
+  <table>${tableHead}${rows}</table>
   <div class="sum"><div><span>Netto</span><span>${euro(net)}</span></div>${ust?`<div><span>USt. 20%</span><span>${euro(ust)}</span></div>`:''}<div class="big"><span>Zahlbetrag</span><span>${euro(total)}</span></div></div>
   ${steuerText}
   <div class="footer">${skontoText}</div>
-  <div class="companyfooter"><b>Adresse</b> Kamerlweg 58 · Wels · 4600 &nbsp;&nbsp; <b>Steuernummer (SN)</b> 54 347/6998 &nbsp;&nbsp; <b>Umsatzsteuer-ID (UID)</b> ATU79163806<br><b>E-Mail</b> office@fliesen-rechteck.at &nbsp;&nbsp; <b>Tel.</b> 06649277777 &nbsp;&nbsp; <b>Website</b> www.fliesen-rechteck.at &nbsp;&nbsp; <b>Bank</b> SPARKASSE<br><b>SWIFT/BIC</b> ASPKAT2LXXX &nbsp;&nbsp; <b>IBAN</b> AT09 2032 0321 0067 2132</div>
+  ${epcText?`<div class="payqr"><div id="payQr"></div><div><b>Per Banking-App bezahlen</b><br>QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.<br><b>IBAN:</b> ${esc(company.iban||'')}<br><b>Betrag:</b> ${euro(total)}<br><b>Verwendung:</b> Rechnung ${esc(docNr)}</div></div>`:''}
+  <div class="companyfooter"><b>Adresse</b> ${esc(company.address||'')} ${company.taxNr?'&nbsp;&nbsp; <b>Steuernummer (SN)</b> '+esc(company.taxNr):''} ${company.uid?'&nbsp;&nbsp; <b>UID</b> '+esc(company.uid):''}<br><b>E-Mail</b> ${esc(company.email||'')} ${company.phone?'&nbsp;&nbsp; <b>Tel.</b> '+esc(company.phone):''} ${company.website?'&nbsp;&nbsp; <b>Website</b> '+esc(company.website):''} ${company.bank?'&nbsp;&nbsp; <b>Bank</b> '+esc(company.bank):''}<br>${company.bic?'<b>SWIFT/BIC</b> '+esc(company.bic):''} ${company.iban?'&nbsp;&nbsp; <b>IBAN</b> '+esc(company.iban):''}</div>
   <button class="printbtn" onclick="window.print()">PDF / Drucken</button>
   <button class="printbtn" onclick="location.href='mailto:${mailTo}?subject=${mailSubject}&body=${mailBody}'">E-Mail senden</button>
   <button class="printbtn" onclick="window.close()">← Zurück</button>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+  <script>if(${JSON.stringify(!!epcText)}){new QRCode(document.getElementById('payQr'),{text:${JSON.stringify(epcText)},width:120,height:120,correctLevel:QRCode.CorrectLevel.M});}<\/script>
   </body></html>`);
   w.document.close();
 }
-renderDashboard();
+
+const materialCatalog=[
+  {name:'FDF 20 KG',unit:'20 KG',cost:77.00},
+  {name:'FDF 5 KG',unit:'5 KG',cost:43.00},
+  {name:'Ecke + Manschette',unit:'ST',cost:3.50},
+  {name:'Höhenpassstück',unit:'ST',cost:8.00},
+  {name:'Rissharz',unit:'Dose',cost:18.00},
+  {name:'Dichtband',unit:'m',cost:1.10},
+  {name:'Silikon',unit:'ST',cost:7.00},
+  {name:'No 1',unit:'Sack',cost:17.00},
+  {name:'FF 450',unit:'Sack',cost:25.00},
+  {name:'Bio Gel',unit:'Sack',cost:27.00},
+  {name:'Vario Flex',unit:'Sack',cost:27.00},
+  {name:'AMT Ausgleichsmasse',unit:'Sack',cost:24.00},
+  {name:'DF 10',unit:'Kübel',cost:27.00},
+  {name:'MFT + Mfs',unit:'Sack',cost:36.00},
+  {name:'Schnellkleber',unit:'Sack',cost:41.00},
+  {name:'Schiene: L AS Natur + Weiß 9-12mm',unit:'ST',cost:9.00},
+  {name:'Quadra AS',unit:'ST',cost:18.00},
+  {name:'Edelstahl L 8-12mm',unit:'ST',cost:8.00},
+  {name:'Quadra Edelstahl',unit:'ST',cost:12.00},
+  {name:'AZ-Gebürstet',unit:'m',cost:2.00},
+  {name:'Acryl',unit:'ST',cost:3.00},
+  {name:'Gefälleprofil b.148',unit:'ST',cost:80.00},
+  {name:'Gefälleprofil Glas',unit:'ST',cost:120.00},
+  {name:'Megaflex A+B',unit:'SET',cost:74.00},
+  {name:'Saphir Perlfuge',unit:'5 KG',cost:24.00},
+  {name:'Nivelliermasse',unit:'Sack',cost:32.00},
+  {name:'Rapidur M5 Estrich',unit:'Sack',cost:15.00},
+  {name:'Drainagemörtel',unit:'Sack',cost:14.00},
+  {name:'RAM 3',unit:'Sack',cost:38.00},
+  {name:'GD 749 Grundierung',unit:'Kanister',cost:8.00},
+  {name:'HPS Haftprimer',unit:'Kanister',cost:77.00},
+  {name:'DSF RS',unit:'Sack',cost:110.00},
+  {name:'Wedi 1-3cm',unit:'ST',cost:32.00},
+  {name:'Wedi 4-5cm',unit:'ST',cost:39.00},
+  {name:'DKS Silikon',unit:'ST',cost:14.00},
+  {name:'Quattrotec',unit:'ST',cost:15.00},
+  {name:'ST Profil ASG 7mm',unit:'ST',cost:27.80},
+  {name:'ST Profil ASG 9mm',unit:'ST',cost:28.70},
+  {name:'ST Profil ASG 11mm',unit:'ST',cost:31.10},
+  {name:'ST Profil QU-AT 9mm MATT',unit:'ST',cost:25.50},
+  {name:'ST Profil QU-AT 9mm Glänzend',unit:'ST',cost:43.30},
+  {name:'ST Profil QU-AT 11mm Glänzend',unit:'ST',cost:25.90},
+  {name:'ST Profil QU-AT 11mm Matt',unit:'ST',cost:44.50}
+];
+function materialSalePrice(cost){return Math.round(Number(cost||0)*140)/100}
+function normalizeMaterialText(v){
+  return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+}
+function materialMatches(q,m){
+  const name=normalizeMaterialText(m.name);
+  const tokens=normalizeMaterialText(q).split(/\s+/).filter(Boolean);
+  return tokens.every(t=>name.includes(t));
+}
+function materialSuggestionOrder(q,a,b){
+  const n=normalizeMaterialText(q);
+  const an=normalizeMaterialText(a.name),bn=normalizeMaterialText(b.name);
+  const ar=an===n?0:an.startsWith(n)?1:2;
+  const br=bn===n?0:bn.startsWith(n)?1:2;
+  return ar-br||an.localeCompare(bn);
+}
+let customMaterialMode=false;
+
+function getMaterialMatches(){
+  const q=(document.getElementById('measureMaterialName')?.value||'').trim();
+  if(!q)return materialCatalog.slice(); // kompletan spisak
+  return materialCatalog.filter(m=>materialMatches(q,m)).sort((a,b)=>materialSuggestionOrder(q,a,b)).slice(0,24);
+}
+function showMaterialSuggestions(){
+  if(customMaterialMode)return;
+  const box=document.getElementById('materialSuggestions');
+  if(!box)return;
+  const list=getMaterialMatches();
+  const normal=list.map(m=>{
+    const idx=materialCatalog.indexOf(m);
+    return `<button type="button" class="material-suggestion" onmousedown="event.preventDefault()" onclick="selectMaterialSuggestion(${idx})"><span class="material-suggestion-name">${esc(m.name)}</span><span class="material-suggestion-meta">${euro(materialSalePrice(m.cost))} netto<br>${esc(m.unit)}</span></button>`;
+  }).join('');
+  const custom=`<button type="button" class="material-suggestion" onmousedown="event.preventDefault()" onclick="enableCustomMaterial()"><span class="material-suggestion-name">+ Sonstige / anderes Material</span><span class="material-suggestion-meta">Name · Preis · Kom.</span></button>`;
+  box.innerHTML=(normal||'<div class="material-search-empty">Kein Material in der Liste gefunden</div>')+custom;
+  box.classList.remove('hidden');
+}
+function hideMaterialSuggestions(){
+  document.getElementById('materialSuggestions')?.classList.add('hidden');
+}
+function materialSearchInput(){
+  if(customMaterialMode){syncMeasuredMaterial();return}
+  syncMeasuredMaterial();
+  showMaterialSuggestions();
+}
+function setCustomMaterialMode(on){
+  customMaterialMode=!!on;
+  const unit=document.getElementById('measureMaterialUnit');
+  const price=document.getElementById('measureMaterialPrice');
+  const note=document.getElementById('materialModeNote');
+  if(unit){
+    unit.readOnly=!customMaterialMode;
+    unit.placeholder=customMaterialMode?'z.B. ST, Sack, m':'automatisch';
+  }
+  if(price){
+    price.readOnly=!customMaterialMode;
+    price.placeholder=customMaterialMode?'Preis netto eingeben':'automatisch +40%';
+  }
+  if(note){
+    note.textContent=customMaterialMode
+      ?'Sonstige: Materialname, Menge/Kom. und Verkaufspreis netto selbst eingeben.'
+      :'Verkaufspreis wird automatisch mit +40% auf die Einkaufsliste berechnet.';
+  }
+}
+function enableCustomMaterial(){
+  const input=document.getElementById('measureMaterialName');
+  const typed=(input?.value||'').trim();
+  setCustomMaterialMode(true);
+  hideMaterialSuggestions();
+  const unit=document.getElementById('measureMaterialUnit');
+  const price=document.getElementById('measureMaterialPrice');
+  const total=document.getElementById('measureMaterialTotal');
+  if(unit && !unit.value)unit.value='ST';
+  if(price)price.value='';
+  if(total)total.value='';
+  if(input && !typed){input.value='';input.focus()}
+  else if(price)price.focus();
+}
+function selectMaterialSuggestion(index){
+  const m=materialCatalog[index];
+  if(!m)return;
+  setCustomMaterialMode(false);
+  const input=document.getElementById('measureMaterialName');
+  if(input)input.value=m.name;
+  syncMeasuredMaterial();
+  hideMaterialSuggestions();
+  const qty=document.getElementById('measureMaterialQty');
+  if(qty){qty.focus();qty.select?.()}
+}
+function materialSearchKeydown(e){
+  if(e.key==='Escape'){hideMaterialSuggestions();return}
+  if(e.key==='Enter' && !customMaterialMode){
+    const list=getMaterialMatches();
+    if(list.length){e.preventDefault();selectMaterialSuggestion(materialCatalog.indexOf(list[0]))}
+  }
+}
+document.addEventListener('click',e=>{
+  const wrap=e.target.closest?.('.material-search-wrap');
+  if(!wrap)hideMaterialSuggestions();
+});
+function renderMaterialCatalogList(){ /* v53: full searchable list + Sonstige */ }
+function selectedMaterial(){
+  if(customMaterialMode)return null;
+  const v=(document.getElementById('measureMaterialName')?.value||'').trim().toLowerCase();
+  if(!v)return null;
+  return materialCatalog.find(m=>m.name.toLowerCase()===v)||null;
+}
+function parseMaterialNumber(v){
+  return parseFloat(String(v||'').replace(/[^\d,.-]/g,'').replace(',','.'))||0;
+}
+function syncMeasuredMaterial(){
+  const qty=Math.max(0,parseMaterialNumber(document.getElementById('measureMaterialQty')?.value));
+  const unit=document.getElementById('measureMaterialUnit');
+  const price=document.getElementById('measureMaterialPrice');
+  const total=document.getElementById('measureMaterialTotal');
+
+  if(customMaterialMode){
+    const sale=Math.max(0,parseMaterialNumber(price?.value));
+    if(total)total.value=sale>0?(sale*qty).toFixed(2)+' €':'';
+    return;
+  }
+
+  const m=selectedMaterial();
+  if(!m){if(unit)unit.value='';if(price)price.value='';if(total)total.value='';return}
+  const sale=materialSalePrice(m.cost);
+  if(unit)unit.value=m.unit;
+  if(price)price.value=sale.toFixed(2)+' €';
+  if(total)total.value=(sale*qty).toFixed(2)+' €';
+}
+let measurementList=[];
+let measurementMaterials=[];
+function addMeasuredMaterial(){
+  const qty=Math.max(0,parseMaterialNumber(document.getElementById('measureMaterialQty')?.value));
+  if(qty<=0){alert('Bitte Menge eingeben.');return}
+
+  if(customMaterialMode){
+    const desc=(document.getElementById('measureMaterialName')?.value||'').trim();
+    const unit=(document.getElementById('measureMaterialUnit')?.value||'ST').trim()||'ST';
+    const price=Math.max(0,parseMaterialNumber(document.getElementById('measureMaterialPrice')?.value));
+    if(!desc){alert('Bitte Materialname eingeben.');return}
+    if(price<=0){alert('Bitte Preis netto eingeben.');return}
+    measurementMaterials.push({
+      desc,qty,unit,price,
+      costPrice:Math.round((price/1.40)*100)/100,
+      kind:'material',
+      custom:true
+    });
+  }else{
+    const m=selectedMaterial();
+    if(!m){alert('Bitte Material aus der Liste auswählen oder Sonstige verwenden.');return}
+    measurementMaterials.push({desc:m.name,qty,unit:m.unit,price:materialSalePrice(m.cost),costPrice:m.cost,kind:'material'});
+  }
+
+  document.getElementById('measureMaterialName').value='';
+  document.getElementById('measureMaterialQty').value='1';
+  document.getElementById('measureMaterialUnit').value='';
+  document.getElementById('measureMaterialPrice').value='';
+  document.getElementById('measureMaterialTotal').value='';
+  setCustomMaterialMode(false);
+  hideMaterialSuggestions();
+  syncMeasuredMaterial();
+  renderMeasureMaterialList();
+}
+function renderMeasureMaterialList(){
+  const box=document.getElementById('measureMaterialList');
+  if(!box)return;
+  if(!measurementMaterials.length){box.innerHTML='<p class="small">Noch kein Material hinzugefügt.</p>';return}
+  box.innerHTML=measurementMaterials.map((m,i)=>`
+    <div class="material-summary">
+      <div><b>${esc(m.desc)}</b><div class="meta">${num(m.qty)} ${esc(m.unit)} · ${euro(m.price)} netto / ${esc(m.unit)} · Summe ${euro(m.qty*m.price)}</div></div>
+      <button type="button" class="remove" onclick="removeMeasuredMaterial(${i})">✕</button>
+    </div>`).join('');
+}
+function removeMeasuredMaterial(i){measurementMaterials.splice(i,1);renderMeasureMaterialList()}
+function syncMaterialPdfModeFromMeasure(){
+  const src=document.getElementById('measureMaterialPdfMode');
+  const dst=document.getElementById('materialPdfPriceMode');
+  if(src&&dst)dst.value=src.value||'on';
+}
+
+
+
+const REGIE_DRAFT_KEY='frRegieDrafts';
+let currentRegieDraftId='';
+
+function getRegieDrafts(){
+  try{return JSON.parse(localStorage.getItem(userKey(REGIE_DRAFT_KEY))||'[]')}catch(e){return []}
+}
+function setRegieDrafts(v){
+  localStorage.setItem(userKey(REGIE_DRAFT_KEY),JSON.stringify(v||[]));
+}
+function regieDraftId(){
+  return 'REG-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
+}
+function currentRegieDraftData(){
+  const d=regieFormData();
+  return {
+    id:currentRegieDraftId||regieDraftId(),
+    bauvorhaben:d.bauvorhaben,
+    arbeiten:d.arbeiten,
+    arbeitszeit:d.arbeitszeit,
+    datum:d.datum||new Date().toISOString().slice(0,10),
+    facharbeiter:d.facharbeiter,
+    material:d.material,
+    status:(d.sigDienstnehmer||d.sigChef||d.sigBauleiter)?'Unterschrieben':'Entwurf',
+    savedAt:new Date().toISOString()
+  };
+}
+function saveRegieDraft(){
+  const d=currentRegieDraftData();
+  if(!d.bauvorhaben && !d.arbeiten && !d.arbeitszeit && !d.material){
+    alert('Bitte zuerst Regiestunden-Daten eingeben.');
+    return;
+  }
+  let arr=getRegieDrafts();
+  const i=arr.findIndex(x=>x.id===d.id);
+  if(i>=0)arr[i]={...arr[i],...d}; else arr.unshift(d);
+  setRegieDrafts(arr);
+  currentRegieDraftId=d.id;
+  renderRegieDrafts();
+  alert('Regiestunden gespeichert. Du kannst später wieder öffnen und unterschreiben lassen.');
+}
+function loadRegieDraft(i){
+  const x=getRegieDrafts()[i];
+  if(!x)return;
+  currentRegieDraftId=x.id||'';
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||''};
+  set('regieBauvorhaben',x.bauvorhaben);
+  set('regieArbeiten',x.arbeiten);
+  set('regieArbeitszeit',x.arbeitszeit);
+  set('regieDatum',x.datum);
+  set('regieFacharbeiter',x.facharbeiter);
+  set('regieMaterial',x.material);
+  ['sigDienstnehmer','sigChef','sigBauleiter'].forEach(clearRegieSignature);
+  const sig=document.getElementById('regieSignatureSection');
+  if(sig)sig.classList.add('hidden');
+  const readBtn=document.getElementById('regieAfterReadBtn');
+  if(readBtn)readBtn.classList.add('hidden');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function deleteRegieDraft(i){
+  let arr=getRegieDrafts();
+  const x=arr[i];
+  if(!x)return;
+  if(!confirm('Gespeicherte Regiestunden löschen?'))return;
+  if(currentRegieDraftId===x.id)currentRegieDraftId='';
+  arr.splice(i,1);
+  setRegieDrafts(arr);
+  renderRegieDrafts();
+}
+function renderRegieDrafts(){
+  const box=document.getElementById('regieDraftList');
+  if(!box)return;
+  const arr=getRegieDrafts();
+  if(!arr.length){
+    box.innerHTML='<p class="small">Noch nichts gespeichert.</p>';
+    return;
+  }
+  box.innerHTML=arr.map((x,i)=>`
+    <div class="regie-draft">
+      <div class="regie-draft-top">
+        <div>
+          <b>${esc(x.bauvorhaben||'Regiestunden')}</b><br>
+          <span class="small">${fmtRegieDate(x.datum||'')} · ${esc(x.arbeitszeit||'')}</span>
+        </div>
+        <span class="badge">${esc(x.status||'Entwurf')}</span>
+      </div>
+      <div class="small" style="margin-top:6px">${esc((x.arbeiten||'').slice(0,120))}</div>
+      <div class="regie-draft-actions">
+        <button type="button" onclick="loadRegieDraft(${i})">Öffnen / weiter</button>
+        <button type="button" onclick="deleteRegieDraft(${i})">Löschen</button>
+      </div>
+    </div>`).join('');
+}
+
+function showRegiestunden(){
+  hide();
+  const p=document.getElementById('regie');
+  if(p)p.classList.remove('hidden');
+  const d=document.getElementById('regieDatum');
+  if(d && !d.value)d.value=new Date().toISOString().slice(0,10);
+  const sig=document.getElementById('regieSignatureSection');
+  if(sig)sig.classList.add('hidden');
+  const readBtn=document.getElementById('regieAfterReadBtn');
+  if(readBtn)readBtn.classList.add('hidden');
+  renderRegieDrafts();
+}
+
+const regieSignatureState={};
+
+function initRegieSignaturePads(){
+  ['sigDienstnehmer','sigChef','sigBauleiter'].forEach(initRegieSignaturePad);
+}
+function initRegieSignaturePad(id){
+  const canvas=document.getElementById(id);
+  if(!canvas)return;
+  const rect=canvas.getBoundingClientRect();
+  const ratio=Math.max(1,window.devicePixelRatio||1);
+  const oldData=canvas.dataset.signed==='1' ? canvas.toDataURL('image/png') : '';
+  const cssW=Math.max(280,Math.round(rect.width||canvas.parentElement?.clientWidth||300));
+  const cssH=Math.max(120,Math.round(rect.height||140));
+
+  canvas.width=Math.round(cssW*ratio);
+  canvas.height=Math.round(cssH*ratio);
+  canvas.style.width=cssW+'px';
+  canvas.style.height=cssH+'px';
+
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(ratio,0,0,ratio,0,0);
+  ctx.lineWidth=2.2;
+  ctx.lineCap='round';
+  ctx.lineJoin='round';
+  ctx.strokeStyle='#111';
+
+  if(oldData){
+    const img=new Image();
+    img.onload=()=>ctx.drawImage(img,0,0,cssW,cssH);
+    img.src=oldData;
+  }
+
+  if(canvas.dataset.bound==='1')return;
+  canvas.dataset.bound='1';
+  let drawing=false;
+
+  function pos(e){
+    const r=canvas.getBoundingClientRect();
+    return {x:e.clientX-r.left,y:e.clientY-r.top};
+  }
+  canvas.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    drawing=true;
+    canvas.dataset.signed='1';
+    try{canvas.setPointerCapture(e.pointerId)}catch(err){}
+    const p=pos(e);
+    ctx.beginPath();
+    ctx.moveTo(p.x,p.y);
+  });
+  canvas.addEventListener('pointermove',e=>{
+    if(!drawing)return;
+    e.preventDefault();
+    const p=pos(e);
+    ctx.lineTo(p.x,p.y);
+    ctx.stroke();
+  });
+  function end(e){
+    if(!drawing)return;
+    drawing=false;
+    try{canvas.releasePointerCapture(e.pointerId)}catch(err){}
+  }
+  canvas.addEventListener('pointerup',end);
+  canvas.addEventListener('pointercancel',end);
+  canvas.addEventListener('pointerleave',e=>{ if(e.buttons===0)drawing=false; });
+}
+function clearRegieSignature(id){
+  const canvas=document.getElementById(id);
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  canvas.dataset.signed='0';
+}
+function regieSignatureData(id){
+  const canvas=document.getElementById(id);
+  if(!canvas || canvas.dataset.signed!=='1')return '';
+  return canvas.toDataURL('image/png');
+}
+function clearRegieForm(){
+  ['regieBauvorhaben','regieArbeiten','regieArbeitszeit','regieFacharbeiter','regieMaterial'].forEach(id=>{
+    const el=document.getElementById(id); if(el)el.value='';
+  });
+  const d=document.getElementById('regieDatum');
+  if(d)d.value=new Date().toISOString().slice(0,10);
+  ['sigDienstnehmer','sigChef','sigBauleiter'].forEach(clearRegieSignature);
+  const sig=document.getElementById('regieSignatureSection');
+  if(sig)sig.classList.add('hidden');
+  currentRegieDraftId='';
+  releaseRegieReadPdf();
+}
+function regieFormData(){
+  return {
+    bauvorhaben:(document.getElementById('regieBauvorhaben')?.value||'').trim(),
+    arbeiten:(document.getElementById('regieArbeiten')?.value||'').trim(),
+    arbeitszeit:(document.getElementById('regieArbeitszeit')?.value||'').trim(),
+    datum:(document.getElementById('regieDatum')?.value||'').trim(),
+    facharbeiter:(document.getElementById('regieFacharbeiter')?.value||'').trim(),
+    material:(document.getElementById('regieMaterial')?.value||'').trim(),
+    sigDienstnehmer:regieSignatureData('sigDienstnehmer'),
+    sigChef:regieSignatureData('sigChef'),
+    sigBauleiter:regieSignatureData('sigBauleiter')
+  };
+}
+function regieRequiredOkay(d){
+  if(!d.bauvorhaben && !d.arbeiten && !d.arbeitszeit && !d.material){
+    alert('Bitte Regiestunden-Daten eingeben.');
+    return false;
+  }
+  return true;
+}
+function fmtRegieDate(v){
+  if(!v)return '';
+  const p=v.split('-');
+  return p.length===3?`${p[2]}.${p[1]}.${p[0]}`:v;
+}
+function addRegieWrapped(pdf,label,value,x,y,maxWidth,lineHeight=5){
+  pdf.setFont(undefined,'bold');
+  pdf.text(label,x,y);
+  pdf.setFont(undefined,'normal');
+  const labelW=pdf.getTextWidth(label+' ');
+  const lines=pdf.splitTextToSize(String(value||''),Math.max(30,maxWidth-labelW));
+  if(lines.length){
+    pdf.text(lines,x+labelW,y);
+    return y+Math.max(1,lines.length)*lineHeight;
+  }
+  return y+lineHeight;
+}
+function buildRegiePDF(includeSignatures=true){
+  const d=regieFormData();
+  if(!regieRequiredOkay(d))return null;
+  const {jsPDF}=window.jspdf||{};
+  if(!jsPDF){alert('PDF-Modul konnte nicht geladen werden.');return null}
+
+  const pdf=new jsPDF({unit:'mm',format:'a4'});
+  const company=getCompanyProfile();
+  const companyName=company.name||'FR Rechnung';
+  const left=16,right=194;
+  let y=16;
+
+  if(logo){
+    try{
+      const format=logo.startsWith('data:image/jpeg')?'JPEG':'PNG';
+      pdf.addImage(logo,format,155,12,38,20,'','FAST');
+    }catch(e){}
+  }else{
+    pdf.setFontSize(16);pdf.setFont(undefined,'bold');pdf.text(companyName,194,20,{align:'right'});
+  }
+
+  pdf.setFontSize(18);pdf.setFont(undefined,'bold');
+  pdf.text('REGIESTUNDEN',left,22);
+
+  y=38;
+  pdf.setFontSize(10.5);
+  y=addRegieWrapped(pdf,'Bauherr/Bauvorhaben:',d.bauvorhaben,left,y,right-left,5.5);
+  y+=2;
+  y=addRegieWrapped(pdf,'Durchgeführte Arbeiten:',d.arbeiten,left,y,right-left,5.5);
+  y+=2;
+  y=addRegieWrapped(pdf,'ARBEITSZEIT:',d.arbeitszeit,left,y,right-left,5.5);
+  y+=2;
+  y=addRegieWrapped(pdf,'Datum:',fmtRegieDate(d.datum),left,y,right-left,5.5);
+  y+=2;
+  y=addRegieWrapped(pdf,'Regie FACHARBEITER:',d.facharbeiter,left,y,right-left,5.5);
+
+  y+=7;
+  pdf.setFont(undefined,'bold');pdf.text('MATERIALVERBRAUCH:',left,y);
+  pdf.setFont(undefined,'normal');
+  const materialLines=pdf.splitTextToSize(d.material||'',right-left);
+  if(materialLines.length)pdf.text(materialLines,left,y+6);
+  y+=Math.max(24,materialLines.length*5+10);
+
+  const sigY=Math.max(178,y+8);
+  const cols=[
+    {label:'Unterschrift Dienstnehmer',data:includeSignatures?d.sigDienstnehmer:'',x:16},
+    {label:'Unterschrift Chef',data:includeSignatures?d.sigChef:'',x:77},
+    {label:'Unterschrift Bauleiter',data:includeSignatures?d.sigBauleiter:'',x:138}
+  ];
+  pdf.setFontSize(8.5);
+  cols.forEach(c=>{
+    if(c.data){
+      try{pdf.addImage(c.data,'PNG',c.x,sigY,50,20,'','FAST')}catch(e){}
+    }
+    pdf.setDrawColor(100);pdf.line(c.x,sigY+22,c.x+50,sigY+22);
+    pdf.setTextColor(30);pdf.text(c.label,c.x,sigY+27);
+  });
+
+  // Footer with company data
+  pdf.setDrawColor(190);pdf.line(left,276,right,276);
+  pdf.setFontSize(8);pdf.setFont(undefined,'normal');
+  const footer=[
+    company.address||'',
+    [company.email,company.phone].filter(Boolean).join(' · '),
+    [company.uid?('UID '+company.uid):'',company.iban?('IBAN '+company.iban):''].filter(Boolean).join(' · ')
+  ].filter(Boolean);
+  footer.slice(0,3).forEach((line,i)=>pdf.text(String(line),105,282+i*4,{align:'center'}));
+
+  return {pdf,data:d};
+}
+
+
+let regieReadPdfUrl='';
+
+function releaseRegieReadPdf(){
+  if(regieReadPdfUrl){
+    try{URL.revokeObjectURL(regieReadPdfUrl)}catch(e){}
+    regieReadPdfUrl='';
+  }
+}
+function showRegieSignatures(){
+  const sig=document.getElementById('regieSignatureSection');
+  if(sig){
+    sig.classList.remove('hidden');
+    setTimeout(()=>{
+      initRegieSignaturePads();
+      sig.scrollIntoView({behavior:'smooth',block:'start'});
+    },80);
+  }
+}
+function openRegieForReading(){
+  const built=buildRegiePDF(false);
+  if(!built)return;
+
+  releaseRegieReadPdf();
+  regieReadPdfUrl=URL.createObjectURL(built.pdf.output('blob'));
+
+  // iPhone/Safari pouzdanije prikazuje PDF u posebnom tabu nego u iframe-u.
+  const w=window.open(regieReadPdfUrl,'_blank');
+  if(!w){
+    // Ako popup bude blokiran, PDF se skida/otvara kao fajl.
+    built.pdf.save(`Regiestunden_${built.data.datum||'Datum'}.pdf`);
+  }
+
+  const btn=document.getElementById('regieAfterReadBtn');
+  if(btn)btn.classList.remove('hidden');
+}
+
+
+function markCurrentRegieSigned(){
+  if(!currentRegieDraftId)return;
+  let arr=getRegieDrafts();
+  const i=arr.findIndex(x=>x.id===currentRegieDraftId);
+  if(i<0)return;
+  arr[i].status='Unterschrieben';
+  arr[i].savedAt=new Date().toISOString();
+  setRegieDrafts(arr);
+  renderRegieDrafts();
+}
+
+async function shareRegiePDF(){
+  markCurrentRegieSigned();
+  const built=buildRegiePDF(true);
+  if(!built)return;
+  const {pdf,data}=built;
+  const date=(data.datum||new Date().toISOString().slice(0,10));
+  const fileName=`Regiestunden_${date}.pdf`;
+  const blob=pdf.output('blob');
+  const file=new File([blob],fileName,{type:'application/pdf'});
+  try{
+    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'Regiestunden'});
+    }else{
+      pdf.save(fileName);
+    }
+  }catch(e){
+    if(e&&e.name!=='AbortError')pdf.save(fileName);
+  }
+}
+function openRegiePDF(){
+  markCurrentRegieSigned();
+  const built=buildRegiePDF(true);
+  if(!built)return;
+  const url=built.pdf.output('bloburl');
+  const w=window.open(url,'_blank');
+  if(!w)built.pdf.save(`Regiestunden_${built.data.datum||'Datum'}.pdf`);
+}
+
+function showMessen(){
+  hide();
+  const p=document.getElementById('messen');
+  if(p)p.classList.remove('hidden');
+  calcRoomMeasures();
+  renderMaterialCatalogList();
+  renderMeasureMaterialList();
+  syncMeasuredMaterial();
+  renderMeasureList();
+}
+function roomNum(id){
+  const e=document.getElementById(id);
+  return Math.max(0,parseFloat(String(e&&e.value||'').replace(',','.'))||0);
+}
+let wallMeasureSeq=0;
+let openingMeasureSeq=0;
+let floorMeasureSeq=0;
+let floorCutMeasureSeq=0;
+
+function measureInput(value, cls, placeholder=''){
+  return `<input class="${cls}" type="number" min="0" step="0.01" value="${value||''}" placeholder="${placeholder}" oninput="calcRoomMeasures()">`;
+}
+function addWallMeasureRow(width='',height=''){
+  wallMeasureSeq++;
+  const box=document.getElementById('wallMeasureRows');
+  if(!box)return;
+  const row=document.createElement('div');
+  row.className='measure-repeat-row wall-measure-row';
+  row.innerHTML=`
+    <div><label>Breite m</label>${measureInput(width,'wall-width')}</div>
+    <div><label>Höhe m</label>${measureInput(height,'wall-height')}</div>
+    <button class="measure-remove" type="button" aria-label="Wand löschen" onclick="removeMeasureRow(this,'wall')">✕</button>`;
+  box.appendChild(row);
+  calcRoomMeasures();
+}
+function addOpeningMeasureRow(type='Tür',width='',height='',count='1'){
+  openingMeasureSeq++;
+  const box=document.getElementById('openingMeasureRows');
+  if(!box)return;
+  const row=document.createElement('div');
+  row.className='measure-repeat-row opening opening-measure-row';
+  row.innerHTML=`
+    <div><label>Art</label><select class="opening-type" onchange="calcRoomMeasures()">
+      <option ${type==='Tür'?'selected':''}>Tür</option>
+      <option ${type==='Fenster'?'selected':''}>Fenster</option>
+      <option ${type==='Sonstige'?'selected':''}>Sonstige</option>
+    </select></div>
+    <div><label>Breite m</label>${measureInput(width,'opening-width')}</div>
+    <div><label>Höhe m</label>${measureInput(height,'opening-height')}</div>
+    <div><label>Anzahl</label><input class="opening-count" type="number" min="1" step="1" value="${count||1}" oninput="calcRoomMeasures()"></div>
+    <button class="measure-remove" type="button" aria-label="Öffnung löschen" onclick="removeMeasureRow(this,'opening')">✕</button>`;
+  box.appendChild(row);
+  calcRoomMeasures();
+}
+function addFloorMeasureRow(length='',width=''){
+  floorMeasureSeq++;
+  const box=document.getElementById('floorMeasureRows');
+  if(!box)return;
+  const row=document.createElement('div');
+  row.className='measure-repeat-row floor-measure-row';
+  row.innerHTML=`
+    <div><label>Länge m</label>${measureInput(length,'floor-length')}</div>
+    <div><label>Breite m</label>${measureInput(width,'floor-width')}</div>
+    <button class="measure-remove" type="button" aria-label="Bodenfläche löschen" onclick="removeMeasureRow(this,'floor')">✕</button>`;
+  box.appendChild(row);
+  calcRoomMeasures();
+}
+function addFloorCutMeasureRow(type='Dusche',length='',width='',count='1'){
+  floorCutMeasureSeq++;
+  const box=document.getElementById('floorCutMeasureRows');
+  if(!box)return;
+  const row=document.createElement('div');
+  row.className='measure-repeat-row floor-cut floor-cut-measure-row';
+  row.innerHTML=`
+    <div><label>Art</label><select class="floor-cut-type" onchange="calcRoomMeasures()">
+      <option ${type==='Dusche'?'selected':''}>Dusche</option>
+      <option ${type==='Badewanne'?'selected':''}>Badewanne</option>
+      <option ${type==='Sonstige'?'selected':''}>Sonstige</option>
+    </select></div>
+    <div><label>Länge m</label>${measureInput(length,'floor-cut-length')}</div>
+    <div><label>Breite m</label>${measureInput(width,'floor-cut-width')}</div>
+    <div><label>Anzahl</label><input class="floor-cut-count" type="number" min="1" step="1" value="${count||1}" oninput="calcRoomMeasures()"></div>
+    <button class="measure-remove" type="button" aria-label="Aussparung löschen" onclick="removeMeasureRow(this,'floorCut')">✕</button>`;
+  box.appendChild(row);
+  calcRoomMeasures();
+}
+function removeMeasureRow(btn,kind){
+  btn.closest('.measure-repeat-row')?.remove();
+  // Mindestens eine Wand- und Bodenzeile stehen lassen.
+  if(kind==='wall' && !document.querySelector('.wall-measure-row'))addWallMeasureRow();
+  if(kind==='floor' && !document.querySelector('.floor-measure-row'))addFloorMeasureRow();
+  calcRoomMeasures();
+}
+function rowNumber(row,selector){
+  return Math.max(0,parseFloat(row.querySelector(selector)?.value)||0);
+}
+function calcRoomMeasures(){
+  let wallGross=0;
+  document.querySelectorAll('.wall-measure-row').forEach(row=>{
+    wallGross+=rowNumber(row,'.wall-width')*rowNumber(row,'.wall-height');
+  });
+
+  let openings=0;
+  document.querySelectorAll('.opening-measure-row').forEach(row=>{
+    openings+=rowNumber(row,'.opening-width')*rowNumber(row,'.opening-height')*Math.max(1,rowNumber(row,'.opening-count')||1);
+  });
+
+  let floorGross=0;
+  document.querySelectorAll('.floor-measure-row').forEach(row=>{
+    floorGross+=rowNumber(row,'.floor-length')*rowNumber(row,'.floor-width');
+  });
+
+  let floorCuts=0;
+  document.querySelectorAll('.floor-cut-measure-row').forEach(row=>{
+    floorCuts+=rowNumber(row,'.floor-cut-length')*rowNumber(row,'.floor-cut-width')*Math.max(1,rowNumber(row,'.floor-cut-count')||1);
+  });
+
+  const wall=Math.max(0,wallGross-openings);
+  const floor=Math.max(0,floorGross-floorCuts);
+
+  const wr=document.getElementById('roomWallResult');
+  const fr=document.getElementById('roomFloorResult');
+  const wb=document.getElementById('roomWallBreakdown');
+  const fb=document.getElementById('roomFloorBreakdown');
+  if(wr)wr.textContent=num(wall);
+  if(fr)fr.textContent=num(floor);
+  if(wb)wb.textContent=`Wände ${num(wallGross)} m² · Türen/Fenster −${num(openings)} m²`;
+  if(fb)fb.textContent=`Boden ${num(floorGross)} m² · Dusche/Badewanne −${num(floorCuts)} m²`;
+
+  return {wall,floor,wallGross,openings,floorGross,floorCuts};
+}
+
+
+
+
+function updateCustomRegieTotal(){
+  const qty=Math.max(0,parseFloat(document.getElementById('regieCustomQty')?.value)||0);
+  const price=Math.max(0,parseFloat(document.getElementById('regieCustomPrice')?.value)||0);
+  const total=document.getElementById('regieCustomTotal');
+  if(total)total.value=(qty>0 && price>0)?(qty*price).toFixed(2)+' €':'';
+}
+
+function collectRegieInfo(room){
+  const out=[];
+
+  const presetPrice=Math.max(0,parseFloat(document.getElementById('regiePresetPrice')?.value)||0);
+  if(presetPrice>0){
+    out.push({
+      desc:`Regiestunden: Material tragen, Stemmen, Ausgleichen, Gehrung schneiden, Schleifen Maschine Wand/Boden, Rinne setzen, Nische herstellen, Palette fahren, Schutt fahren/entsorgen – nur nach Vereinbarung und Ihrer Bestätigung`,
+      qty:0,
+      unit:'Std.',
+      price:presetPrice,
+      kind:'regieinfo'
+    });
+  }
+
+  const custom=(document.getElementById('regieCustomText')?.value||'').trim();
+  const customQty=Math.max(0,parseFloat(document.getElementById('regieCustomQty')?.value)||0);
+  const customPrice=Math.max(0,parseFloat(document.getElementById('regieCustomPrice')?.value)||0);
+  if(custom && customQty>0 && customPrice>0){
+    out.push({
+      desc:`Regiestunden: ${custom}`,
+      qty:customQty,
+      unit:'Std.',
+      price:customPrice,
+      kind:'work'
+    });
+  }
+
+  return out;
+}
+
+function resetRegieRows(){
+  const presetPrice=document.getElementById('regiePresetPrice');
+  const custom=document.getElementById('regieCustomText');
+  const customQty=document.getElementById('regieCustomQty');
+  const customPrice=document.getElementById('regieCustomPrice');
+  const customTotal=document.getElementById('regieCustomTotal');
+  if(presetPrice)presetPrice.value='';
+  if(custom)custom.value='';
+  if(customQty)customQty.value='';
+  if(customPrice)customPrice.value='';
+  if(customTotal)customTotal.value='';
+}
+
+
+
+const lfmConfig={
+  sockel:{rows:'sockelMeasureRows',input:'roomSockel',result:'roomSockelResult',label:'Sockel'},
+  schiene:{rows:'schieneMeasureRows',input:'roomSchiene',result:'roomSchieneResult',label:'Schiene'},
+  silikon:{rows:'silikonMeasureRows',input:'roomSilikon',result:'roomSilikonResult',label:'Silikon'},
+  stufen:{rows:'stufenMeasureRows',input:'roomStufen',result:'roomStufenResult',label:'Stufen'},
+  stufensockel:{rows:'stufensockelMeasureRows',input:'roomStufensockel',result:'roomStufensockelResult',label:'Stufensockel'}
+};
+
+function addLfmMeasureRow(kind,length=''){
+  const cfg=lfmConfig[kind];
+  if(!cfg)return;
+  const box=document.getElementById(cfg.rows);
+  if(!box)return;
+  const row=document.createElement('div');
+  row.className='sockel-repeat-row';
+  row.dataset.lfmKind=kind;
+  row.innerHTML=`
+    <div>
+      <label>Länge m / lfm</label>
+      <input class="lfm-length" type="number" min="0" step="0.01" value="${escAttr(length)}" placeholder="z.B. 2,40" oninput="calcLfmMeasures('${kind}')">
+    </div>
+    <button class="measure-remove" type="button" aria-label="${escAttr(cfg.label)}-Länge löschen" onclick="removeLfmMeasureRow(this,'${kind}')">✕</button>`;
+  box.appendChild(row);
+  calcLfmMeasures(kind);
+}
+function removeLfmMeasureRow(btn,kind){
+  btn.closest('.sockel-repeat-row')?.remove();
+  const cfg=lfmConfig[kind];
+  if(cfg && !document.querySelector(`#${cfg.rows} .sockel-repeat-row`))addLfmMeasureRow(kind);
+  calcLfmMeasures(kind);
+}
+function calcLfmMeasures(kind){
+  const cfg=lfmConfig[kind];
+  if(!cfg)return 0;
+  let total=0;
+  document.querySelectorAll(`#${cfg.rows} .lfm-length`).forEach(el=>{
+    total+=Math.max(0,parseFloat(el.value)||0);
+  });
+  const input=document.getElementById(cfg.input);
+  const result=document.getElementById(cfg.result);
+  if(input)input.value=total?total.toFixed(2):'';
+  if(result)result.textContent=num(total);
+  return total;
+}
+function resetAllLfmMeasureRows(){
+  Object.keys(lfmConfig).forEach(kind=>{
+    const cfg=lfmConfig[kind];
+    const box=document.getElementById(cfg.rows);
+    if(box)box.innerHTML='';
+    addLfmMeasureRow(kind);
+  });
+}
+
+function addRoomToList(){
+  const room=(document.getElementById('measureRoomName').value||'').trim();
+  if(!room){alert('Bitte Raum / Bereich eingeben.');return}
+  const a=calcRoomMeasures();
+  const items=[];
+  function push(desc,qty,unit,price){
+    qty=Number(qty)||0; price=Number(price)||0;
+    if(qty>0)items.push({desc:`${room} – ${desc}`,qty,unit,price});
+  }
+  push('Wandfliesen verlegen',a.wall,'m²',roomNum('roomWallPrice'));
+  push('Bodenfliesen verlegen',a.floor,'m²',roomNum('roomFloorPrice'));
+
+  // Weitere Arbeiten stehen separat im Angebot/Rechnung, ohne Raumname.
+  function pushSeparate(desc,qty,unit,price){
+    qty=Number(qty)||0; price=Number(price)||0;
+    if(qty>0)items.push({desc,qty,unit,price});
+  }
+  pushSeparate('Sockel verlegen',roomNum('roomSockel'),'lfm',roomNum('roomSockelPrice'));
+  pushSeparate('Schiene verlegen',roomNum('roomSchiene'),'lfm',roomNum('roomSchienePrice'));
+  pushSeparate('Silikon',roomNum('roomSilikon'),'lfm',roomNum('roomSilikonPrice'));
+  pushSeparate('Stufen verlegen',roomNum('roomStufen'),'lfm',roomNum('roomStufenPrice'));
+  pushSeparate('Stufensockel verlegen',roomNum('roomStufensockel'),'lfm',roomNum('roomStufensockelPrice'));
+
+  items.push(...collectRegieInfo(room));
+  if(!items.length){alert('Bitte mindestens eine Menge eingeben.');return}
+  measurementList.push({
+    room,items,
+    detail:{
+      wallGross:a.wallGross,openings:a.openings,
+      floorGross:a.floorGross,floorCuts:a.floorCuts
+    }
+  });
+  clearRoomInputs();
+  renderMeasureList();
+}
+function resetRepeatMeasureRows(){
+  const ids=['wallMeasureRows','openingMeasureRows','floorMeasureRows','floorCutMeasureRows'];
+  ids.forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=''});
+  addWallMeasureRow();
+  addFloorMeasureRow();
+  calcRoomMeasures();
+}
+function clearRoomInputs(){
+  document.getElementById('measureRoomName').value='';
+  [
+    'roomWallPrice','roomFloorPrice',
+    'roomSockel','roomSockelPrice','roomSchiene','roomSchienePrice',
+    'roomSilikon','roomSilikonPrice','roomStufen','roomStufenPrice',
+    'roomStufensockel','roomStufensockelPrice'
+  ].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});
+  resetRepeatMeasureRows();
+  resetAllLfmMeasureRows();
+  resetRegieRows();
+}
+
+function renderMeasureList(){
+  const box=document.getElementById('measureList');
+  if(!box)return;
+  if(!measurementList.length){
+    box.innerHTML='<p class="small">Noch keine Räume gespeichert.</p>';
+    return;
+  }
+  box.innerHTML=measurementList.map((r,i)=>`
+    <div class="invoice">
+      <div class="invoice-top">
+        <div><b>${esc(r.room)}</b><br>
+          <span class="small">${r.items.map(x=>x.kind==='regieinfo'
+            ? esc(x.desc.replace(r.room+' – ',''))+': '+euro(x.price)+'/Std.'
+            : esc(x.desc.replace(r.room+' – ',''))+': '+num(x.qty)+' '+esc(x.unit)).join('<br>')}</span>
+        </div>
+        <button type="button" class="remove" onclick="removeRoomMeasurement(${i})">✕</button>
+      </div>
+    </div>`).join('');
+}
+function removeRoomMeasurement(i){
+  measurementList.splice(i,1);
+  renderMeasureList();
+}
+function clearMeasureList(){
+  if(!measurementList.length&&!measurementMaterials.length)return;
+  if(confirm('Messliste und Material wirklich leeren?')){
+    measurementList=[];
+    measurementMaterials=[];
+    renderMeasureList();
+    renderMeasureMaterialList();
+  }
+}
+function captureCurrentMeasureInputs(){
+  // Ako je Raum trenutno popunjen, automatski ga dodaj u dokument
+  // čak i kada korisnik nije pritisnuo + Raum hinzufügen.
+  const room=(document.getElementById('measureRoomName')?.value||'').trim();
+  if(room){
+    addRoomToList();
+  }
+
+  // Isto za trenutno izabran Material koji još nije dodat na listu.
+  const materialName=(document.getElementById('measureMaterialName')?.value||'').trim();
+  if(materialName){
+    const qty=Math.max(0,parseMaterialNumber(document.getElementById('measureMaterialQty')?.value));
+    const hasCatalog=!!selectedMaterial();
+    const customPrice=Math.max(0,parseMaterialNumber(document.getElementById('measureMaterialPrice')?.value));
+    if(qty>0 && (hasCatalog || (customMaterialMode && customPrice>0))){
+      addMeasuredMaterial();
+    }
+  }
+}
+
+function measureListToDoc(type){
+  captureCurrentMeasureInputs();
+  if(!measurementList.length&&!measurementMaterials.length){alert('Messliste ist leer.');return}
+  showForm(type);
+  document.getElementById('items').innerHTML='';
+  measurementList.forEach(r=>{
+    r.items.forEach(x=>addItem(
+      x.desc,
+      x.kind==='regieinfo'?'':Number(x.qty).toFixed(2),
+      x.unit,
+      x.price?Number(x.price).toFixed(2):'',
+      x.kind||'work',
+      ''
+    ));
+  });
+  measurementMaterials.forEach(m=>addItem(m.desc,Number(m.qty).toFixed(2),m.unit,Number(m.price).toFixed(2),'material',Number(m.costPrice).toFixed(2)));
+  const materialCost=measurementMaterials.reduce((sum,m)=>sum+Number(m.qty||0)*Number(m.costPrice||0),0);
+  document.getElementById('materialCost').value=materialCost?materialCost.toFixed(2):'';
+  const measureMode=document.getElementById('measureMaterialPdfMode');
+  const formMode=document.getElementById('materialPdfPriceMode');
+  if(measureMode&&formMode)formMode.value=measureMode.value||'on';
+}
+
+resetRepeatMeasureRows();
+resetAllLfmMeasureRows();
+resetRegieRows();
+
+async function initAccountGate(){
+  showAccountScreen();
+  const r=await sb.auth.getSession();
+  const session=r&&r.data?r.data.session:null;
+  if(session&&session.user){
+    cloudUser=session.user;
+    await afterAccountLogin();
+  }else{
+    setAccountStatus('Bitte anmelden oder neues Konto erstellen.');
+  }
+}
+initAccountGate();
+
+// v51: Material-Autofill +40% + Material Preis ON/OFF + Raum messen
+let frLastAutoImport=0;
+async function autoPullChatgptInvoices(){
+  const token=localStorage.getItem(userKey(FR_IMPORT_TOKEN_KEY))||'';
+  if(!token) return;
+  const now=Date.now();
+  if(now-frLastAutoImport<15000) return;
+  frLastAutoImport=now;
+  await pullChatgptInvoices(false);
+}
+async function frAutoRefresh(){
+  if(!cloudUser)return;
+  await autoPullChatgptInvoices();
+  await autoCloudSync();
+}
+setTimeout(frAutoRefresh,1200);
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible') setTimeout(frAutoRefresh,300);
+});
 </script>
 </body>
 </html>
