@@ -210,23 +210,44 @@ label{font-weight:700}
   </div>
 
   <div id="home" class="card">
-    <h2>Übersicht</h2>
-    <div class="stats">
-      <div class="stat">Rechnungen gesamt<b id="statTotal">0,00 €</b></div>
-      <div class="stat">Bezahlt<b id="statPaid">0,00 €</b></div>
-      <div class="stat">Offen<b id="statOpen">0,00 €</b></div>
-      <div class="stat">Material gesamt<b id="statMaterial">0,00 €</b></div>
-      <div class="stat">Übrig nach Material<b id="statProfit">0,00 €</b></div>
-      <div class="stat">Offene Rechnungen<b id="statOpenCount">0</b></div>
+    <div id="overviewMenu">
+      <h2>Übersicht</h2>
+      <p class="small">Dokumente und Beträge werden erst nach Auswahl angezeigt.</p>
+      <div class="settings-menu">
+        <button class="settings-menu-item" onclick="showForm('Rechnung')"><span>+ Neue Rechnung</span><span>›</span></button>
+        <button class="settings-menu-item" onclick="showForm('Angebot')"><span>+ Neues Angebot</span><span>›</span></button>
+        <button class="settings-menu-item" onclick="showOverviewSection('invoices')"><span>Rechnungen</span><span>›</span></button>
+        <button class="settings-menu-item" onclick="showOverviewSection('offers')"><span>Angebote</span><span>›</span></button>
+        <button class="settings-menu-item" onclick="showOverviewSection('stats')"><span>Auswertung</span><span>›</span></button>
+        <button class="settings-menu-item" onclick="showMessen()"><span>📐 Messen</span><span>›</span></button>
+        <button class="settings-menu-item" onclick="showRegiestunden()"><span>⏱️ Regiestunden PDF</span><span>›</span></button>
+      </div>
     </div>
-    <button class="btn" onclick="showForm('Rechnung')">+ Neue Rechnung</button>
-    <button class="btn outline" onclick="showForm('Angebot')">+ Neues Angebot</button>
-    <button class="btn outline" type="button" onclick="showMessen()">📐 Messen</button>
-    <button class="btn outline" type="button" onclick="showRegiestunden()">⏱️ Regiestunden PDF</button>
-    <h3>Gespeicherte Rechnungen</h3>
-    <div id="invoiceList"></div>
-    <h3>Gespeicherte Angebote</h3>
-    <div id="offerList"></div>
+
+    <div id="overview-invoices" class="overview-section hidden">
+      <button class="settings-back" onclick="overviewBack()">‹ Übersicht</button>
+      <h2>Rechnungen</h2>
+      <div id="invoiceList"></div>
+    </div>
+
+    <div id="overview-offers" class="overview-section hidden">
+      <button class="settings-back" onclick="overviewBack()">‹ Übersicht</button>
+      <h2>Angebote</h2>
+      <div id="offerList"></div>
+    </div>
+
+    <div id="overview-stats" class="overview-section hidden">
+      <button class="settings-back" onclick="overviewBack()">‹ Übersicht</button>
+      <h2>Auswertung</h2>
+      <div class="stats">
+        <div class="stat">Rechnungen gesamt<b id="statTotal">0,00 €</b></div>
+        <div class="stat">Bezahlt<b id="statPaid">0,00 €</b></div>
+        <div class="stat">Offen<b id="statOpen">0,00 €</b></div>
+        <div class="stat">Material gesamt<b id="statMaterial">0,00 €</b></div>
+        <div class="stat">Übrig nach Material<b id="statProfit">0,00 €</b></div>
+        <div class="stat">Offene Rechnungen<b id="statOpenCount">0</b></div>
+      </div>
+    </div>
   </div>
 
 
@@ -583,7 +604,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v80 · Privacy API Fix · Enable Banking</b></p>
+      <p class="small"><b>Version v81 · Private Übersicht · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1844,7 +1865,21 @@ const units=['m²','lfm','Std.','Stk.','ST','Sack','Dose','m','Kübel','SET','5 
 let itemCount=0;
 
 function hide(){H.forEach(x=>document.getElementById(x).classList.add('hidden'))}
-function home(){hide();document.getElementById('home').classList.remove('hidden');renderDashboard()}
+function resetOverview(){
+  const menu=document.getElementById('overviewMenu');
+  if(menu)menu.classList.remove('hidden');
+  document.querySelectorAll('.overview-section').forEach(x=>x.classList.add('hidden'));
+}
+function showOverviewSection(name){
+  renderDashboard();
+  const menu=document.getElementById('overviewMenu');
+  if(menu)menu.classList.add('hidden');
+  document.querySelectorAll('.overview-section').forEach(x=>x.classList.add('hidden'));
+  const section=document.getElementById('overview-'+name);
+  if(section)section.classList.remove('hidden');
+}
+function overviewBack(){resetOverview()}
+function home(){hide();document.getElementById('home').classList.remove('hidden');resetOverview();renderDashboard()}
 
 function nextDocNumber(type,dateValue){
   const raw=dateValue||new Date().toISOString().slice(0,10);
