@@ -583,7 +583,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v76 · Enable Banking Sync · Regiestunden Entwurf speichern</b></p>
+      <p class="small"><b>Version v77 · Enable Banking Sync Fix · Regiestunden Entwurf speichern</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -925,9 +925,9 @@ async function bankCompleteReturn(){
 
   try{
     updateBankStatusUi('Bank-Verbindung wird abgeschlossen…');
-    const d=await bankApiJson('/api/bank-session',{
+    const d=await bankApiJson('/api/bank-connect',{
       method:'POST',
-      body:JSON.stringify({code,state})
+      body:JSON.stringify({mode:'complete',code,state})
     });
     if(!d.connection_token)throw new Error('Verbindungstoken fehlt.');
     bankLocalSet(BANK_CONN_KEY,d.connection_token);
@@ -950,9 +950,9 @@ async function bankDisconnect(){
   const connection=bankLocalGet(BANK_CONN_KEY);
   if(connection){
     try{
-      await bankApiJson('/api/bank-disconnect',{
+      await bankApiJson('/api/bank-transactions',{
         method:'POST',
-        body:JSON.stringify({connection_token:connection})
+        body:JSON.stringify({mode:'disconnect',connection_token:connection})
       });
     }catch(e){}
   }
