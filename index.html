@@ -253,8 +253,9 @@ label{font-weight:700}
       <textarea id="regieMaterial" placeholder="z.B. Kleber, Grundierung, Schiene ..."></textarea>
     </div>
 
-    <button class="btn" type="button" onclick="previewRegiePDF()">1. PDF ansehen / lesen</button>
-    <p class="regie-pdf-note">Prvo pokažeš PDF kupcu da pročita. Tek posle potvrde otvara se potpis.</p>
+    <button class="btn" type="button" onclick="openRegieForReading()">1. PDF öffnen zum Lesen</button>
+    <p class="regie-pdf-note">PDF se otvara posebno na iPhone-u. Kunde pročita, zatim se vrati u FR App i klikne dugme ispod.</p>
+    <button id="regieAfterReadBtn" class="btn outline hidden" type="button" onclick="showRegieSignatures()">PDF gelesen – jetzt unterschreiben</button>
 
     <div id="regieSignatureSection" class="hidden">
       <h3>2. Unterschriften nach dem Lesen</h3>
@@ -292,20 +293,6 @@ label{font-weight:700}
 
     <button class="btn outline" type="button" onclick="clearRegieForm()">Regiestunden leeren</button>
     <button class="btn outline" type="button" onclick="home()">Zurück</button>
-  </div>
-
-  <div id="regiePdfPreviewModal" class="regie-preview-modal hidden">
-    <div class="regie-preview-card">
-      <div class="regie-preview-head">
-        <span>Regiestunden PDF lesen</span>
-        <button class="measure-remove" type="button" onclick="closeRegiePdfPreview()">✕</button>
-      </div>
-      <iframe id="regiePdfFrame" class="regie-preview-frame"></iframe>
-      <div class="regie-preview-actions">
-        <button class="btn outline" type="button" onclick="closeRegiePdfPreview()">Zurück</button>
-        <button class="btn" type="button" onclick="regiePreviewToSignature()">PDF gelesen – jetzt unterschreiben</button>
-      </div>
-    </div>
   </div>
 
   <div id="messen" class="card hidden">
@@ -582,7 +569,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v73 · PDF zuerst lesen · danach Handy-Unterschrift · Bank Sync</b></p>
+      <p class="small"><b>Version v74 · PDF extern öffnen · danach Handy-Unterschrift · Bank Sync</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -3106,6 +3093,8 @@ function showRegiestunden(){
   if(d && !d.value)d.value=new Date().toISOString().slice(0,10);
   const sig=document.getElementById('regieSignatureSection');
   if(sig)sig.classList.add('hidden');
+  const readBtn=document.getElementById('regieAfterReadBtn');
+  if(readBtn)readBtn.classList.add('hidden');
 }
 
 const regieSignatureState={};
@@ -3194,7 +3183,7 @@ function clearRegieForm(){
   ['sigDienstnehmer','sigChef','sigBauleiter'].forEach(clearRegieSignature);
   const sig=document.getElementById('regieSignatureSection');
   if(sig)sig.classList.add('hidden');
-  closeRegiePdfPreview();
+  releaseRegieReadPdf();
 }
 function regieFormData(){
   return {
@@ -3304,31 +3293,16 @@ function buildRegiePDF(includeSignatures=true){
   return {pdf,data:d};
 }
 
-let regiePreviewUrl='';
 
-function closeRegiePdfPreview(){
-  const modal=document.getElementById('regiePdfPreviewModal');
-  const frame=document.getElementById('regiePdfFrame');
-  if(modal)modal.classList.add('hidden');
-  if(frame)frame.src='about:blank';
-  if(regiePreviewUrl){
-    try{URL.revokeObjectURL(regiePreviewUrl)}catch(e){}
-    regiePreviewUrl='';
+let regieReadPdfUrl='';
+
+function releaseRegieReadPdf(){
+  if(regieReadPdfUrl){
+    try{URL.revokeObjectURL(regieReadPdfUrl)}catch(e){}
+    regieReadPdfUrl='';
   }
 }
-function previewRegiePDF(){
-  const built=buildRegiePDF(false);
-  if(!built)return;
-  closeRegiePdfPreview();
-  const blob=built.pdf.output('blob');
-  regiePreviewUrl=URL.createObjectURL(blob);
-  const frame=document.getElementById('regiePdfFrame');
-  const modal=document.getElementById('regiePdfPreviewModal');
-  if(frame)frame.src=regiePreviewUrl;
-  if(modal)modal.classList.remove('hidden');
-}
-function regiePreviewToSignature(){
-  closeRegiePdfPreview();
+function showRegieSignatures(){
   const sig=document.getElementById('regieSignatureSection');
   if(sig){
     sig.classList.remove('hidden');
@@ -3337,6 +3311,23 @@ function regiePreviewToSignature(){
       sig.scrollIntoView({behavior:'smooth',block:'start'});
     },80);
   }
+}
+function openRegieForReading(){
+  const built=buildRegiePDF(false);
+  if(!built)return;
+
+  releaseRegieReadPdf();
+  regieReadPdfUrl=URL.createObjectURL(built.pdf.output('blob'));
+
+  // iPhone/Safari pouzdanije prikazuje PDF u posebnom tabu nego u iframe-u.
+  const w=window.open(regieReadPdfUrl,'_blank');
+  if(!w){
+    // Ako popup bude blokiran, PDF se skida/otvara kao fajl.
+    built.pdf.save(`Regiestunden_${built.data.datum||'Datum'}.pdf`);
+  }
+
+  const btn=document.getElementById('regieAfterReadBtn');
+  if(btn)btn.classList.remove('hidden');
 }
 
 async function shareRegiePDF(){
