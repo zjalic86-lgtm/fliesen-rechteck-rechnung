@@ -140,6 +140,14 @@ label{font-weight:700}
   .signature-canvas{height:150px}
 }
 
+
+.regie-preview-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:12000;padding:12px;display:flex;align-items:center;justify-content:center}
+.regie-preview-card{width:min(900px,100%);height:min(94vh,980px);background:#fff;border-radius:18px;display:flex;flex-direction:column;overflow:hidden}
+.regie-preview-head{padding:12px 14px;border-bottom:1px solid #e5e5e5;font-weight:800;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.regie-preview-frame{width:100%;flex:1;border:0;background:#f1f1f1}
+.regie-preview-actions{padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px solid #e5e5e5}
+@media(max-width:620px){.regie-preview-actions{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -245,39 +253,59 @@ label{font-weight:700}
       <textarea id="regieMaterial" placeholder="z.B. Kleber, Grundierung, Schiene ..."></textarea>
     </div>
 
-    <h3>Unterschriften</h3>
-    <div class="signature-grid">
-      <div class="signature-box">
-        <label>Dienstnehmer</label>
-        <canvas id="sigDienstnehmer" class="signature-canvas"></canvas>
-        <div class="signature-actions">
-          <button class="btn outline" type="button" onclick="clearRegieSignature('sigDienstnehmer')">Löschen</button>
+    <button class="btn" type="button" onclick="previewRegiePDF()">1. PDF ansehen / lesen</button>
+    <p class="regie-pdf-note">Prvo pokažeš PDF kupcu da pročita. Tek posle potvrde otvara se potpis.</p>
+
+    <div id="regieSignatureSection" class="hidden">
+      <h3>2. Unterschriften nach dem Lesen</h3>
+      <div class="signature-grid">
+        <div class="signature-box">
+          <label>Dienstnehmer</label>
+          <canvas id="sigDienstnehmer" class="signature-canvas"></canvas>
+          <div class="signature-actions">
+            <button class="btn outline" type="button" onclick="clearRegieSignature('sigDienstnehmer')">Löschen</button>
+          </div>
+        </div>
+
+        <div class="signature-box">
+          <label>Chef</label>
+          <canvas id="sigChef" class="signature-canvas"></canvas>
+          <div class="signature-actions">
+            <button class="btn outline" type="button" onclick="clearRegieSignature('sigChef')">Löschen</button>
+          </div>
+        </div>
+
+        <div class="signature-box">
+          <label>Bauleiter</label>
+          <canvas id="sigBauleiter" class="signature-canvas"></canvas>
+          <div class="signature-actions">
+            <button class="btn outline" type="button" onclick="clearRegieSignature('sigBauleiter')">Löschen</button>
+          </div>
         </div>
       </div>
 
-      <div class="signature-box">
-        <label>Chef</label>
-        <canvas id="sigChef" class="signature-canvas"></canvas>
-        <div class="signature-actions">
-          <button class="btn outline" type="button" onclick="clearRegieSignature('sigChef')">Löschen</button>
-        </div>
-      </div>
+      <p class="regie-pdf-note">Posle čitanja kupac/Bauleiter potpisuje direktno prstom na telefonu. Potpis se zatim ubacuje u isti PDF.</p>
 
-      <div class="signature-box">
-        <label>Bauleiter</label>
-        <canvas id="sigBauleiter" class="signature-canvas"></canvas>
-        <div class="signature-actions">
-          <button class="btn outline" type="button" onclick="clearRegieSignature('sigBauleiter')">Löschen</button>
-        </div>
-      </div>
+      <button class="btn" type="button" onclick="shareRegiePDF()">Unterschriebenes PDF senden / teilen</button>
+      <button class="btn outline" type="button" onclick="openRegiePDF()">Unterschriebenes PDF öffnen / Drucken</button>
     </div>
 
-    <p class="regie-pdf-note">Potpis prstom ostaje direktno u PDF-u. Ako neko ne potpiše, u PDF-u ostaje prazna linija za potpis.</p>
-
-    <button class="btn" type="button" onclick="shareRegiePDF()">PDF senden / teilen</button>
-    <button class="btn outline" type="button" onclick="openRegiePDF()">PDF öffnen / Drucken</button>
     <button class="btn outline" type="button" onclick="clearRegieForm()">Regiestunden leeren</button>
     <button class="btn outline" type="button" onclick="home()">Zurück</button>
+  </div>
+
+  <div id="regiePdfPreviewModal" class="regie-preview-modal hidden">
+    <div class="regie-preview-card">
+      <div class="regie-preview-head">
+        <span>Regiestunden PDF lesen</span>
+        <button class="measure-remove" type="button" onclick="closeRegiePdfPreview()">✕</button>
+      </div>
+      <iframe id="regiePdfFrame" class="regie-preview-frame"></iframe>
+      <div class="regie-preview-actions">
+        <button class="btn outline" type="button" onclick="closeRegiePdfPreview()">Zurück</button>
+        <button class="btn" type="button" onclick="regiePreviewToSignature()">PDF gelesen – jetzt unterschreiben</button>
+      </div>
+    </div>
   </div>
 
   <div id="messen" class="card hidden">
@@ -554,7 +582,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v72 · Regiestunden PDF + Handy-Unterschrift · Bank Sync</b></p>
+      <p class="small"><b>Version v73 · PDF zuerst lesen · danach Handy-Unterschrift · Bank Sync</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -3076,7 +3104,8 @@ function showRegiestunden(){
   if(p)p.classList.remove('hidden');
   const d=document.getElementById('regieDatum');
   if(d && !d.value)d.value=new Date().toISOString().slice(0,10);
-  setTimeout(initRegieSignaturePads,50);
+  const sig=document.getElementById('regieSignatureSection');
+  if(sig)sig.classList.add('hidden');
 }
 
 const regieSignatureState={};
@@ -3163,6 +3192,9 @@ function clearRegieForm(){
   const d=document.getElementById('regieDatum');
   if(d)d.value=new Date().toISOString().slice(0,10);
   ['sigDienstnehmer','sigChef','sigBauleiter'].forEach(clearRegieSignature);
+  const sig=document.getElementById('regieSignatureSection');
+  if(sig)sig.classList.add('hidden');
+  closeRegiePdfPreview();
 }
 function regieFormData(){
   return {
@@ -3201,7 +3233,7 @@ function addRegieWrapped(pdf,label,value,x,y,maxWidth,lineHeight=5){
   }
   return y+lineHeight;
 }
-function buildRegiePDF(){
+function buildRegiePDF(includeSignatures=true){
   const d=regieFormData();
   if(!regieRequiredOkay(d))return null;
   const {jsPDF}=window.jspdf||{};
@@ -3246,9 +3278,9 @@ function buildRegiePDF(){
 
   const sigY=Math.max(178,y+8);
   const cols=[
-    {label:'Unterschrift Dienstnehmer',data:d.sigDienstnehmer,x:16},
-    {label:'Unterschrift Chef',data:d.sigChef,x:77},
-    {label:'Unterschrift Bauleiter',data:d.sigBauleiter,x:138}
+    {label:'Unterschrift Dienstnehmer',data:includeSignatures?d.sigDienstnehmer:'',x:16},
+    {label:'Unterschrift Chef',data:includeSignatures?d.sigChef:'',x:77},
+    {label:'Unterschrift Bauleiter',data:includeSignatures?d.sigBauleiter:'',x:138}
   ];
   pdf.setFontSize(8.5);
   cols.forEach(c=>{
@@ -3271,8 +3303,44 @@ function buildRegiePDF(){
 
   return {pdf,data:d};
 }
+
+let regiePreviewUrl='';
+
+function closeRegiePdfPreview(){
+  const modal=document.getElementById('regiePdfPreviewModal');
+  const frame=document.getElementById('regiePdfFrame');
+  if(modal)modal.classList.add('hidden');
+  if(frame)frame.src='about:blank';
+  if(regiePreviewUrl){
+    try{URL.revokeObjectURL(regiePreviewUrl)}catch(e){}
+    regiePreviewUrl='';
+  }
+}
+function previewRegiePDF(){
+  const built=buildRegiePDF(false);
+  if(!built)return;
+  closeRegiePdfPreview();
+  const blob=built.pdf.output('blob');
+  regiePreviewUrl=URL.createObjectURL(blob);
+  const frame=document.getElementById('regiePdfFrame');
+  const modal=document.getElementById('regiePdfPreviewModal');
+  if(frame)frame.src=regiePreviewUrl;
+  if(modal)modal.classList.remove('hidden');
+}
+function regiePreviewToSignature(){
+  closeRegiePdfPreview();
+  const sig=document.getElementById('regieSignatureSection');
+  if(sig){
+    sig.classList.remove('hidden');
+    setTimeout(()=>{
+      initRegieSignaturePads();
+      sig.scrollIntoView({behavior:'smooth',block:'start'});
+    },80);
+  }
+}
+
 async function shareRegiePDF(){
-  const built=buildRegiePDF();
+  const built=buildRegiePDF(true);
   if(!built)return;
   const {pdf,data}=built;
   const date=(data.datum||new Date().toISOString().slice(0,10));
@@ -3290,7 +3358,7 @@ async function shareRegiePDF(){
   }
 }
 function openRegiePDF(){
-  const built=buildRegiePDF();
+  const built=buildRegiePDF(true);
   if(!built)return;
   const url=built.pdf.output('bloburl');
   const w=window.open(url,'_blank');
