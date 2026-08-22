@@ -148,6 +148,13 @@ label{font-weight:700}
 .regie-preview-actions{padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;border-top:1px solid #e5e5e5}
 @media(max-width:620px){.regie-preview-actions{grid-template-columns:1fr}}
 
+
+.regie-draft{border:1px solid #ddd;border-radius:13px;padding:11px;margin:8px 0;background:#fff}
+.regie-draft-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.regie-draft-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}
+.regie-draft-actions button{padding:10px;border-radius:10px;border:1px solid #ccc;background:#fff;font-weight:700}
+@media(max-width:620px){.regie-draft-actions{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -251,6 +258,13 @@ label{font-weight:700}
 
       <label>Materialverbrauch</label>
       <textarea id="regieMaterial" placeholder="z.B. Kleber, Grundierung, Schiene ..."></textarea>
+    </div>
+
+    <button class="btn outline" type="button" onclick="saveRegieDraft()">💾 Regiestunden speichern</button>
+
+    <div class="regie-sheet" style="margin-top:14px">
+      <h3 style="margin-top:0">Gespeicherte Regiestunden</h3>
+      <div id="regieDraftList"><p class="small">Noch nichts gespeichert.</p></div>
     </div>
 
     <button class="btn" type="button" onclick="openRegieForReading()">1. PDF öffnen zum Lesen</button>
@@ -569,7 +583,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v74 · PDF extern öffnen · danach Handy-Unterschrift · Bank Sync</b></p>
+      <p class="small"><b>Version v75 · Regiestunden Entwurf speichern · später lesen & unterschreiben</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -3085,6 +3099,100 @@ function syncMaterialPdfModeFromMeasure(){
 }
 
 
+
+const REGIE_DRAFT_KEY='frRegieDrafts';
+let currentRegieDraftId='';
+
+function getRegieDrafts(){
+  try{return JSON.parse(localStorage.getItem(userKey(REGIE_DRAFT_KEY))||'[]')}catch(e){return []}
+}
+function setRegieDrafts(v){
+  localStorage.setItem(userKey(REGIE_DRAFT_KEY),JSON.stringify(v||[]));
+}
+function regieDraftId(){
+  return 'REG-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
+}
+function currentRegieDraftData(){
+  const d=regieFormData();
+  return {
+    id:currentRegieDraftId||regieDraftId(),
+    bauvorhaben:d.bauvorhaben,
+    arbeiten:d.arbeiten,
+    arbeitszeit:d.arbeitszeit,
+    datum:d.datum||new Date().toISOString().slice(0,10),
+    facharbeiter:d.facharbeiter,
+    material:d.material,
+    status:(d.sigDienstnehmer||d.sigChef||d.sigBauleiter)?'Unterschrieben':'Entwurf',
+    savedAt:new Date().toISOString()
+  };
+}
+function saveRegieDraft(){
+  const d=currentRegieDraftData();
+  if(!d.bauvorhaben && !d.arbeiten && !d.arbeitszeit && !d.material){
+    alert('Bitte zuerst Regiestunden-Daten eingeben.');
+    return;
+  }
+  let arr=getRegieDrafts();
+  const i=arr.findIndex(x=>x.id===d.id);
+  if(i>=0)arr[i]={...arr[i],...d}; else arr.unshift(d);
+  setRegieDrafts(arr);
+  currentRegieDraftId=d.id;
+  renderRegieDrafts();
+  alert('Regiestunden gespeichert. Du kannst später wieder öffnen und unterschreiben lassen.');
+}
+function loadRegieDraft(i){
+  const x=getRegieDrafts()[i];
+  if(!x)return;
+  currentRegieDraftId=x.id||'';
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||''};
+  set('regieBauvorhaben',x.bauvorhaben);
+  set('regieArbeiten',x.arbeiten);
+  set('regieArbeitszeit',x.arbeitszeit);
+  set('regieDatum',x.datum);
+  set('regieFacharbeiter',x.facharbeiter);
+  set('regieMaterial',x.material);
+  ['sigDienstnehmer','sigChef','sigBauleiter'].forEach(clearRegieSignature);
+  const sig=document.getElementById('regieSignatureSection');
+  if(sig)sig.classList.add('hidden');
+  const readBtn=document.getElementById('regieAfterReadBtn');
+  if(readBtn)readBtn.classList.add('hidden');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function deleteRegieDraft(i){
+  let arr=getRegieDrafts();
+  const x=arr[i];
+  if(!x)return;
+  if(!confirm('Gespeicherte Regiestunden löschen?'))return;
+  if(currentRegieDraftId===x.id)currentRegieDraftId='';
+  arr.splice(i,1);
+  setRegieDrafts(arr);
+  renderRegieDrafts();
+}
+function renderRegieDrafts(){
+  const box=document.getElementById('regieDraftList');
+  if(!box)return;
+  const arr=getRegieDrafts();
+  if(!arr.length){
+    box.innerHTML='<p class="small">Noch nichts gespeichert.</p>';
+    return;
+  }
+  box.innerHTML=arr.map((x,i)=>`
+    <div class="regie-draft">
+      <div class="regie-draft-top">
+        <div>
+          <b>${esc(x.bauvorhaben||'Regiestunden')}</b><br>
+          <span class="small">${fmtRegieDate(x.datum||'')} · ${esc(x.arbeitszeit||'')}</span>
+        </div>
+        <span class="badge">${esc(x.status||'Entwurf')}</span>
+      </div>
+      <div class="small" style="margin-top:6px">${esc((x.arbeiten||'').slice(0,120))}</div>
+      <div class="regie-draft-actions">
+        <button type="button" onclick="loadRegieDraft(${i})">Öffnen / weiter</button>
+        <button type="button" onclick="deleteRegieDraft(${i})">Löschen</button>
+      </div>
+    </div>`).join('');
+}
+
 function showRegiestunden(){
   hide();
   const p=document.getElementById('regie');
@@ -3095,6 +3203,7 @@ function showRegiestunden(){
   if(sig)sig.classList.add('hidden');
   const readBtn=document.getElementById('regieAfterReadBtn');
   if(readBtn)readBtn.classList.add('hidden');
+  renderRegieDrafts();
 }
 
 const regieSignatureState={};
@@ -3183,6 +3292,7 @@ function clearRegieForm(){
   ['sigDienstnehmer','sigChef','sigBauleiter'].forEach(clearRegieSignature);
   const sig=document.getElementById('regieSignatureSection');
   if(sig)sig.classList.add('hidden');
+  currentRegieDraftId='';
   releaseRegieReadPdf();
 }
 function regieFormData(){
@@ -3330,7 +3440,20 @@ function openRegieForReading(){
   if(btn)btn.classList.remove('hidden');
 }
 
+
+function markCurrentRegieSigned(){
+  if(!currentRegieDraftId)return;
+  let arr=getRegieDrafts();
+  const i=arr.findIndex(x=>x.id===currentRegieDraftId);
+  if(i<0)return;
+  arr[i].status='Unterschrieben';
+  arr[i].savedAt=new Date().toISOString();
+  setRegieDrafts(arr);
+  renderRegieDrafts();
+}
+
 async function shareRegiePDF(){
+  markCurrentRegieSigned();
   const built=buildRegiePDF(true);
   if(!built)return;
   const {pdf,data}=built;
@@ -3349,6 +3472,7 @@ async function shareRegiePDF(){
   }
 }
 function openRegiePDF(){
+  markCurrentRegieSigned();
   const built=buildRegiePDF(true);
   if(!built)return;
   const url=built.pdf.output('bloburl');
