@@ -1,42 +1,70 @@
-const {verifyUser,gc,send,txText}=require('./_bank');
+const {verifyUser,eb,send,verifyConnection,transactionText}=require('./_enablebanking');
+
+function isoDateDaysAgo(days){
+  return new Date(Date.now()-days*86400000).toISOString().slice(0,10);
+}
 
 module.exports=async function(req,res){
-  if(req.method!=='GET')return send(res,405,{error:'Method not allowed'});
   try{
     const user=await verifyUser(req);
-    const id=String(req.query&&req.query.requisition_id||'').trim();
-    if(!id)return send(res,400,{error:'requisition_id fehlt.'});
 
-    const reqData=await gc('/requisitions/'+encodeURIComponent(id)+'/');
-    const ref=String(reqData.reference||'');
-    if(!ref.startsWith('fr:'+user.id+':'))return send(res,403,{error:'Diese Bank-Verbindung gehört nicht zu diesem Benutzer.'});
-
-    const accounts=Array.isArray(reqData.accounts)?reqData.accounts:[];
-    const transactions=[];
-    for(const accountId of accounts){
+    if(req.method==='POST'){
+      const body=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});
+      if(String(body.mode||'')!=='disconnect')return send(res,400,{error:'Ungültige Aktion.'});
+      const token=String(body.connection_token||'').trim();
+      if(!token)return send(res,400,{error:'connection_token fehlt.'});
+      const conn=verifyConnection(token,user.id);
       try{
-        const t=await gc('/accounts/'+encodeURIComponent(accountId)+'/transactions/');
-        const booked=(t&&t.transactions&&Array.isArray(t.transactions.booked))?t.transactions.booked:[];
-        for(const x of booked){
-          const amount=Number(x&&x.transactionAmount&&x.transactionAmount.amount)||0;
+        await eb('/sessions/'+encodeURIComponent(conn.sid),{method:'DELETE'});
+      }catch(e){
+        if(e.status!==404)throw e;
+      }
+      return send(res,200,{ok:true});
+    }
+
+    if(req.method!=='GET')return send(res,405,{error:'Method not allowed'});
+
+    const token=String(req.query&&req.query.connection_token||'').trim();
+    if(!token)return send(res,400,{error:'connection_token fehlt.'});
+    const conn=verifyConnection(token,user.id);
+
+    const session=await eb('/sessions/'+encodeURIComponent(conn.sid));
+    const accounts=Array.isArray(session.accounts)?session.accounts:[];
+    const transactions=[];
+
+    for(const accountId of accounts){
+      let continuation='';
+      let pages=0;
+      do{
+        const q=new URLSearchParams({
+          date_from:isoDateDaysAgo(120),
+          transaction_status:'BOOK'
+        });
+        if(continuation)q.set('continuation_key',continuation);
+        const d=await eb('/accounts/'+encodeURIComponent(accountId)+'/transactions?'+q.toString());
+        const rows=Array.isArray(d.transactions)?d.transactions:[];
+        for(const x of rows){
+          if(String(x.credit_debit_indicator||'').toUpperCase()!=='CRDT')continue;
+          const amount=Number(x.transaction_amount&&x.transaction_amount.amount)||0;
           transactions.push({
-            id:x.transactionId||x.internalTransactionId||x.entryReference||'',
-            date:x.bookingDate||x.valueDate||'',
+            id:x.entry_reference||x.transaction_id||'',
+            date:x.booking_date||x.value_date||x.transaction_date||'',
             amount,
-            currency:(x.transactionAmount&&x.transactionAmount.currency)||'EUR',
-            debtorName:x.debtorName||'',
-            endToEndId:x.endToEndId||'',
-            text:txText(x)
+            currency:(x.transaction_amount&&x.transaction_amount.currency)||'EUR',
+            debtorName:(x.debtor&&x.debtor.name)||'',
+            referenceNumber:x.reference_number||'',
+            text:transactionText(x)
           });
         }
-      }catch(e){
-        if(e.status===429)continue;
-        throw e;
-      }
+        continuation=String(d.continuation_key||'');
+        pages++;
+      }while(continuation && pages<5);
     }
+
     transactions.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
     return send(res,200,{
-      status:reqData.status||'',
+      status:session.status||'',
+      bank_name:(session.aspsp&&session.aspsp.name)||conn.bank||'',
       accounts:accounts.length,
       transactions
     });
