@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V83: Übersicht photo fix -->
+<!-- FR Rechnung V84: Übersicht visible photo -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -191,6 +191,38 @@ label{font-weight:700}
     padding:14px;
   }
   #home.photo-overview #overviewMenu{padding:14px}
+}
+
+
+/* V84: Übersicht - photo clearly visible, buttons directly on photo */
+#home.photo-overview #overviewMenu{
+  background:transparent !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+  border:0 !important;
+  box-shadow:none !important;
+  padding:14px !important;
+}
+#home.photo-overview #overviewMenu h2,
+#home.photo-overview #overviewMenu > .small{
+  display:inline-block;
+  background:rgba(255,255,255,.88);
+  -webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);
+  border-radius:12px;
+  padding:8px 12px;
+}
+#home.photo-overview #overviewMenu h2{
+  margin:0 0 8px 0 !important;
+}
+#home.photo-overview #overviewMenu > .small{
+  margin:0 0 14px 0 !important;
+}
+#home.photo-overview .settings-menu-item{
+  background:rgba(255,255,255,.91) !important;
+  -webkit-backdrop-filter:blur(7px);
+  backdrop-filter:blur(7px);
+  box-shadow:0 4px 14px rgba(0,0,0,.14) !important;
 }
 
 </style>
@@ -642,7 +674,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v83 · Private Übersicht · Foto · Enable Banking</b></p>
+      <p class="small"><b>Version v84 · Private Übersicht · Foto · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
