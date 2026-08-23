@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V102: Ordner schreiben oder wählen -->
+<!-- FR Rechnung V103: Rechnung sperren in Liste -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -593,6 +593,26 @@ label{font-weight:700}
   background:#fafafa;
 }
 
+
+/* V103 Rechnung sperren */
+.invoice.invoice-locked{
+  border-color:#c9c9c9;
+  background:#fafafa;
+}
+.lock-badge{
+  display:inline-block;
+  margin-top:4px;
+  padding:4px 8px;
+  border-radius:999px;
+  background:#ececec;
+  font-size:11px;
+  font-weight:800;
+  color:#444;
+}
+.actions button.lock-action{
+  border-color:#999;
+}
+
 </style>
 </head>
 <body>
@@ -1116,7 +1136,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v102 · Dokument Ordner · Scanbot · Enable Banking</b></p>
+      <p class="small"><b>Version v103 · Rechnung sperren · Dokument Ordner · Scanbot · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -2934,7 +2954,7 @@ function renderDashboard(){
   else box.innerHTML=arr.map((x,i)=>{
     const kind=invoiceDocumentLabel(x);
     const percent=x.anzahlungPercent?` ${num(x.anzahlungPercent).replace(',00','')}%`:'';
-    return `<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${esc(kind)}${percent} · ${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?(x.bankMatch?'Bezahlt · Bank':'Bezahlt'):'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="pdfInvoice(${i})">PDF</button><button onclick="copyInvoice(${i})">Kopieren</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`;
+    return `<div class="invoice ${x.locked?'invoice-locked':''}"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${esc(kind)}${percent} · ${fmtDate(x.date)} · Material ${euro(x.material||0)}</span>${x.locked?'<br><span class="lock-badge">🔒 Gesperrt</span>':''}</div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?(x.bankMatch?'Bezahlt · Bank':'Bezahlt'):'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">${x.locked?'🔒 Öffnen':'Öffnen'}</button><button onclick="pdfInvoice(${i})">PDF</button><button onclick="copyInvoice(${i})">Kopieren</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button class="lock-action" onclick="toggleInvoiceLock(${i})">${x.locked?'🔓 Entsperren':'🔒 Sperren'}</button><button onclick="deleteInvoice(${i})">${x.locked?'🔒 Löschen':'Löschen'}</button></div></div>`;
   }).join('');
 
   const offers=getOffers();
@@ -2952,6 +2972,10 @@ function renderDashboard(){
 }
 function loadInvoice(i){
   const x=getInvoices()[i];if(!x)return;
+  if(x.locked){
+    alert('🔒 Rechnung ist gesperrt. Zum Bearbeiten zuerst in der Liste entsperren. PDF, Kopieren und Bezahlt/Offen bleiben verfügbar.');
+    return;
+  }
   showForm('Rechnung');
   setInvoiceContext(x.invoiceKind||'Rechnung',x.offerNr||invoiceLinkedOfferNr(x),x.anzahlungPercent||0);
   document.getElementById('formTitle').textContent=invoiceDocumentLabel(x);
@@ -3145,12 +3169,38 @@ function copyInvoice(i){
   alert('Rechnung kopiert. Neue Rechnungsnummer wurde automatisch erstellt. Jetzt nur gewünschte Menge ändern.');
 }
 
+
+function toggleInvoiceLock(i){
+  const a=getInvoices();
+  const x=a[i];
+  if(!x)return;
+
+  if(x.locked){
+    if(!confirm('Rechnung wirklich entsperren? Danach kann sie wieder bearbeitet und gelöscht werden.'))return;
+    x.locked=false;
+    x.lockedAt='';
+  }else{
+    if(!confirm('Rechnung sperren? Danach kann sie nicht bearbeitet oder gelöscht werden, bis du sie wieder entsperrst.'))return;
+    x.locked=true;
+    x.lockedAt=new Date().toISOString();
+  }
+
+  x.savedAt=new Date().toISOString();
+  setInvoices(a);
+  renderDashboard();
+  cloudUpsertInvoice(x).catch(()=>{});
+}
+
 function togglePaid(i){let a=getInvoices();if(!a[i])return;a[i].paid=!a[i].paid;a[i].savedAt=new Date().toISOString();setInvoices(a);renderDashboard();cloudUpsertInvoice(a[i]).catch(()=>{})}
 async function deleteInvoice(i){
-  if(!confirm('Rechnung in den Papierkorb verschieben?'))return;
   let a=getInvoices();
   const x=a[i];
   if(!x)return;
+  if(x.locked){
+    alert('🔒 Rechnung ist gesperrt. Zuerst entsperren, dann možeš je obrisati.');
+    return;
+  }
+  if(!confirm('Rechnung in den Papierkorb verschieben?'))return;
   const nr=x.nr;
   addToTrash(x);
   if(nr)markInvoiceDeleted(nr);
