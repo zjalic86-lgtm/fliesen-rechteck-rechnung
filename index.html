@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V120: Auswertung nur Zahlen, Rechnungskarten wie Foto -->
+<!-- FR Rechnung V121: Rechnungskarte Foto + Ordner + Mahnung 10 EUR + Teilen -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -843,7 +843,7 @@ label{font-weight:700}
       <button class="btn" type="button" onclick="accountSignIn()">Anmelden</button>
       <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
       <button class="btn outline" type="button" onclick="accountForgotPassword()">Passwort vergessen / setzen</button>
-      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v120</div>
+      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v121</div>
     </div>
 
     <div id="accountRecovery" class="hidden">
@@ -1352,7 +1352,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v120 · Rechnungskarten wie Foto · Auswertung nur Zahlen · Stari PIN · Scanbot · Bank Sync</b></p>
+      <p class="small"><b>Version v121 · Rechnungskarte wie Foto · Mahnung 10 € · Ordner · Teilen · Stari PIN</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -3635,12 +3635,47 @@ function renderDashboard(){
   document.getElementById('statProfit').textContent=euro(total-material);
   document.getElementById('statOpenCount').textContent=arr.filter(x=>!x.paid).length;
   const box=document.getElementById('invoiceList');
-  if(!arr.length){box.innerHTML='<p class="small">Noch keine Rechnungen gespeichert.</p>'}
-  else box.innerHTML=arr.map((x,i)=>{
-    const kind=invoiceDocumentLabel(x);
-    const percent=x.anzahlungPercent?` ${num(x.anzahlungPercent).replace(',00','')}%`:'';
-    return `<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${esc(kind)}${percent} · ${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br>${invoiceStatusBadgeHtml(x)}</div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="pdfInvoice(${i})">PDF</button><button onclick="copyInvoice(${i})">Kopieren</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`;
-  }).join('');
+  if(!arr.length){
+    box.innerHTML='<p class="small">Noch keine Rechnungen gespeichert.</p>';
+  }else{
+    box.innerHTML=arr.map((x,i)=>{
+      const kind=invoiceDocumentLabel(x);
+      const percent=x.anzahlungPercent?` ${num(x.anzahlungPercent).replace(',00','')}%`:'';
+      const folder=invoiceFolderLabel(x);
+      const status=invoiceStatusInfo(x);
+
+      return `<div class="stats-pdf-item ${status.cardCls}">
+        <div class="stats-pdf-top">
+          <div>
+            <b>${esc(x.nr||'Ohne Nummer')}</b><br>
+            ${esc(x.kunde||'')}<br>
+            <span class="small">${esc(kind)}${percent} · ${fmtDate(x.date)}</span>
+            ${folder?`<br><span class="stats-pdf-folder">📁 ${esc(folder)}</span>`:''}
+          </div>
+          <div style="text-align:right">
+            <b>${euro(x.total||0)}</b><br>
+            ${invoiceStatusBadgeHtml(x)}
+          </div>
+        </div>
+
+        <div class="stats-pdf-actions">
+          <button onclick="pdfInvoice(${i})">📄 PDF</button>
+          <button onclick="editInvoiceFromPdfList(${i})">✏️ Bearbeiten</button>
+
+          <button onclick="pdfInvoice(${i},'share')">📤 Senden / teilen</button>
+          <button class="${status.key==='overdue'?'mahnung-auto':''}" onclick="mahnungInvoice(${i})">
+            ${status.key==='overdue'?'🔴':'⚠️'} Mahnung 10 €
+          </button>
+
+          <button onclick="togglePaid(${i})">${x.paid?'↩️ Offen setzen':'✅ Bezahlt'}</button>
+          <button onclick="openInvoiceFolderPicker(${i})">📁 ${folder?esc(folder):'Ordner'}</button>
+
+          <button onclick="copyInvoice(${i})">📋 Kopieren</button>
+          <button onclick="deleteInvoice(${i})">🗑️ Löschen</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
 
   const offers=getOffers();
   const ob=document.getElementById('offerList');
@@ -3853,11 +3888,13 @@ async function mahnungInvoice(i){
   const company=getCompanyProfile();
   const companyName=company.name||'FR Rechnung';
   const total=Number(x.total)||0;
+  const mahngebuehr=10;
+  const mahnTotal=total+mahngebuehr;
   const nr=x.nr||'';
   const invoiceDate=x.date||'';
   const due=calcDueDate(invoiceDate,parseInt(x.tage)||14);
   const today=new Date().toISOString().slice(0,10);
-  const epc=epcPayload(total,nr);
+  const epc=epcPayload(mahnTotal,nr);
   const qrData=epc?await makeQrDataUrl(epc):'';
 
   const pdf=new jsPDF({unit:'mm',format:'a4'});
@@ -3916,9 +3953,11 @@ async function mahnungInvoice(i){
   const body=[
     `Rechnungsdatum: ${fmtDate(invoiceDate)}`,
     `Fälligkeitsdatum: ${fmtDate(due)}`,
-    `Offener Betrag: ${euro(total).replace(/\u00a0/g,' ')}`,
+    `Offene Rechnung: ${euro(total).replace(/\u00a0/g,' ')}`,
+    `Mahngebühr: ${euro(mahngebuehr).replace(/\u00a0/g,' ')}`,
+    `Gesamt offen: ${euro(mahnTotal).replace(/\u00a0/g,' ')}`,
     '',
-    'Wir bitten Sie, den offenen Betrag innerhalb von 7 Tagen zu überweisen.',
+    'Wir bitten Sie, den Gesamtbetrag innerhalb von 7 Tagen zu überweisen.',
     'Falls die Zahlung bereits erfolgt ist, betrachten Sie dieses Schreiben bitte als gegenstandslos.'
   ];
   body.forEach(t=>{
@@ -3937,7 +3976,7 @@ async function mahnungInvoice(i){
       pdf.text('Direkt bezahlen',left+48,y+8);
       pdf.setFont(undefined,'normal');
       pdf.text('QR-Code mit Banking-App scannen.',left+48,y+14);
-      pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),left+48,y+20);
+      pdf.text('Betrag inkl. Mahngebühr: '+euro(mahnTotal).replace(/\u00a0/g,' '),left+48,y+20);
       pdf.text('Verwendung: Rechnung '+nr,left+48,y+26);
     }catch(e){}
   }
