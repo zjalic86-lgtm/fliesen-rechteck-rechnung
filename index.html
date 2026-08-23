@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V93: Native Apple VisionKit Scanner Bridge -->
+<!-- FR Rechnung V94: Scanner full camera view -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -460,6 +460,22 @@ label{font-weight:700}
 .fr-doc-scan-guide.auto-found{opacity:0!important}
 .fr-doc-scan-status.found{background:rgba(10,132,255,.78)!important;color:#fff!important}
 .fr-doc-scan-status.ready{background:rgba(33,180,95,.82)!important;color:#fff!important}
+
+
+/* V94: Scanner zeigt das volle Kamerabild – kein künstlicher Zoom */
+.fr-doc-scanner video{
+  object-fit:contain !important;
+  background:#000 !important;
+}
+.fr-doc-scan-dim{
+  background:rgba(0,0,0,.04) !important;
+}
+.fr-doc-scan-guide{
+  left:8%;
+  right:8%;
+  top:18%;
+  bottom:22%;
+}
 
 </style>
 </head>
@@ -955,7 +971,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v93 · Apple Dokument Scanner · Foto · Enable Banking</b></p>
+      <p class="small"><b>Version v94 · Dokument Scanner · Foto · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -4435,17 +4451,40 @@ function findDocumentQuadOnCanvas(canvas){
 function analysisQuadToVideo(q,aw,ah,video){
   return q.map(p=>({x:p.x*video.videoWidth/aw,y:p.y*video.videoHeight/ah}));
 }
+function frDocumentVisibleVideoRect(video){
+  const vr=video.getBoundingClientRect();
+  if(!video.videoWidth||!video.videoHeight)return {left:vr.left,top:vr.top,width:vr.width,height:vr.height,scale:1};
+  const scale=Math.min(vr.width/video.videoWidth,vr.height/video.videoHeight);
+  const width=video.videoWidth*scale;
+  const height=video.videoHeight*scale;
+  return {
+    left:vr.left+(vr.width-width)/2,
+    top:vr.top+(vr.height-height)/2,
+    width,height,scale
+  };
+}
+function fitDocumentGuideToCamera(){
+  const video=document.getElementById('frDocumentScannerVideo');
+  const guide=document.getElementById('frDocumentScannerGuide');
+  if(!video||!guide||!video.videoWidth||!video.videoHeight)return;
+  const r=frDocumentVisibleVideoRect(video);
+  const mx=Math.max(16,r.width*.07);
+  const my=Math.max(22,r.height*.08);
+  guide.style.left=(r.left+mx)+'px';
+  guide.style.top=(r.top+my)+'px';
+  guide.style.width=Math.max(80,r.width-mx*2)+'px';
+  guide.style.height=Math.max(120,r.height-my*2)+'px';
+  guide.style.right='auto';
+  guide.style.bottom='auto';
+}
 function showDocumentQuad(videoQuad){
   const video=document.getElementById('frDocumentScannerVideo');
   const outline=document.getElementById('frDocumentScannerOutline');
   const poly=document.getElementById('frDocumentScannerPolygon');
   if(!video||!outline||!poly||!videoQuad)return;
-  const vr=video.getBoundingClientRect();
-  const scale=Math.max(vr.width/video.videoWidth,vr.height/video.videoHeight);
-  const renderedW=video.videoWidth*scale,renderedH=video.videoHeight*scale;
-  const cropX=(renderedW-vr.width)/2,cropY=(renderedH-vr.height)/2;
+  const r=frDocumentVisibleVideoRect(video);
   const vw=Math.max(1,window.innerWidth),vh=Math.max(1,window.innerHeight);
-  const disp=videoQuad.map(p=>({x:vr.left+p.x*scale-cropX,y:vr.top+p.y*scale-cropY}));
+  const disp=videoQuad.map(p=>({x:r.left+p.x*r.scale,y:r.top+p.y*r.scale}));
   outline.setAttribute('viewBox',`0 0 ${vw} ${vh}`);
   poly.setAttribute('points',disp.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' '));
   outline.classList.remove('hidden');
@@ -4530,6 +4569,18 @@ async function receiveNativeDocumentScan(payload){
   }
 }
 
+
+let frScannerResizeBound=false;
+function bindFrScannerResize(){
+  if(frScannerResizeBound)return;
+  frScannerResizeBound=true;
+  window.addEventListener('resize',()=>{
+    const modal=document.getElementById('frDocumentScanner');
+    if(modal&&!modal.classList.contains('hidden'))setTimeout(fitDocumentGuideToCamera,80);
+  });
+}
+document.addEventListener('DOMContentLoaded',bindFrScannerResize);
+
 async function openDocumentScanner(ev){
   if(ev){ev.preventDefault();ev.stopPropagation()}
   // Native iPhone app: use Apple's VisionKit document scanner.
@@ -4549,7 +4600,15 @@ async function openDocumentScanner(ev){
   video.setAttribute('playsinline','');video.setAttribute('webkit-playsinline','');video.muted=true;video.autoplay=true;
   try{
     if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia)throw new Error('Kamera wird in dieser Web-App nicht unterstützt.');
-    frDocumentCameraStream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
+    frDocumentCameraStream=await navigator.mediaDevices.getUserMedia({
+      audio:false,
+      video:{
+        facingMode:{ideal:'environment'},
+        width:{ideal:1280},
+        height:{ideal:1920},
+        aspectRatio:{ideal:0.6666667}
+      }
+    });
     video.srcObject=frDocumentCameraStream;
     await new Promise((resolve,reject)=>{
       let done=false;const cleanup=()=>{video.removeEventListener('loadedmetadata',ok);video.removeEventListener('error',bad)};
@@ -4557,7 +4616,14 @@ async function openDocumentScanner(ev){
       video.addEventListener('loadedmetadata',ok,{once:true});video.addEventListener('error',bad,{once:true});setTimeout(ok,1200);
     });
     try{await video.play()}catch(e){}
+    fitDocumentGuideToCamera();
+    setTimeout(fitDocumentGuideToCamera,180);
     const track=frDocumentCameraStream.getVideoTracks()[0];const caps=(track&&track.getCapabilities)?track.getCapabilities():{};
+    try{
+      if(caps&&caps.zoom&&typeof caps.zoom.min==='number'){
+        await track.applyConstraints({advanced:[{zoom:caps.zoom.min}]});
+      }
+    }catch(e){}
     const torchBtn=document.getElementById('frDocTorchBtn');if(torchBtn)torchBtn.style.opacity=caps&&caps.torch?1:.35;
     startDocumentDetection();
   }catch(err){
@@ -4574,6 +4640,8 @@ function closeDocumentScanner(){
   const fallback=document.getElementById('frDocumentScannerFallback');if(fallback)fallback.classList.add('hidden');
   const video=document.getElementById('frDocumentScannerVideo');if(video)video.srcObject=null;
   document.body.style.overflow='';frDocumentTorchOn=false;
+  const guide=document.getElementById('frDocumentScannerGuide');
+  if(guide){guide.style.left='';guide.style.top='';guide.style.width='';guide.style.height='';guide.style.right='';guide.style.bottom='';}
 }
 function openNativeDocumentCamera(){const input=document.getElementById('docScanInput');closeDocumentScanner();if(input){input.value='';input.click()}}
 function fallbackDocumentCamera(){openNativeDocumentCamera()}
