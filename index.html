@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V92: Auto Dokument Erkennung + Auto Crop -->
+<!-- FR Rechnung V93: Native Apple VisionKit Scanner Bridge -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -955,7 +955,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v92 · Auto Dokument Scanner · Foto · Enable Banking</b></p>
+      <p class="small"><b>Version v93 · Apple Dokument Scanner · Foto · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -4507,8 +4507,38 @@ async function startDocumentDetection(){
   }
 }
 
+
+async function receiveNativeDocumentScan(payload){
+  try{
+    const dataUrl=(typeof payload==='string')?payload:(payload&&payload.image)||'';
+    if(!dataUrl)throw new Error('Kein Dokument empfangen.');
+    const res=await fetch(dataUrl);
+    const blob=await res.blob();
+    scannedDocumentBlob=blob;
+    revokeScanPreview();
+    scannedDocumentObjectUrl=URL.createObjectURL(blob);
+    const img=document.getElementById('docScanPreview');
+    if(img){img.src=scannedDocumentObjectUrl;img.style.display='block'}
+    const cap=document.getElementById('docScanCapture');
+    if(cap){cap.classList.add('has-image');setTimeout(()=>cap.scrollIntoView({behavior:'smooth',block:'center'}),80)}
+    const date=document.getElementById('docScanDate');
+    const month=document.getElementById('docScanMonth');
+    if(date&&!date.value)date.value=new Date().toISOString().slice(0,10);
+    if(month&&!month.value&&date&&date.value)month.value=date.value.slice(0,7);
+  }catch(e){
+    alert('Apple Scanner Fehler: '+(e&&e.message?e.message:e));
+  }
+}
+
 async function openDocumentScanner(ev){
   if(ev){ev.preventDefault();ev.stopPropagation()}
+  // Native iPhone app: use Apple's VisionKit document scanner.
+  try{
+    if(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.frDocumentScanner){
+      window.webkit.messageHandlers.frDocumentScanner.postMessage({action:'scan'});
+      return;
+    }
+  }catch(e){}
   const modal=document.getElementById('frDocumentScanner');
   const video=document.getElementById('frDocumentScannerVideo');
   const fallback=document.getElementById('frDocumentScannerFallback');
@@ -4734,6 +4764,17 @@ async function initAccountGate(){
   }
 }
 initAccountGate();
+
+function frApplyNativeScannerLabel(){
+  try{
+    if(!window.FR_NATIVE_APP)return;
+    const sub=document.querySelector('#docScanCapture .scan-sub');
+    if(sub)sub.textContent='Apple Dokument Scanner · automatisch nur Papier';
+  }catch(e){}
+}
+document.addEventListener('DOMContentLoaded',frApplyNativeScannerLabel);
+setTimeout(frApplyNativeScannerLabel,900);
+
 
 // v51: Material-Autofill +40% + Material Preis ON/OFF + Raum messen
 let frLastAutoImport=0;
