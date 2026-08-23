@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V95: Scanbot Web Document Scanner -->
+<!-- FR Rechnung V96: Scanbot license paste fix -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -504,6 +504,19 @@ label{font-weight:700}
   pointer-events:none;
 }
 
+
+/* V96 Scanbot license multiline fix */
+#scanbotLicenseKey{
+  width:100%;
+  min-height:150px;
+  resize:vertical;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:12px;
+  line-height:1.35;
+  white-space:pre-wrap;
+  word-break:break-all;
+}
+
 </style>
 </head>
 <body>
@@ -884,9 +897,11 @@ label{font-weight:700}
 
       <details class="scanbot-license-box">
         <summary>Scanner Testlizenz</summary>
-        <p class="small">Ohne Lizenz läuft der Scanbot-Test kurz. Für 7 Tage kannst du hier deinen Web-Trial-Key einfügen.</p>
+        <p class="small">Wichtig: Der Lizenzschlüssel kann mehrere Zeilen enthalten. Komplett einfügen oder die heruntergeladene .txt-Datei auswählen.</p>
         <label>Scanbot Web Lizenz</label>
-        <input id="scanbotLicenseKey" type="password" autocomplete="off" placeholder="optional – Trial Key" onchange="saveScanbotLicenseKey()">
+        <textarea id="scanbotLicenseKey" rows="7" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Scanbot Trial Key hier einfügen"></textarea>
+        <input id="scanbotLicenseFile" type="file" accept=".txt,text/plain" class="hidden" onchange="importScanbotLicenseFile(event)">
+        <button class="btn outline" type="button" onclick="document.getElementById('scanbotLicenseFile').click()">📄 Lizenz-Datei auswählen</button>
         <button class="btn outline" type="button" onclick="saveScanbotLicenseKey()">Lizenz speichern</button>
         <a class="scanbot-trial-link" href="https://docs.scanbot.io/trial/" target="_blank" rel="noopener">7-Tage Testlizenz öffnen</a>
       </details>
@@ -1007,7 +1022,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v95 · Scanbot Dokument Scanner · Foto · Enable Banking</b></p>
+      <p class="small"><b>Version v96 · Scanbot Lizenz Fix · Foto · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -4870,19 +4885,65 @@ function loadScanbotLicenseKeyIntoUi(){
   const el=document.getElementById('scanbotLicenseKey');
   if(el)el.value=localStorage.getItem(frScanbotLicenseStorageKey())||'';
 }
+
+function normalizeScanbotLicenseText(value){
+  let v=String(value||'').replace(/\r\n/g,'\n').trim();
+  if(!v)return '';
+
+  if(/LICENSE_KEY|licenseKey|const\s+val|(?:["'][^"']+["']\s*\+)/i.test(v)){
+    const chunks=[];
+    const rx=/(["'])([\s\S]*?)\1/g;
+    let m;
+    while((m=rx.exec(v))){
+      let s=m[2];
+      s=s.replace(/\\n/g,'\n').replace(/\\r/g,'\r').replace(/\\t/g,'\t')
+           .replace(/\\"/g,'"').replace(/\\'/g,"'").replace(/\\\\/g,'\\');
+      if(s)chunks.push(s);
+    }
+    if(chunks.length)v=chunks.join('');
+  }
+  return v.trim();
+}
+
 function saveScanbotLicenseKey(){
   const el=document.getElementById('scanbotLicenseKey');
   if(!el)return;
-  const value=(el.value||'').trim();
+  const value=normalizeScanbotLicenseText(el.value);
+  el.value=value;
+
   if(value)localStorage.setItem(frScanbotLicenseStorageKey(),value);
   else localStorage.removeItem(frScanbotLicenseStorageKey());
+
   frScanbotSdkPromise=null;
   frScanbotLicenseUsed=null;
-  alert(value?'Scanbot Lizenz gespeichert.':'Scanbot Lizenz entfernt – Kurztest ohne Lizenz.');
+  alert(value?'Scanbot Lizenz gespeichert. Jetzt Rechnung scannen.':'Scanbot Lizenz entfernt.');
+}
+
+async function importScanbotLicenseFile(event){
+  const file=event?.target?.files?.[0];
+  if(!file)return;
+  try{
+    const text=await file.text();
+    const value=normalizeScanbotLicenseText(text);
+    const el=document.getElementById('scanbotLicenseKey');
+    if(el)el.value=value;
+    if(value){
+      localStorage.setItem(frScanbotLicenseStorageKey(),value);
+      frScanbotSdkPromise=null;
+      frScanbotLicenseUsed=null;
+      alert('Scanbot Lizenz-Datei gespeichert. Jetzt Rechnung scannen.');
+    }else{
+      alert('In der Datei wurde kein Lizenzschlüssel gefunden.');
+    }
+  }catch(e){
+    alert('Lizenz-Datei konnte nicht gelesen werden.');
+  }finally{
+    if(event?.target)event.target.value='';
+  }
 }
 async function initFrScanbotSdk(){
   if(!window.ScanbotSDK)throw new Error('Scanbot SDK konnte nicht geladen werden.');
-  const licenseKey=(localStorage.getItem(frScanbotLicenseStorageKey())||'').trim();
+  const licenseKey=normalizeScanbotLicenseText(localStorage.getItem(frScanbotLicenseStorageKey())||'');
   if(frScanbotSdkPromise && frScanbotLicenseUsed===licenseKey)return frScanbotSdkPromise;
   frScanbotLicenseUsed=licenseKey;
   frScanbotSdkPromise=ScanbotSDK.initialize({
