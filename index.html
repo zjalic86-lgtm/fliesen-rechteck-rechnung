@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V114: Auto Login Recovery -->
+<!-- FR Rechnung V115: Stable Recovery from V112 -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -1281,7 +1281,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v114 · Auto Login Recovery · Ordner · Scanbot · Bank Sync</b></p>
+      <p class="small"><b>Version v115 · Stable Recovery · PDF Rechnungen · Scanbot · Bank Sync</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1801,21 +1801,34 @@ function showAccountScreen(){
 async function afterAccountLogin(){
   await refreshCloudUser();
   if(!cloudUser){showAccountScreen();return}
+
   migrateLegacyDataToCurrentUser();
   frPin=localStorage.getItem(userKey('frPin'))||'';
   logo=localStorage.getItem(userKey('frLogo'))||'';
-  updateCompanyUi();
-  showLogo();
-  loadChatgptImportToken();
-  renderCustomerList();
-  renderDashboard();
-  renderTrash();
+
+  // Open the authenticated UI first. Rendering errors must never throw
+  // the user back to the account/login screen.
   document.getElementById('accountScreen').style.display='none';
   document.getElementById('mainApp').style.display='none';
   document.getElementById('lockScreen').style.display='flex';
-  setupLock();
-  setTimeout(()=>syncCloud(false),300);
-  setTimeout(()=>autoBankSync(false),900);
+
+  try{updateCompanyUi()}catch(e){console.error('updateCompanyUi',e)}
+  try{showLogo()}catch(e){console.error('showLogo',e)}
+  try{loadChatgptImportToken()}catch(e){console.error('loadChatgptImportToken',e)}
+  try{renderCustomerList()}catch(e){console.error('renderCustomerList',e)}
+  try{renderDashboard()}catch(e){console.error('renderDashboard',e)}
+  try{renderTrash()}catch(e){console.error('renderTrash',e)}
+
+  try{
+    setupLock();
+  }catch(e){
+    console.error('setupLock',e);
+    // Safe fallback: keep the app usable if lock setup itself fails.
+    finishUnlock();
+  }
+
+  setTimeout(()=>{try{syncCloud(false)}catch(e){}},300);
+  setTimeout(()=>{try{autoBankSync(false)}catch(e){}},900);
 }
 async function accountSignIn(){
   const email=(document.getElementById('accountEmail')?.value||'').trim();
@@ -3562,8 +3575,6 @@ async function pdfInvoice(i,mode='open'){
   pdf.text([company.bic?('SWIFT/BIC '+company.bic):'',company.iban?('IBAN '+company.iban):''].filter(Boolean).join('    '),105,290,{align:'center'});
 
   const blob=pdf.output('blob');
-
-  if(mode==='blob')return blob;
 
   if(mode==='share'){
     const safeNr=String(docNr||'Rechnung').replace(/[^A-Za-z0-9ÄÖÜäöüß._-]+/g,'_');
@@ -6221,520 +6232,22 @@ function startInvoiceStatusRefresh(){
 }
 document.addEventListener('DOMContentLoaded',startInvoiceStatusRefresh);
 
-
-// ===== V113 DOKUMENTE ORDNER REPAIR =====
-function frDocFolderKey(value){
-  return String(value||'').trim().toLocaleLowerCase('de-DE');
-}
-function frDocFolderName(d){
-  const own=String(d?.folder||'').trim();
-  if(own)return own;
-  const month=String(d?.month||'').trim();
-  return month ? defaultDocumentsFolderName(month) : 'Ohne Ordner';
-}
-async function frDocsGetFolder(folderName){
-  const all=await frDocsGetAllForUser();
-  const key=frDocFolderKey(folderName);
-  return all
-    .filter(d=>frDocFolderKey(frDocFolderName(d))===key)
-    .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.savedAt||'').localeCompare(String(a.savedAt||'')));
-}
-async function unifiedDocumentFolderNames(){
-  const map=new Map();
-  const all=await frDocsGetAllForUser();
-
-  all.forEach(d=>{
-    const name=frDocFolderName(d);
-    if(name)map.set(frDocFolderKey(name),name);
-  });
-
-  invoiceFolderNames().forEach(name=>{
-    if(name)map.set(frDocFolderKey(name),name);
-  });
-
-  return Array.from(map.values()).sort((a,b)=>a.localeCompare(b,'de',{numeric:true,sensitivity:'base'}));
-}
-async function refreshDocumentFolderSelectors(preferred=''){
-  const names=await unifiedDocumentFolderNames();
-  const preferredName=String(preferred||'').trim();
-
-  const scanSelect=document.getElementById('docScanFolderSelect');
-  if(scanSelect){
-    const previous=String(scanSelect.value||'').trim();
-    const wanted=preferredName||previous;
-    scanSelect.innerHTML='<option value="">— Ordner wählen —</option>';
-    names.forEach(name=>{
-      const o=document.createElement('option');
-      o.value=name;o.textContent=name;scanSelect.appendChild(o);
-    });
-    if(wanted){
-      const exact=names.find(n=>frDocFolderKey(n)===frDocFolderKey(wanted));
-      if(exact)scanSelect.value=exact;
-    }
-  }
-
-  const filter=document.getElementById('documentsFolderFilter');
-  if(filter){
-    const previous=String(filter.value||'').trim();
-    const wanted=preferredName||previous;
-    filter.innerHTML='<option value="">— Ordner wählen —</option>';
-    names.forEach(name=>{
-      const o=document.createElement('option');
-      o.value=name;o.textContent=name;filter.appendChild(o);
-    });
-    let selected='';
-    if(wanted)selected=names.find(n=>frDocFolderKey(n)===frDocFolderKey(wanted))||'';
-    if(!selected && names.length)selected=names[0];
-    filter.value=selected;
-  }
-}
-function docScanFolderSelectionChanged(){
-  const scan=document.getElementById('docScanFolderSelect');
-  const filter=document.getElementById('documentsFolderFilter');
-  if(scan?.value && filter){
-    filter.value=scan.value;
-    renderDocuments();
-  }
-}
-function documentsFolderChanged(){
-  const filter=document.getElementById('documentsFolderFilter');
-  const scan=document.getElementById('docScanFolderSelect');
-  if(filter?.value && scan){
-    const exists=[...scan.options].some(o=>frDocFolderKey(o.value)===frDocFolderKey(filter.value));
-    if(!exists){
-      const o=document.createElement('option');
-      o.value=filter.value;o.textContent=filter.value;scan.appendChild(o);
-    }
-    scan.value=filter.value;
-  }
-  renderDocuments();
-}
-
-async function showDocuments(){
-  hide();
-  document.getElementById('documents')?.classList.remove('hidden');
-
-  const today=new Date().toISOString().slice(0,10);
-  const d=document.getElementById('docScanDate');
-  if(d&&!d.value)d.value=today;
-  const m=document.getElementById('docScanMonth');
-  if(m&&!m.value)m.value=today.slice(0,7);
-
-  const em=document.getElementById('taxAdvisorEmail');
-  if(em)em.value=localStorage.getItem(userKey('frTaxAdvisorEmail'))||'';
-
-  loadScanbotLicenseKeyIntoUi();
-  await refreshDocumentFolderSelectors();
-  await renderDocuments();
-}
-
-async function saveScannedDocument(){
-  if(!cloudUser){alert('Bitte zuerst anmelden.');return}
-  if(!scannedDocumentBlob){alert('Bitte zuerst Rechnung / Beleg fotografieren.');return}
-
-  const date=document.getElementById('docScanDate')?.value||new Date().toISOString().slice(0,10);
-  const month=document.getElementById('docScanMonth')?.value||date.slice(0,7);
-  const selected=(document.getElementById('docScanFolderSelect')?.value||'').trim();
-  const typed=(document.getElementById('docScanFolderNew')?.value||'').trim();
-  const folder=typed||selected;
-
-  if(!folder){
-    alert('Bitte Ordner auswählen oder neuen Ordner schreiben.');
-    return;
-  }
-
-  const row={
-    id:'DOC-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),
-    userId:cloudUser.id,
-    date,month,folder,
-    name:(document.getElementById('docScanName')?.value||'').trim(),
-    amount:Number(document.getElementById('docScanAmount')?.value||0),
-    category:document.getElementById('docScanCategory')?.value||'Sonstige',
-    note:(document.getElementById('docScanNote')?.value||'').trim(),
-    mime:scannedDocumentBlob.type||'image/jpeg',
-    blob:scannedDocumentBlob,
-    savedAt:new Date().toISOString()
-  };
-
-  try{
-    await frDocsPut(row);
-    scannedDocumentBlob=null;
-    revokeScanPreview();
-
-    const img=document.getElementById('docScanPreview');
-    if(img){img.style.display='none';img.removeAttribute('src')}
-    document.getElementById('docScanCapture')?.classList.remove('has-image');
-
-    const fileInput=document.getElementById('docScanInput');
-    if(fileInput)fileInput.value='';
-
-    ['docScanName','docScanAmount','docScanNote'].forEach(id=>{
-      const el=document.getElementById(id);if(el)el.value='';
-    });
-    const newFolder=document.getElementById('docScanFolderNew');
-    if(newFolder)newFolder.value='';
-
-    await refreshDocumentFolderSelectors(folder);
-    const filter=document.getElementById('documentsFolderFilter');
-    if(filter)filter.value=folder;
-    const select=document.getElementById('docScanFolderSelect');
-    if(select)select.value=folder;
-
-    await renderDocuments();
-    alert('Dokument gespeichert · 📁 '+folder);
-  }catch(e){
-    alert('Speichern Fehler: '+documentErrorText(e));
-  }
-}
-
-function invoicesForDocumentFolder(folderName){
-  const key=frDocFolderKey(folderName);
-  return getInvoices()
-    .map((x,i)=>({x,i}))
-    .filter(o=>frDocFolderKey(invoiceFolderLabel(o.x))===key)
-    .sort((a,b)=>String(b.x.date||'').localeCompare(String(a.x.date||'')));
-}
-function renderInvoicesInDocumentFolder(folderName){
-  const box=document.getElementById('documentsInvoiceList');
-  if(!box)return;
-
-  const rows=folderName?invoicesForDocumentFolder(folderName):[];
-  if(!rows.length){box.innerHTML='';return}
-
-  box.innerHTML='<div class="documents-folder-section-title">📄 PDF Rechnungen</div>'+
-    rows.map(({x,i})=>{
-      const status=invoiceStatusInfo(x);
-      return `<div class="documents-invoice-item">
-        <div class="documents-invoice-top">
-          <div>
-            <b>${esc(x.nr||'Ohne Nummer')}</b><br>
-            ${esc(x.kunde||'')}<br>
-            <span class="small">${fmtDate(x.date)} · 📁 ${esc(invoiceFolderLabel(x))}</span>
-          </div>
-          <div style="text-align:right">
-            <b>${euro(x.total||0)}</b><br>
-            <span class="badge ${status.cls}">${esc(status.text)}</span>
-          </div>
-        </div>
-        <div class="documents-invoice-actions">
-          <button onclick="pdfInvoice(${i})">📄 PDF</button>
-          <button onclick="pdfInvoice(${i},'share')">📤 Senden / teilen</button>
-          <button onclick="editInvoiceFromPdfList(${i})">✏️ Bearbeiten</button>
-          <button onclick="openInvoiceFolderPicker(${i})">📁 Ordner ändern</button>
-        </div>
-      </div>`;
-    }).join('');
-}
-
-async function renderDocumentFolders(){
-  const box=document.getElementById('documentsFolders');
-  if(!box)return;
-
-  try{
-    const groups=new Map();
-    const ensure=name=>{
-      const key=frDocFolderKey(name);
-      if(!groups.has(key))groups.set(key,{name,docs:[],invoices:[]});
-      return groups.get(key);
-    };
-
-    const docs=await frDocsGetAllForUser();
-    docs.forEach(d=>ensure(frDocFolderName(d)).docs.push(d));
-
-    getInvoices().forEach((x,i)=>{
-      const name=invoiceFolderLabel(x);
-      if(name)ensure(name).invoices.push({x,i});
-    });
-
-    const rows=Array.from(groups.values())
-      .sort((a,b)=>a.name.localeCompare(b.name,'de',{numeric:true,sensitivity:'base'}));
-
-    if(!rows.length){
-      box.innerHTML='<div class="documents-folder-empty">Noch keine Ordner.</div>';
-      return;
-    }
-
-    box.innerHTML=rows.map(g=>{
-      const parts=[];
-      if(g.docs.length)parts.push(`${g.docs.length} Beleg${g.docs.length===1?'':'e'}`);
-      if(g.invoices.length)parts.push(`${g.invoices.length} Rechnung${g.invoices.length===1?'':'en'}`);
-      return `<button class="documents-folder-card" type="button" onclick="openDocumentsFolderByName('${escAttr(g.name)}')">
-        <span class="folder-main">
-          <span class="folder-icon">📁</span>
-          <span>
-            <span class="folder-title">${esc(g.name)}</span>
-            <span class="folder-meta">${esc(parts.join(' · '))}</span>
-          </span>
-        </span>
-        <span class="folder-arrow">›</span>
-      </button>`;
-    }).join('');
-  }catch(e){
-    box.innerHTML='<div class="documents-folder-empty">Ordner konnten nicht geladen werden.</div>';
-  }
-}
-async function openDocumentsFolderByName(folderName){
-  await refreshDocumentFolderSelectors(folderName);
-  const filter=document.getElementById('documentsFolderFilter');
-  if(filter)filter.value=folderName;
-  const scan=document.getElementById('docScanFolderSelect');
-  if(scan)scan.value=folderName;
-  await renderDocuments();
-}
-
-async function renderDocuments(){
-  await renderDocumentFolders();
-
-  const box=document.getElementById('documentsList');
-  const invoiceBox=document.getElementById('documentsInvoiceList');
-  if(!box)return;
-
-  let folderName=(document.getElementById('documentsFolderFilter')?.value||'').trim();
-
-  if(!folderName){
-    const names=await unifiedDocumentFolderNames();
-    if(names.length){
-      await refreshDocumentFolderSelectors(names[0]);
-      folderName=names[0];
-    }
-  }
-
-  if(!folderName){
-    if(invoiceBox)invoiceBox.innerHTML='';
-    box.innerHTML='<p class="small">Noch kein Ordner vorhanden.</p>';
-    const count=document.getElementById('documentsCount');
-    if(count)count.textContent='';
-    return;
-  }
-
-  renderInvoicesInDocumentFolder(folderName);
-
-  const arr=await frDocsGetFolder(folderName);
-  const checked=await splitValidDocuments(arr);
-  const invoiceCount=invoicesForDocumentFolder(folderName).length;
-  const count=document.getElementById('documentsCount');
-
-  if(count){
-    const parts=[];
-    if(arr.length)parts.push(`${arr.length} Beleg${arr.length===1?'':'e'}`);
-    if(invoiceCount)parts.push(`${invoiceCount} Rechnung${invoiceCount===1?'':'en'}`);
-    count.textContent=`📁 ${folderName} · ${parts.join(' · ')||'Leer'}`;
-  }
-
-  if(!arr.length){
-    box.innerHTML='';
-    return;
-  }
-
-  box.innerHTML='<div class="documents-folder-section-title">🧾 Belege / Scans</div>';
-
-  for(const d of arr){
-    const info=await storedDocumentBlobInfo(d);
-    const div=document.createElement('div');
-    div.className='docscan-item';
-
-    let thumbHtml='';
-    let url='';
-    if(info.ok){
-      url=URL.createObjectURL(info.blob);
-      thumbHtml=`<img class="docscan-thumb" src="${url}" alt="Beleg">`;
-    }else{
-      thumbHtml='<div class="docscan-thumb broken-doc-thumb">⚠️<br><small>Neu<br>scannen</small></div>';
-    }
-
-    div.innerHTML=`
-      <div class="docscan-top">
-        ${thumbHtml}
-        <div>
-          <b>${esc(d.name||'Beleg')}</b><br>
-          <span class="docscan-meta">
-            ${fmtDate(d.date)} · ${esc(d.category||'')}
-            ${d.amount?'<br>'+euro(d.amount):''}
-            ${d.note?'<br>'+esc(d.note):''}
-            <br>📁 ${esc(frDocFolderName(d))}
-          </span>
-        </div>
-      </div>
-      <div class="docscan-actions">
-        ${info.ok?`<button onclick="openStoredDocument('${escAttr(d.id)}')">Öffnen</button>`:''}
-        <button onclick="deleteStoredDocument('${escAttr(d.id)}')">Löschen</button>
-      </div>`;
-
-    if(info.ok){
-      const thumb=div.querySelector('.docscan-thumb');
-      if(thumb){
-        thumb.addEventListener('load',()=>setTimeout(()=>URL.revokeObjectURL(url),500),{once:true});
-        thumb.addEventListener('error',()=>URL.revokeObjectURL(url),{once:true});
-      }
-    }
-    box.appendChild(div);
-  }
-}
-
-async function sendDocumentsFolder(){
-  const folderName=(document.getElementById('documentsFolderFilter')?.value||'').trim();
-  if(!folderName){alert('Bitte zuerst Ordner auswählen.');return}
-  saveTaxAdvisorEmail();
-
-  const scans=await frDocsGetFolder(folderName);
-  const invoiceRows=invoicesForDocumentFolder(folderName);
-
-  if(!scans.length && !invoiceRows.length){
-    alert('Keine Dokumente in diesem Ordner.');
-    return;
-  }
-  if(!window.JSZip){
-    alert('ZIP-Modul konnte nicht geladen werden.');
-    return;
-  }
-
-  try{
-    const cleanName=safeFolderFileName(folderName);
-    const zip=new JSZip();
-    const folder=zip.folder(cleanName);
-
-    if(scans.length){
-      const checked=await splitValidDocuments(scans);
-      for(let i=0;i<checked.valid.length;i++){
-        const d=checked.valid[i];
-        const nr=String(i+1).padStart(2,'0');
-        const date=(d.date||'').replace(/-/g,'_')||'Datum';
-        folder.file(`Beleg_${nr}_${date}_${safeDocumentFilePart(d.name||'Beleg')}.${d._ext}`,d._blob);
-      }
-    }
-
-    for(const {x,i} of invoiceRows){
-      const blob=await pdfInvoice(i,'blob');
-      if(blob){
-        const nr=safeDocumentFilePart(x.nr||('Rechnung_'+(i+1)));
-        folder.file(`Rechnung_${nr}.pdf`,blob);
-      }
-    }
-
-    const advisor=(localStorage.getItem(userKey('frTaxAdvisorEmail'))||'').trim();
-    folder.file('INFO.txt',[
-      `Ordner: ${folderName}`,
-      `Belege: ${scans.length}`,
-      `Rechnungen: ${invoiceRows.length}`,
-      advisor?`Steuerberater: ${advisor}`:''
-    ].filter(Boolean).join('\n'));
-
-    const zipBlob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
-    const file=new File([zipBlob],`${cleanName}.zip`,{type:'application/zip'});
-    const text=advisor?`Ordner ${folderName} · Steuerberater ${advisor}`:`Ordner ${folderName}`;
-
-    if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
-      try{
-        await navigator.share({files:[file],title:`Ordner ${folderName}`,text});
-        return;
-      }catch(e){
-        if(e?.name==='AbortError')return;
-      }
-    }
-
-    const url=URL.createObjectURL(zipBlob);
-    const a=document.createElement('a');
-    a.href=url;a.download=file.name;a.click();
-    setTimeout(()=>URL.revokeObjectURL(url),30000);
-  }catch(e){
-    alert('Ordner Fehler: '+documentErrorText(e));
-  }
-}
-
-
-function frFindSessionTokens(value){
-  try{
-    const obj=typeof value==='string'?JSON.parse(value):value;
-    const seen=new Set();
-    function walk(v){
-      if(!v || typeof v!=='object' || seen.has(v))return null;
-      seen.add(v);
-      if(typeof v.access_token==='string' && typeof v.refresh_token==='string'){
-        return {access_token:v.access_token,refresh_token:v.refresh_token};
-      }
-      for(const k of Object.keys(v)){
-        const found=walk(v[k]);
-        if(found)return found;
-      }
-      return null;
-    }
-    return walk(obj);
-  }catch(e){return null}
-}
-
-async function frRecoverSavedSession(){
-  // 1) Normal persisted session.
-  try{
-    const r=await sb.auth.getSession();
-    const s=r?.data?.session;
-    if(s?.user)return s;
-  }catch(e){}
-
-  // 2) Ask Supabase to refresh a persisted refresh token.
-  try{
-    const r=await sb.auth.refreshSession();
-    const s=r?.data?.session;
-    if(s?.user)return s;
-  }catch(e){}
-
-  // 3) Recover sessions saved by older FR Rechnung / Supabase storage keys.
-  const candidates=[];
-  try{
-    for(let i=0;i<localStorage.length;i++){
-      const key=localStorage.key(i)||'';
-      if(key==='fr-rechnung-auth' || /^sb-.*-auth-token$/i.test(key)){
-        const raw=localStorage.getItem(key);
-        if(raw)candidates.push(raw);
-      }
-    }
-  }catch(e){}
-
-  for(const raw of candidates){
-    const tokens=frFindSessionTokens(raw);
-    if(!tokens)continue;
-    try{
-      const r=await sb.auth.setSession(tokens);
-      const s=r?.data?.session;
-      if(s?.user)return s;
-    }catch(e){}
-  }
-  return null;
-}
-
 async function initAccountGate(){
   showAccountScreen();
-  setAccountStatus('Sitzung wird geladen …');
-
   try{
-    const session=await frRecoverSavedSession();
-    if(session?.user){
+    const r=await sb.auth.getSession();
+    const session=r&&r.data?r.data.session:null;
+    if(session&&session.user){
       cloudUser=session.user;
       await afterAccountLogin();
       return;
     }
-  }catch(e){}
-
+  }catch(e){
+    console.error('getSession',e);
+  }
   setAccountStatus('Bitte anmelden oder neues Konto erstellen.');
 }
 initAccountGate();
-
-let frAuthVisibilityRecovery=false;
-document.addEventListener('visibilitychange',async()=>{
-  if(document.visibilityState!=='visible' || frAuthVisibilityRecovery)return;
-  const screen=document.getElementById('accountScreen');
-  if(!screen || screen.style.display==='none')return;
-
-  frAuthVisibilityRecovery=true;
-  try{
-    const session=await frRecoverSavedSession();
-    if(session?.user){
-      cloudUser=session.user;
-      await afterAccountLogin();
-    }
-  }catch(e){}
-  frAuthVisibilityRecovery=false;
-});
-
 
 function frApplyNativeScannerLabel(){
   try{
