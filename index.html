@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V119: PDF Rechnung wie Beleg in Dokumente -->
+<!-- FR Rechnung V120: Auswertung nur Zahlen, Rechnungskarten wie Foto -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -751,6 +751,81 @@ label{font-weight:700}
   font-weight:700;
 }
 
+
+/* V120 Rechnungskarten wie Referenzfoto */
+#overview-invoices #invoiceList .stats-pdf-item{
+  border:1.5px solid #d8d8d8;
+  border-radius:22px;
+  padding:18px;
+  margin:14px 0;
+  background:#fff;
+}
+#overview-invoices #invoiceList .stats-pdf-top{
+  gap:14px;
+}
+#overview-invoices #invoiceList .stats-pdf-top b{
+  font-size:22px;
+  line-height:1.15;
+}
+#overview-invoices #invoiceList .stats-pdf-top .small{
+  font-size:16px;
+  line-height:1.35;
+  color:#707070;
+}
+#overview-invoices #invoiceList .badge{
+  display:inline-block;
+  margin-top:7px;
+  padding:7px 12px;
+  border-radius:999px;
+  font-size:14px;
+  font-weight:800;
+}
+#overview-invoices #invoiceList .stats-pdf-folder{
+  margin-top:8px;
+  padding:6px 11px;
+  font-size:14px;
+}
+#overview-invoices #invoiceList .stats-pdf-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr !important;
+  gap:10px;
+  margin-top:14px;
+}
+#overview-invoices #invoiceList .stats-pdf-actions button{
+  min-height:52px;
+  padding:12px 10px;
+  border:1.5px solid #cfcfcf;
+  border-radius:14px;
+  background:#fff;
+  color:#178be8;
+  font-size:16px;
+  font-weight:800;
+}
+#overview-invoices #invoiceList .stats-pdf-actions button.mahnung-auto{
+  background:#d22d29;
+  color:#fff;
+  border-color:#d22d29;
+}
+@media(max-width:620px){
+  #overview-invoices #invoiceList .stats-pdf-item{
+    padding:16px;
+    border-radius:20px;
+  }
+  #overview-invoices #invoiceList .stats-pdf-actions{
+    grid-template-columns:1fr 1fr !important;
+  }
+  #overview-invoices #invoiceList .stats-pdf-top b{
+    font-size:20px;
+  }
+  #overview-invoices #invoiceList .stats-pdf-top .small{
+    font-size:15px;
+  }
+  #overview-invoices #invoiceList .stats-pdf-actions button{
+    min-height:50px;
+    font-size:15px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -768,7 +843,7 @@ label{font-weight:700}
       <button class="btn" type="button" onclick="accountSignIn()">Anmelden</button>
       <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
       <button class="btn outline" type="button" onclick="accountForgotPassword()">Passwort vergessen / setzen</button>
-      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v119</div>
+      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v120</div>
     </div>
 
     <div id="accountRecovery" class="hidden">
@@ -845,12 +920,6 @@ label{font-weight:700}
         <div class="stat">Material gesamt<b id="statMaterial">0,00 €</b></div>
         <div class="stat">Übrig nach Material<b id="statProfit">0,00 €</b></div>
         <div class="stat">Offene Rechnungen<b id="statOpenCount">0</b></div>
-      </div>
-
-      <div class="stats-pdf-list">
-        <h3>📄 PDF Rechnungen</h3>
-        <p class="small">Gespeicherte, gesendete und gesperrte Rechnungen.</p>
-        <div id="statsInvoiceList"></div>
       </div>
     </div>
   </div>
@@ -1283,7 +1352,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v119 · PDF wie Beleg · Stari PIN · Scanbot · Bank Sync</b></p>
+      <p class="small"><b>Version v120 · Rechnungskarten wie Foto · Auswertung nur Zahlen · Stari PIN · Scanbot · Bank Sync</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -3565,7 +3634,6 @@ function renderDashboard(){
   document.getElementById('statMaterial').textContent=euro(material);
   document.getElementById('statProfit').textContent=euro(total-material);
   document.getElementById('statOpenCount').textContent=arr.filter(x=>!x.paid).length;
-  renderStatsInvoiceList();
   const box=document.getElementById('invoiceList');
   if(!arr.length){box.innerHTML='<p class="small">Noch keine Rechnungen gespeichert.</p>'}
   else box.innerHTML=arr.map((x,i)=>{
