@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V117: Stari PIN ulaz prije Cloud login-a -->
+<!-- FR Rechnung V118: Rechnungsordner wirklich in Dokumente -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -768,7 +768,7 @@ label{font-weight:700}
       <button class="btn" type="button" onclick="accountSignIn()">Anmelden</button>
       <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
       <button class="btn outline" type="button" onclick="accountForgotPassword()">Passwort vergessen / setzen</button>
-      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v117</div>
+      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v118</div>
     </div>
 
     <div id="accountRecovery" class="hidden">
@@ -1283,7 +1283,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v117 · Stari PIN ulaz · Auth Fix · Scanbot · Bank Sync</b></p>
+      <p class="small"><b>Version v118 · Rechnungsordner in Dokumente · Stari PIN · Scanbot · Bank Sync</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -3431,6 +3431,7 @@ function saveInvoiceFolderChoice(){
   cloudUpsertInvoice(x).catch(()=>{});
   closeInvoiceFolderPicker();
   renderDashboard();
+  if(!document.getElementById('documents')?.classList.contains('hidden'))renderDocuments();
 }
 function removeInvoiceFolderChoice(){
   const i=invoiceFolderPickerIndex;
@@ -3443,6 +3444,7 @@ function removeInvoiceFolderChoice(){
   cloudUpsertInvoice(x).catch(()=>{});
   closeInvoiceFolderPicker();
   renderDashboard();
+  if(!document.getElementById('documents')?.classList.contains('hidden'))renderDocuments();
 }
 
 function invoiceFolderLabel(x){
@@ -3744,6 +3746,8 @@ async function pdfInvoice(i,mode='open'){
   pdf.text([company.bic?('SWIFT/BIC '+company.bic):'',company.iban?('IBAN '+company.iban):''].filter(Boolean).join('    '),105,290,{align:'center'});
 
   const blob=pdf.output('blob');
+
+  if(mode==='blob')return blob;
 
   if(mode==='share'){
     const safeNr=String(docNr||'Rechnung').replace(/[^A-Za-z0-9ÄÖÜäöüß._-]+/g,'_');
@@ -6400,6 +6404,445 @@ function startInvoiceStatusRefresh(){
   },15*60*1000);
 }
 document.addEventListener('DOMContentLoaded',startInvoiceStatusRefresh);
+
+
+// ===== V118 REAL UNIFIED DOCUMENT / INVOICE FOLDERS =====
+function frDocFolderKey(value){
+  return String(value||'').trim().toLocaleLowerCase('de-DE');
+}
+function frDocFolderName(d){
+  const own=String(d?.folder||'').trim();
+  if(own)return own;
+  const month=String(d?.month||'').trim();
+  return month ? defaultDocumentsFolderName(month) : 'Ohne Ordner';
+}
+async function frDocsGetFolder(folderName){
+  const key=frDocFolderKey(folderName);
+  const all=await frDocsGetAllForUser();
+  return all
+    .filter(d=>frDocFolderKey(frDocFolderName(d))===key)
+    .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+}
+async function unifiedDocumentFolderNames(){
+  const map=new Map();
+
+  const docs=await frDocsGetAllForUser();
+  docs.forEach(d=>{
+    const name=frDocFolderName(d);
+    if(name)map.set(frDocFolderKey(name),name);
+  });
+
+  getInvoices().forEach(x=>{
+    const name=invoiceFolderLabel(x);
+    if(name)map.set(frDocFolderKey(name),name);
+  });
+
+  return Array.from(map.values())
+    .sort((a,b)=>a.localeCompare(b,'de',{numeric:true,sensitivity:'base'}));
+}
+async function refreshDocumentFolderSelectors(preferred=''){
+  const names=await unifiedDocumentFolderNames();
+  const wanted=String(preferred||'').trim();
+
+  const fill=(el,allowEmpty=true)=>{
+    if(!el)return '';
+    const old=String(el.value||'').trim();
+    const target=wanted||old;
+    el.innerHTML=allowEmpty?'<option value="">— Ordner wählen —</option>':'';
+
+    names.forEach(name=>{
+      const o=document.createElement('option');
+      o.value=name;
+      o.textContent=name;
+      el.appendChild(o);
+    });
+
+    let selected='';
+    if(target){
+      selected=names.find(n=>frDocFolderKey(n)===frDocFolderKey(target))||'';
+    }
+    if(!selected && names.length)selected=names[0];
+    el.value=selected;
+    return selected;
+  };
+
+  fill(document.getElementById('docScanFolderSelect'),true);
+  return fill(document.getElementById('documentsFolderFilter'),true);
+}
+function docScanFolderSelectionChanged(){
+  const select=document.getElementById('docScanFolderSelect');
+  const filter=document.getElementById('documentsFolderFilter');
+  if(select?.value && filter){
+    filter.value=select.value;
+    renderDocuments();
+  }
+}
+function documentsFolderChanged(){
+  const filter=document.getElementById('documentsFolderFilter');
+  const scan=document.getElementById('docScanFolderSelect');
+  if(filter?.value && scan){
+    if(![...scan.options].some(o=>frDocFolderKey(o.value)===frDocFolderKey(filter.value))){
+      const o=document.createElement('option');
+      o.value=filter.value;o.textContent=filter.value;scan.appendChild(o);
+    }
+    scan.value=filter.value;
+  }
+  renderDocuments();
+}
+
+async function showDocuments(){
+  hide();
+  document.getElementById('documents')?.classList.remove('hidden');
+
+  const today=new Date().toISOString().slice(0,10);
+  const d=document.getElementById('docScanDate');
+  if(d&&!d.value)d.value=today;
+  const m=document.getElementById('docScanMonth');
+  if(m&&!m.value)m.value=today.slice(0,7);
+
+  const em=document.getElementById('taxAdvisorEmail');
+  if(em)em.value=localStorage.getItem(userKey('frTaxAdvisorEmail'))||'';
+
+  loadScanbotLicenseKeyIntoUi();
+  await refreshDocumentFolderSelectors();
+  await renderDocuments();
+}
+
+async function saveScannedDocument(){
+  if(!cloudUser){alert('Bitte zuerst anmelden.');return}
+  if(!scannedDocumentBlob){alert('Bitte zuerst Rechnung / Beleg fotografieren.');return}
+
+  const date=document.getElementById('docScanDate')?.value||new Date().toISOString().slice(0,10);
+  const month=document.getElementById('docScanMonth')?.value||date.slice(0,7);
+  const selected=(document.getElementById('docScanFolderSelect')?.value||'').trim();
+  const typed=(document.getElementById('docScanFolderNew')?.value||'').trim();
+  const folder=typed||selected;
+
+  if(!folder){
+    alert('Bitte Ordner auswählen oder neuen Ordner schreiben.');
+    return;
+  }
+
+  const row={
+    id:'DOC-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),
+    userId:cloudUser.id,
+    date,month,folder,
+    name:(document.getElementById('docScanName')?.value||'').trim(),
+    amount:Number(document.getElementById('docScanAmount')?.value||0),
+    category:document.getElementById('docScanCategory')?.value||'Sonstige',
+    note:(document.getElementById('docScanNote')?.value||'').trim(),
+    mime:scannedDocumentBlob.type||'image/jpeg',
+    blob:scannedDocumentBlob,
+    savedAt:new Date().toISOString()
+  };
+
+  try{
+    await frDocsPut(row);
+    scannedDocumentBlob=null;
+    revokeScanPreview();
+
+    const img=document.getElementById('docScanPreview');
+    if(img){img.style.display='none';img.removeAttribute('src')}
+    document.getElementById('docScanCapture')?.classList.remove('has-image');
+
+    const inp=document.getElementById('docScanInput');
+    if(inp)inp.value='';
+
+    ['docScanName','docScanAmount','docScanNote'].forEach(id=>{
+      const el=document.getElementById(id);if(el)el.value='';
+    });
+    const nf=document.getElementById('docScanFolderNew');
+    if(nf)nf.value='';
+
+    await refreshDocumentFolderSelectors(folder);
+    const filter=document.getElementById('documentsFolderFilter');
+    if(filter)filter.value=folder;
+    const sel=document.getElementById('docScanFolderSelect');
+    if(sel)sel.value=folder;
+
+    await renderDocuments();
+    alert('Dokument gespeichert · 📁 '+folder);
+  }catch(e){
+    alert('Speichern Fehler: '+(e?.message||e));
+  }
+}
+
+function invoicesForDocumentFolder(folderName){
+  const key=frDocFolderKey(folderName);
+  return getInvoices()
+    .map((x,i)=>({x,i}))
+    .filter(o=>frDocFolderKey(invoiceFolderLabel(o.x))===key)
+    .sort((a,b)=>String(b.x.date||'').localeCompare(String(a.x.date||'')));
+}
+function renderInvoicesInDocumentFolder(folderName){
+  const box=document.getElementById('documentsInvoiceList');
+  if(!box)return;
+
+  const rows=folderName?invoicesForDocumentFolder(folderName):[];
+  if(!rows.length){box.innerHTML='';return}
+
+  box.innerHTML=
+    '<div class="documents-folder-section-title">📄 PDF Rechnungen</div>'+
+    rows.map(({x,i})=>{
+      const status=invoiceStatusInfo(x);
+      return `<div class="documents-invoice-item">
+        <div class="documents-invoice-top">
+          <div>
+            <b>${esc(x.nr||'Ohne Nummer')}</b><br>
+            ${esc(x.kunde||'')}<br>
+            <span class="small">${fmtDate(x.date)} · 📁 ${esc(invoiceFolderLabel(x))}</span>
+          </div>
+          <div style="text-align:right">
+            <b>${euro(x.total||0)}</b><br>
+            <span class="badge ${status.cls}">${esc(status.text)}</span>
+          </div>
+        </div>
+        <div class="documents-invoice-actions">
+          <button onclick="pdfInvoice(${i})">📄 PDF</button>
+          <button onclick="pdfInvoice(${i},'share')">📤 Senden / teilen</button>
+          <button onclick="editInvoiceFromPdfList(${i})">✏️ Bearbeiten</button>
+          <button onclick="openInvoiceFolderPicker(${i})">📁 Ordner ändern</button>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+async function renderDocumentFolders(){
+  const box=document.getElementById('documentsFolders');
+  if(!box)return;
+
+  try{
+    const groups=new Map();
+    const ensure=name=>{
+      const key=frDocFolderKey(name);
+      if(!groups.has(key))groups.set(key,{name,docs:[],invoices:[]});
+      return groups.get(key);
+    };
+
+    const docs=await frDocsGetAllForUser();
+    docs.forEach(d=>ensure(frDocFolderName(d)).docs.push(d));
+
+    getInvoices().forEach((x,i)=>{
+      const name=invoiceFolderLabel(x);
+      if(name)ensure(name).invoices.push({x,i});
+    });
+
+    const rows=Array.from(groups.values())
+      .sort((a,b)=>a.name.localeCompare(b.name,'de',{numeric:true,sensitivity:'base'}));
+
+    if(!rows.length){
+      box.innerHTML='<div class="documents-folder-empty">Noch keine Ordner.</div>';
+      return;
+    }
+
+    box.innerHTML=rows.map(g=>{
+      const parts=[];
+      if(g.docs.length)parts.push(`${g.docs.length} Beleg${g.docs.length===1?'':'e'}`);
+      if(g.invoices.length)parts.push(`${g.invoices.length} Rechnung${g.invoices.length===1?'':'en'}`);
+
+      return `<button class="documents-folder-card" type="button" onclick="openDocumentsFolderByName('${escAttr(g.name)}')">
+        <span class="folder-main">
+          <span class="folder-icon">📁</span>
+          <span>
+            <span class="folder-title">${esc(g.name)}</span>
+            <span class="folder-meta">${esc(parts.join(' · '))}</span>
+          </span>
+        </span>
+        <span class="folder-arrow">›</span>
+      </button>`;
+    }).join('');
+  }catch(e){
+    box.innerHTML='<div class="documents-folder-empty">Ordner konnten nicht geladen werden.</div>';
+  }
+}
+async function openDocumentsFolderByName(folderName){
+  await refreshDocumentFolderSelectors(folderName);
+
+  const filter=document.getElementById('documentsFolderFilter');
+  if(filter)filter.value=folderName;
+  const scan=document.getElementById('docScanFolderSelect');
+  if(scan)scan.value=folderName;
+
+  await renderDocuments();
+}
+
+function frDocValidBlob(d){
+  return d?.blob instanceof Blob && d.blob.size>0 ? d.blob : null;
+}
+async function openStoredDocument(id){
+  const all=await frDocsGetAllForUser();
+  const d=all.find(x=>String(x.id)===String(id));
+  const blob=frDocValidBlob(d);
+  if(!blob){alert('Dokumentbild nicht gefunden.');return}
+
+  const url=URL.createObjectURL(blob);
+  const w=window.open(url,'_blank');
+  if(!w)window.location.href=url;
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+async function deleteStoredDocument(id){
+  if(!confirm('Dokument wirklich löschen?'))return;
+  await frDocsDelete(id);
+  await renderDocuments();
+}
+
+async function renderDocuments(){
+  await renderDocumentFolders();
+
+  const box=document.getElementById('documentsList');
+  const invoiceBox=document.getElementById('documentsInvoiceList');
+  if(!box)return;
+
+  let folderName=(document.getElementById('documentsFolderFilter')?.value||'').trim();
+  if(!folderName){
+    folderName=await refreshDocumentFolderSelectors();
+  }
+
+  if(!folderName){
+    if(invoiceBox)invoiceBox.innerHTML='';
+    box.innerHTML='<p class="small">Noch kein Ordner vorhanden.</p>';
+    const count=document.getElementById('documentsCount');
+    if(count)count.textContent='';
+    return;
+  }
+
+  renderInvoicesInDocumentFolder(folderName);
+
+  const docs=await frDocsGetFolder(folderName);
+  const invoiceCount=invoicesForDocumentFolder(folderName).length;
+  const count=document.getElementById('documentsCount');
+
+  if(count){
+    const parts=[];
+    if(docs.length)parts.push(`${docs.length} Beleg${docs.length===1?'':'e'}`);
+    if(invoiceCount)parts.push(`${invoiceCount} Rechnung${invoiceCount===1?'':'en'}`);
+    count.textContent=`📁 ${folderName} · ${parts.join(' · ')||'Leer'}`;
+  }
+
+  if(!docs.length){
+    box.innerHTML='';
+    return;
+  }
+
+  box.innerHTML='<div class="documents-folder-section-title">🧾 Belege / Scans</div>';
+
+  for(const d of docs){
+    const blob=frDocValidBlob(d);
+    const div=document.createElement('div');
+    div.className='docscan-item';
+
+    let thumb='';
+    let url='';
+    if(blob && String(blob.type||'').startsWith('image/')){
+      url=URL.createObjectURL(blob);
+      thumb=`<img class="docscan-thumb" src="${url}" alt="Beleg">`;
+    }else{
+      thumb='<div class="docscan-thumb broken-doc-thumb">📄</div>';
+    }
+
+    div.innerHTML=`
+      <div class="docscan-top">
+        ${thumb}
+        <div>
+          <b>${esc(d.name||'Beleg')}</b><br>
+          <span class="docscan-meta">
+            ${fmtDate(d.date)} · ${esc(d.category||'')}
+            ${d.amount?'<br>'+euro(d.amount):''}
+            ${d.note?'<br>'+esc(d.note):''}
+            <br>📁 ${esc(frDocFolderName(d))}
+          </span>
+        </div>
+      </div>
+      <div class="docscan-actions">
+        ${blob?`<button onclick="openStoredDocument('${escAttr(d.id)}')">Öffnen</button>`:''}
+        <button onclick="deleteStoredDocument('${escAttr(d.id)}')">Löschen</button>
+      </div>`;
+
+    if(url){
+      const im=div.querySelector('.docscan-thumb');
+      if(im){
+        im.addEventListener('load',()=>setTimeout(()=>URL.revokeObjectURL(url),700),{once:true});
+        im.addEventListener('error',()=>URL.revokeObjectURL(url),{once:true});
+      }
+    }
+
+    box.appendChild(div);
+  }
+}
+
+function frSafeFilePart(s){
+  return String(s||'Datei').trim()
+    .replace(/[\\/:*?"<>|]+/g,'-')
+    .replace(/\s+/g,' ')
+    .slice(0,90) || 'Datei';
+}
+async function sendDocumentsFolder(){
+  const folderName=(document.getElementById('documentsFolderFilter')?.value||'').trim();
+  if(!folderName){alert('Bitte zuerst Ordner auswählen.');return}
+
+  const docs=await frDocsGetFolder(folderName);
+  const invoices=invoicesForDocumentFolder(folderName);
+
+  if(!docs.length && !invoices.length){
+    alert('Keine Dokumente in diesem Ordner.');
+    return;
+  }
+  if(!window.JSZip){
+    alert('ZIP-Modul konnte nicht geladen werden.');
+    return;
+  }
+
+  try{
+    const zip=new JSZip();
+    const root=zip.folder(frSafeFilePart(folderName));
+
+    let scanNr=0;
+    for(const d of docs){
+      const blob=frDocValidBlob(d);
+      if(!blob)continue;
+      scanNr++;
+      const ext=(String(blob.type||'').includes('png'))?'png':
+                (String(blob.type||'').includes('pdf'))?'pdf':'jpg';
+      root.file(
+        `Beleg_${String(scanNr).padStart(2,'0')}_${frSafeFilePart(d.name||'Beleg')}.${ext}`,
+        blob
+      );
+    }
+
+    for(const {x,i} of invoices){
+      const blob=await pdfInvoice(i,'blob');
+      if(blob){
+        root.file(`Rechnung_${frSafeFilePart(x.nr||String(i+1))}.pdf`,blob);
+      }
+    }
+
+    const zipBlob=await zip.generateAsync({
+      type:'blob',
+      compression:'DEFLATE',
+      compressionOptions:{level:6}
+    });
+    const file=new File([zipBlob],`${frSafeFilePart(folderName)}.zip`,{type:'application/zip'});
+
+    if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+      try{
+        await navigator.share({files:[file],title:`Ordner ${folderName}`});
+        return;
+      }catch(e){
+        if(e?.name==='AbortError')return;
+      }
+    }
+
+    const url=URL.createObjectURL(zipBlob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=file.name;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }catch(e){
+    alert('Ordner Fehler: '+(e?.message||e));
+  }
+}
+// ===== END V118 FOLDER REPAIR =====
 
 async function initAccountGate(){
   showAccountScreen();
