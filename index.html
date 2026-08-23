@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V86: Übersicht glass menu -->
+<!-- FR Rechnung V87: Dokumente Scanner + Monats-PDF -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -283,6 +283,16 @@ label{font-weight:700}
   #home.photo-overview .settings-menu-item{background:rgba(255,255,255,.43) !important;}
 }
 
+
+/* V87 documents scanner */
+.docscan-item{border:1px solid #e1e1e1;border-radius:14px;padding:12px;margin:10px 0;background:#fff}
+.docscan-top{display:grid;grid-template-columns:92px 1fr;gap:12px;align-items:start}
+.docscan-thumb{width:92px;height:112px;object-fit:cover;border-radius:10px;border:1px solid #ddd;background:#f2f2f2}
+.docscan-meta{font-size:13px;color:#555;line-height:1.45}
+.docscan-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:10px}
+.docscan-actions button{padding:10px;border-radius:10px;border:1px solid #ccc;background:#fff;font-weight:700}
+@media(max-width:620px){.docscan-actions{grid-template-columns:1fr}.docscan-top{grid-template-columns:80px 1fr}.docscan-thumb{width:80px;height:98px}}
+
 </style>
 </head>
 <body>
@@ -349,6 +359,7 @@ label{font-weight:700}
         <button class="settings-menu-item" onclick="showOverviewSection('stats')"><span>Auswertung</span><span>›</span></button>
         <button class="settings-menu-item" onclick="showMessen()"><span>📐 Messen</span><span>›</span></button>
         <button class="settings-menu-item" onclick="showRegiestunden()"><span>⏱️ Regiestunden PDF</span><span>›</span></button>
+        <button class="settings-menu-item" onclick="showDocuments()"><span>📄 Dokumente / Scanner</span><span>›</span></button>
       </div>
     </div>
 
@@ -652,6 +663,41 @@ label{font-weight:700}
     <button class="btn outline" type="button" onclick="home()">Zurück</button>
   </div>
 
+
+  <div id="documents" class="card hidden">
+    <h2>📄 Dokumente / Scanner</h2>
+    <p class="small">Rechnung oder Beleg fotografieren, nach Monat speichern und als Monats-PDF an den Steuerberater senden.</p>
+
+    <div class="measure-card">
+      <h3>Neuen Beleg scannen</h3>
+      <label>Foto / Scan</label>
+      <input id="docScanInput" type="file" accept="image/*" capture="environment" onchange="documentScanSelected(event)">
+      <img id="docScanPreview" class="measure-preview" alt="Scan Vorschau">
+      <div class="row">
+        <div><label>Datum</label><input id="docScanDate" type="date" onchange="documentSyncMonthFromDate()"></div>
+        <div><label>Monat</label><input id="docScanMonth" type="month"></div>
+      </div>
+      <label>Firma / Beleg</label><input id="docScanName" placeholder="z.B. Beinkofer, Kappler, Tankstelle">
+      <div class="row">
+        <div><label>Betrag €</label><input id="docScanAmount" type="number" step="0.01" placeholder="0,00"></div>
+        <div><label>Kategorie</label><select id="docScanCategory"><option>Material</option><option>Werkzeug</option><option>Auto / Tanken</option><option>Telefon / Büro</option><option>Sonstige</option></select></div>
+      </div>
+      <label>Notiz</label><input id="docScanNote" placeholder="optional">
+      <button class="btn" type="button" onclick="saveScannedDocument()">💾 Dokument speichern</button>
+    </div>
+
+    <div class="measure-card">
+      <h3>Monat auswählen</h3>
+      <input id="documentsMonthFilter" type="month" onchange="renderDocuments()">
+      <label>Steuerberater E-Mail</label><input id="taxAdvisorEmail" type="email" placeholder="steuerberater@email.at" onchange="saveTaxAdvisorEmail()">
+      <button class="btn" type="button" onclick="shareDocumentsMonthPdf()">📤 Monats-PDF senden / teilen</button>
+      <p id="documentsCount" class="small"></p>
+    </div>
+
+    <div id="documentsList"></div>
+    <button class="btn outline" type="button" onclick="home()">Zurück</button>
+  </div>
+
   <div id="trash" class="card hidden">
     <h2>Papierkorb</h2>
     <p class="small">Gelöschte Rechnungen bleiben hier, bis du sie selbst endgültig löschst.</p>
@@ -732,7 +778,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v86 · Private Übersicht · Foto · Enable Banking</b></p>
+      <p class="small"><b>Version v87 · Dokumente Scanner · Foto · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1988,7 +2034,7 @@ function setInvoiceContext(kind='Rechnung',offerNr='',percent=0){
   const title=document.getElementById('formTitle');
   if(title && docType==='Rechnung') title.textContent='Neue '+currentDocumentLabel();
 }
-const H=['home','form','settings','trash','messen','regie'];
+const H=['home','form','settings','trash','messen','regie','documents'];
 const units=['m²','lfm','Std.','Stk.','ST','Sack','Dose','m','Kübel','SET','5 KG','20 KG','Kanister','Pauschal','kg'];
 let itemCount=0;
 
@@ -4087,6 +4133,96 @@ function measureListToDoc(type){
 resetRepeatMeasureRows();
 resetAllLfmMeasureRows();
 resetRegieRows();
+
+
+const FR_DOC_DB_NAME='fr-rechnung-documents';
+const FR_DOC_DB_VERSION=1;
+let scannedDocumentBlob=null;
+let scannedDocumentObjectUrl='';
+
+function frDocsDb(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(FR_DOC_DB_NAME,FR_DOC_DB_VERSION);
+    req.onupgradeneeded=()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains('documents')){
+        const st=db.createObjectStore('documents',{keyPath:'id'});
+        st.createIndex('user_month',['userId','month'],{unique:false});
+      }
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error||new Error('IndexedDB Fehler'));
+  });
+}
+async function frDocsPut(row){
+  const db=await frDocsDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction('documents','readwrite');tx.objectStore('documents').put(row);
+    tx.oncomplete=()=>{db.close();resolve(true)};tx.onerror=()=>{db.close();reject(tx.error)};
+  });
+}
+async function frDocsDelete(id){
+  const db=await frDocsDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction('documents','readwrite');tx.objectStore('documents').delete(id);
+    tx.oncomplete=()=>{db.close();resolve(true)};tx.onerror=()=>{db.close();reject(tx.error)};
+  });
+}
+async function frDocsGetMonth(month){
+  const db=await frDocsDb();
+  const userId=cloudUser&&cloudUser.id?cloudUser.id:'no-user';
+  return new Promise((resolve,reject)=>{
+    const req=db.transaction('documents','readonly').objectStore('documents').index('user_month').getAll(IDBKeyRange.only([userId,month]));
+    req.onsuccess=()=>{const a=(req.result||[]).sort((x,y)=>String(y.date||'').localeCompare(String(x.date||'')));db.close();resolve(a)};
+    req.onerror=()=>{db.close();reject(req.error)};
+  });
+}
+function currentMonthValue(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+function showDocuments(){
+  hide();document.getElementById('documents')?.classList.remove('hidden');
+  const today=new Date().toISOString().slice(0,10);
+  const d=document.getElementById('docScanDate');if(d&&!d.value)d.value=today;
+  const m=document.getElementById('docScanMonth');if(m&&!m.value)m.value=today.slice(0,7);
+  const f=document.getElementById('documentsMonthFilter');if(f&&!f.value)f.value=currentMonthValue();
+  const em=document.getElementById('taxAdvisorEmail');if(em)em.value=localStorage.getItem(userKey('frTaxAdvisorEmail'))||'';
+  renderDocuments();
+}
+function saveTaxAdvisorEmail(){localStorage.setItem(userKey('frTaxAdvisorEmail'),(document.getElementById('taxAdvisorEmail')?.value||'').trim())}
+function documentSyncMonthFromDate(){const d=document.getElementById('docScanDate')?.value||'';if(d)document.getElementById('docScanMonth').value=d.slice(0,7)}
+function revokeScanPreview(){if(scannedDocumentObjectUrl){try{URL.revokeObjectURL(scannedDocumentObjectUrl)}catch(e){}scannedDocumentObjectUrl=''}}
+async function compressDocumentImage(file){
+  const img=await new Promise((resolve,reject)=>{const i=new Image();const u=URL.createObjectURL(file);i.onload=()=>{URL.revokeObjectURL(u);resolve(i)};i.onerror=reject;i.src=u});
+  const maxSide=1800;let w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;const s=Math.min(1,maxSide/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);
+  const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+  return await new Promise(resolve=>c.toBlob(b=>resolve(b||file),'image/jpeg',0.78));
+}
+async function documentScanSelected(e){
+  const file=e?.target?.files?.[0];if(!file)return;
+  try{scannedDocumentBlob=await compressDocumentImage(file);revokeScanPreview();scannedDocumentObjectUrl=URL.createObjectURL(scannedDocumentBlob);const img=document.getElementById('docScanPreview');img.src=scannedDocumentObjectUrl;img.style.display='block'}catch(err){alert('Scan Fehler: '+(err?.message||err))}
+}
+async function saveScannedDocument(){
+  if(!cloudUser){alert('Bitte zuerst anmelden.');return}
+  if(!scannedDocumentBlob){alert('Bitte zuerst Rechnung / Beleg fotografieren.');return}
+  const date=document.getElementById('docScanDate')?.value||new Date().toISOString().slice(0,10);const month=document.getElementById('docScanMonth')?.value||date.slice(0,7);
+  const row={id:'DOC-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),userId:cloudUser.id,date,month,name:(document.getElementById('docScanName')?.value||'').trim(),amount:Number(document.getElementById('docScanAmount')?.value||0),category:document.getElementById('docScanCategory')?.value||'Sonstige',note:(document.getElementById('docScanNote')?.value||'').trim(),mime:'image/jpeg',blob:scannedDocumentBlob,savedAt:new Date().toISOString()};
+  try{await frDocsPut(row);scannedDocumentBlob=null;revokeScanPreview();const img=document.getElementById('docScanPreview');img.style.display='none';document.getElementById('docScanInput').value='';['docScanName','docScanAmount','docScanNote'].forEach(id=>document.getElementById(id).value='');document.getElementById('documentsMonthFilter').value=month;await renderDocuments();alert('Dokument gespeichert · '+month)}catch(e){alert('Speichern Fehler: '+(e?.message||e))}
+}
+async function renderDocuments(){
+  const box=document.getElementById('documentsList');if(!box)return;const month=document.getElementById('documentsMonthFilter')?.value||currentMonthValue();
+  try{const arr=await frDocsGetMonth(month);document.getElementById('documentsCount').textContent=month+' · '+arr.length+' Dokument(e)';if(!arr.length){box.innerHTML='<p class="small">Noch keine Dokumente in diesem Monat.</p>';return}box.innerHTML='';arr.forEach(d=>{const url=URL.createObjectURL(d.blob);const div=document.createElement('div');div.className='docscan-item';div.innerHTML=`<div class="docscan-top"><img class="docscan-thumb" src="${url}"><div><b>${esc(d.name||'Beleg')}</b><br><span class="docscan-meta">${fmtDate(d.date)} · ${esc(d.category||'')}<br>${d.amount?euro(d.amount):''}${d.note?'<br>'+esc(d.note):''}</span></div></div><div class="docscan-actions"><button onclick="openStoredDocument('${escAttr(d.id)}')">Öffnen</button><button onclick="shareStoredDocument('${escAttr(d.id)}')">Senden</button><button onclick="deleteStoredDocument('${escAttr(d.id)}')">Löschen</button></div>`;box.appendChild(div);setTimeout(()=>URL.revokeObjectURL(url),5000)});}catch(e){box.innerHTML='<p class="small">Fehler: '+esc(e?.message||e)+'</p>'}
+}
+async function getStoredDocumentById(id){const db=await frDocsDb();return new Promise((resolve,reject)=>{const req=db.transaction('documents','readonly').objectStore('documents').get(id);req.onsuccess=()=>{db.close();resolve(req.result||null)};req.onerror=()=>{db.close();reject(req.error)}})}
+async function openStoredDocument(id){const d=await getStoredDocumentById(id);if(!d)return;const u=URL.createObjectURL(d.blob);const w=window.open(u,'_blank');if(!w)location.href=u;setTimeout(()=>URL.revokeObjectURL(u),60000)}
+async function shareStoredDocument(id){const d=await getStoredDocumentById(id);if(!d)return;const file=new File([d.blob],`Beleg_${d.date}_${(d.name||'Dokument').replace(/[^a-z0-9_-]+/gi,'_')}.jpg`,{type:'image/jpeg'});if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){try{await navigator.share({files:[file],title:'Beleg '+d.date,text:d.name||'Beleg'});return}catch(e){if(e?.name==='AbortError')return}}const u=URL.createObjectURL(d.blob);const a=document.createElement('a');a.href=u;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(u),30000)}
+async function deleteStoredDocument(id){if(!confirm('Dokument wirklich löschen?'))return;await frDocsDelete(id);renderDocuments()}
+async function blobToDataUrl(blob){return await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob)})}
+async function imageSizeFromDataUrl(data){return await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve({w:i.naturalWidth,h:i.naturalHeight});i.onerror=reject;i.src=data})}
+async function shareDocumentsMonthPdf(){
+  const month=document.getElementById('documentsMonthFilter')?.value||currentMonthValue();saveTaxAdvisorEmail();const arr=await frDocsGetMonth(month);if(!arr.length){alert('Keine Dokumente in diesem Monat.');return}
+  const {jsPDF}=window.jspdf||{};if(!jsPDF){alert('PDF-Modul konnte nicht geladen werden.');return}
+  try{const pdf=new jsPDF({unit:'mm',format:'a4'});for(let i=0;i<arr.length;i++){const d=arr[i];if(i)pdf.addPage();pdf.setFontSize(13);pdf.setFont(undefined,'bold');pdf.text(`${d.name||'Beleg'} · ${fmtDate(d.date)}`,12,12);pdf.setFontSize(9);pdf.setFont(undefined,'normal');const meta=[d.category||'',d.amount?euro(d.amount):'',d.note||''].filter(Boolean).join(' · ');if(meta)pdf.text(pdf.splitTextToSize(meta,186),12,18);const data=await blobToDataUrl(d.blob);const sz=await imageSizeFromDataUrl(data);const scale=Math.min(186/sz.w,260/sz.h);const w=sz.w*scale,h=sz.h*scale;pdf.addImage(data,'JPEG',(210-w)/2,26,w,h,'','FAST')}
+    const blob=pdf.output('blob');const file=new File([blob],`Belege_${month}.pdf`,{type:'application/pdf'});const advisor=localStorage.getItem(userKey('frTaxAdvisorEmail'))||'';const text=advisor?`Monatsbelege ${month} · Steuerberater: ${advisor}`:`Monatsbelege ${month}`;if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){try{await navigator.share({files:[file],title:`Belege ${month}`,text});return}catch(e){if(e?.name==='AbortError')return}}pdf.save(`Belege_${month}.pdf`)}catch(e){alert('Monats-PDF Fehler: '+(e?.message||e))}
+}
 
 async function initAccountGate(){
   showAccountScreen();
