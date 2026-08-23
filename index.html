@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V87: Dokumente Scanner + Monats-PDF -->
+<!-- FR Rechnung V88: Blue Scanner Vorschau -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -292,6 +292,48 @@ label{font-weight:700}
 .docscan-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:10px}
 .docscan-actions button{padding:10px;border-radius:10px;border:1px solid #ccc;background:#fff;font-weight:700}
 @media(max-width:620px){.docscan-actions{grid-template-columns:1fr}.docscan-top{grid-template-columns:80px 1fr}.docscan-thumb{width:80px;height:98px}}
+
+
+/* V88 blue scanner preview */
+.docscan-capture{
+  position:relative;
+  width:100%;
+  min-height:240px;
+  border-radius:18px;
+  overflow:hidden;
+  background:linear-gradient(145deg,rgba(0,122,255,.16),rgba(0,122,255,.06));
+  border:2px solid rgba(0,122,255,.72);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  margin:8px 0 14px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),0 8px 22px rgba(0,122,255,.10);
+}
+.docscan-capture input{display:none!important}
+.docscan-capture .docscan-empty{text-align:center;color:#007aff;font-weight:800;padding:26px}
+.docscan-capture .docscan-empty .scan-icon{font-size:48px;line-height:1;margin-bottom:10px}
+.docscan-capture .docscan-empty .scan-sub{font-size:13px;font-weight:600;opacity:.78;margin-top:5px}
+.docscan-capture .docscan-preview-img{
+  display:none;
+  width:100%;
+  max-height:520px;
+  object-fit:contain;
+  background:#eef6ff;
+}
+.docscan-capture.has-image{background:#eef6ff;min-height:0}
+.docscan-capture.has-image .docscan-empty{display:none}
+.docscan-capture.has-image .docscan-preview-img{display:block}
+.docscan-corner{position:absolute;width:34px;height:34px;border-color:#007aff;border-style:solid;z-index:3;pointer-events:none}
+.docscan-corner.tl{top:12px;left:12px;border-width:4px 0 0 4px;border-radius:9px 0 0 0}
+.docscan-corner.tr{top:12px;right:12px;border-width:4px 4px 0 0;border-radius:0 9px 0 0}
+.docscan-corner.bl{bottom:12px;left:12px;border-width:0 0 4px 4px;border-radius:0 0 0 9px}
+.docscan-corner.br{bottom:12px;right:12px;border-width:0 4px 4px 0;border-radius:0 0 9px 0}
+.docscan-capture.has-image:after{
+  content:'';position:absolute;left:12%;right:12%;top:50%;height:2px;
+  background:rgba(0,122,255,.82);box-shadow:0 0 12px rgba(0,122,255,.85);
+  pointer-events:none;z-index:2;
+}
 
 </style>
 </head>
@@ -671,8 +713,17 @@ label{font-weight:700}
     <div class="measure-card">
       <h3>Neuen Beleg scannen</h3>
       <label>Foto / Scan</label>
-      <input id="docScanInput" type="file" accept="image/*" capture="environment" onchange="documentScanSelected(event)">
-      <img id="docScanPreview" class="measure-preview" alt="Scan Vorschau">
+      <label id="docScanCapture" class="docscan-capture" for="docScanInput">
+        <input id="docScanInput" type="file" accept="image/*" capture="environment" onchange="documentScanSelected(event)">
+        <div class="docscan-empty">
+          <div class="scan-icon">▣</div>
+          <div>Rechnung scannen</div>
+          <div class="scan-sub">Kamera öffnen · Beleg in den blauen Rahmen halten</div>
+        </div>
+        <img id="docScanPreview" class="docscan-preview-img" alt="Scan Vorschau">
+        <span class="docscan-corner tl"></span><span class="docscan-corner tr"></span>
+        <span class="docscan-corner bl"></span><span class="docscan-corner br"></span>
+      </label>
       <div class="row">
         <div><label>Datum</label><input id="docScanDate" type="date" onchange="documentSyncMonthFromDate()"></div>
         <div><label>Monat</label><input id="docScanMonth" type="month"></div>
@@ -778,7 +829,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v87 · Dokumente Scanner · Foto · Enable Banking</b></p>
+      <p class="small"><b>Version v88 · Blue Scanner · Foto · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -4198,14 +4249,14 @@ async function compressDocumentImage(file){
 }
 async function documentScanSelected(e){
   const file=e?.target?.files?.[0];if(!file)return;
-  try{scannedDocumentBlob=await compressDocumentImage(file);revokeScanPreview();scannedDocumentObjectUrl=URL.createObjectURL(scannedDocumentBlob);const img=document.getElementById('docScanPreview');img.src=scannedDocumentObjectUrl;img.style.display='block'}catch(err){alert('Scan Fehler: '+(err?.message||err))}
+  try{scannedDocumentBlob=await compressDocumentImage(file);revokeScanPreview();scannedDocumentObjectUrl=URL.createObjectURL(scannedDocumentBlob);const img=document.getElementById('docScanPreview');img.src=scannedDocumentObjectUrl;img.style.display='block';document.getElementById('docScanCapture')?.classList.add('has-image')}catch(err){alert('Scan Fehler: '+(err?.message||err))}
 }
 async function saveScannedDocument(){
   if(!cloudUser){alert('Bitte zuerst anmelden.');return}
   if(!scannedDocumentBlob){alert('Bitte zuerst Rechnung / Beleg fotografieren.');return}
   const date=document.getElementById('docScanDate')?.value||new Date().toISOString().slice(0,10);const month=document.getElementById('docScanMonth')?.value||date.slice(0,7);
   const row={id:'DOC-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),userId:cloudUser.id,date,month,name:(document.getElementById('docScanName')?.value||'').trim(),amount:Number(document.getElementById('docScanAmount')?.value||0),category:document.getElementById('docScanCategory')?.value||'Sonstige',note:(document.getElementById('docScanNote')?.value||'').trim(),mime:'image/jpeg',blob:scannedDocumentBlob,savedAt:new Date().toISOString()};
-  try{await frDocsPut(row);scannedDocumentBlob=null;revokeScanPreview();const img=document.getElementById('docScanPreview');img.style.display='none';document.getElementById('docScanInput').value='';['docScanName','docScanAmount','docScanNote'].forEach(id=>document.getElementById(id).value='');document.getElementById('documentsMonthFilter').value=month;await renderDocuments();alert('Dokument gespeichert · '+month)}catch(e){alert('Speichern Fehler: '+(e?.message||e))}
+  try{await frDocsPut(row);scannedDocumentBlob=null;revokeScanPreview();const img=document.getElementById('docScanPreview');img.style.display='none';img.removeAttribute('src');document.getElementById('docScanCapture')?.classList.remove('has-image');document.getElementById('docScanInput').value='';['docScanName','docScanAmount','docScanNote'].forEach(id=>document.getElementById(id).value='');document.getElementById('documentsMonthFilter').value=month;await renderDocuments();alert('Dokument gespeichert · '+month)}catch(e){alert('Speichern Fehler: '+(e?.message||e))}
 }
 async function renderDocuments(){
   const box=document.getElementById('documentsList');if(!box)return;const month=document.getElementById('documentsMonthFilter')?.value||currentMonthValue();
