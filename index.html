@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V110: Rechnung Ordner frei wählen -->
+<!-- FR Rechnung V111: V110 JavaScript Fix -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -1246,7 +1246,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v110 · Ordner frei wählen · Auto Mahnung · Bank Bezahlt grün · Scanbot</b></p>
+      <p class="small"><b>Version v111 · Ordner Fix · Auto Mahnung · Bank Bezahlt grün · Scanbot</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -3326,7 +3326,7 @@ function renderStatsInvoiceList(){
         <button onclick="pdfInvoice(${i},'share')">📤 Senden / teilen</button>
         <button class="${status.key==='overdue'?'mahnung-auto':''}" onclick="mahnungInvoice(${i})">${status.key==='overdue'?'🔴 Mahnung':'⚠️ Mahnung'}</button>
         <button onclick="togglePaid(${i})">${x.paid?'↩️ Offen setzen':'✅ Bezahlt'}</button>
-        <button onclick="openInvoiceFolderPicker(${i})">📁 ${folder?folder:\'Ordner\'}</button>
+        <button onclick="openInvoiceFolderPicker(${i})">📁 ${folder?folder:'Ordner'}</button>
         <button onclick="copyInvoice(${i})">📋 Kopieren</button>
         <button onclick="deleteInvoice(${i})">🗑️ Löschen</button>
       </div>
