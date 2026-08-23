@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V107: Automatische Mahnung rot + Bank bezahlt grün -->
+<!-- FR Rechnung V108: Rechnung Ordner Modal Fix -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -696,6 +696,14 @@ label{font-weight:700}
   border-color:#d22d29;
 }
 
+
+/* V108 invoice folder modal fix */
+.invoice-folder-box{
+  max-height:calc(100dvh - 40px);
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+}
+
 </style>
 </head>
 <body>
@@ -1225,7 +1233,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v107 · Auto Mahnung · Bank Bezahlt grün · PDF Aktionen · Scanbot</b></p>
+      <p class="small"><b>Version v108 · Ordner Fix · Auto Mahnung · Bank Bezahlt grün · Scanbot</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1349,6 +1357,24 @@ label{font-weight:700}
       <p class="small">Face ID funktioniert über HTTPS / Vercel. Bei direkter HTML-Datei bleibt PIN verfügbar.</p>
     </div>
 
+  </div>
+</div>
+
+
+<div id="invoiceFolderModal" class="invoice-folder-modal hidden" aria-hidden="true">
+  <div class="invoice-folder-box">
+    <h3>📁 Rechnung in Ordner</h3>
+    <p id="invoiceFolderInvoiceInfo" class="small"></p>
+
+    <label>Ordner auswählen</label>
+    <select id="invoiceFolderSelect"></select>
+
+    <label>oder neuen Ordner schreiben</label>
+    <input id="invoiceFolderNew" placeholder="z.B. August 2026, HB, Kappler …">
+
+    <button class="btn" type="button" onclick="saveInvoiceFolderChoice()">📁 In Ordner speichern</button>
+    <button class="btn outline" type="button" onclick="removeInvoiceFolderChoice()">Ordner entfernen</button>
+    <button class="btn outline" type="button" onclick="closeInvoiceFolderPicker()">Abbrechen</button>
   </div>
 </div>
 
@@ -3105,11 +3131,20 @@ function openInvoiceFolderPicker(i){
     select.value=current||def;
   }
 
-  modal?.classList.remove('hidden');
+  if(modal){
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden','false');
+  }
 }
 function closeInvoiceFolderPicker(){
   invoiceFolderPickerIndex=-1;
-  document.getElementById('invoiceFolderModal')?.classList.add('hidden');
+  const modal=document.getElementById('invoiceFolderModal');
+  if(modal){
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden','true');
+  }
+  const input=document.getElementById('invoiceFolderNew');
+  if(input)input.value='';
 }
 function saveInvoiceFolderChoice(){
   const i=invoiceFolderPickerIndex;
@@ -3973,23 +4008,6 @@ ${companyName}`);
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
   <script>if(${JSON.stringify(!!epcText)}){new QRCode(document.getElementById('payQr'),{text:${JSON.stringify(epcText)},width:120,height:120,correctLevel:QRCode.CorrectLevel.M});}<\/script>
   
-
-<div id="invoiceFolderModal" class="invoice-folder-modal hidden">
-  <div class="invoice-folder-box">
-    <h3>📁 Rechnung in Ordner</h3>
-    <p id="invoiceFolderInvoiceInfo" class="small"></p>
-
-    <label>Ordner auswählen</label>
-    <select id="invoiceFolderSelect"></select>
-
-    <label>oder neuen Ordner schreiben</label>
-    <input id="invoiceFolderNew" placeholder="z.B. August 2026, HB, Kappler …">
-
-    <button class="btn" type="button" onclick="saveInvoiceFolderChoice()">📁 In Ordner speichern</button>
-    <button class="btn outline" type="button" onclick="removeInvoiceFolderChoice()">Ordner entfernen</button>
-    <button class="btn outline" type="button" onclick="closeInvoiceFolderPicker()">Abbrechen</button>
-  </div>
-</div>
 
 </body></html>`);
   w.document.close();
