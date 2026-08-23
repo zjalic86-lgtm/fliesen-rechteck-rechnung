@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V104: PDF Rechnungen unter Auswertung -->
+<!-- FR Rechnung V107: Automatische Mahnung rot + Bank bezahlt grün -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -594,26 +594,6 @@ label{font-weight:700}
 }
 
 
-/* V103 Rechnung sperren */
-.invoice.invoice-locked{
-  border-color:#c9c9c9;
-  background:#fafafa;
-}
-.lock-badge{
-  display:inline-block;
-  margin-top:4px;
-  padding:4px 8px;
-  border-radius:999px;
-  background:#ececec;
-  font-size:11px;
-  font-weight:800;
-  color:#444;
-}
-.actions button.lock-action{
-  border-color:#999;
-}
-
-
 /* V104 PDF Rechnung list under Auswertung */
 .stats-pdf-list{
   margin-top:22px;
@@ -628,7 +608,6 @@ label{font-weight:700}
   margin:10px 0;
   background:#fff;
 }
-.stats-pdf-item.locked{background:#fafafa}
 .stats-pdf-top{
   display:flex;
   justify-content:space-between;
@@ -637,7 +616,7 @@ label{font-weight:700}
 }
 .stats-pdf-actions{
   display:grid;
-  grid-template-columns:1fr 1fr 1fr;
+  grid-template-columns:1fr 1fr 1fr 1fr;
   gap:7px;
   margin-top:10px;
 }
@@ -650,6 +629,71 @@ label{font-weight:700}
 }
 @media(max-width:620px){
   .stats-pdf-actions{grid-template-columns:1fr}
+}
+
+
+/* V105 PDF-Rechnung actions */
+.stats-pdf-actions{
+  grid-template-columns:1fr 1fr !important;
+}
+.stats-pdf-folder{
+  display:inline-block;
+  margin-top:5px;
+  padding:4px 8px;
+  border-radius:999px;
+  background:#eef6ff;
+  color:#0a6dd8;
+  font-size:11px;
+  font-weight:800;
+}
+.invoice-folder-modal{
+  position:fixed;
+  inset:0;
+  z-index:1000000;
+  background:rgba(0,0,0,.42);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+.invoice-folder-modal.hidden{display:none!important}
+.invoice-folder-box{
+  width:min(470px,100%);
+  background:#fff;
+  border-radius:20px;
+  padding:20px;
+  box-shadow:0 18px 60px rgba(0,0,0,.25);
+}
+.invoice-folder-box h3{margin-top:0}
+.invoice-folder-box select,
+.invoice-folder-box input{margin-bottom:12px}
+
+
+/* V107 automatic invoice status colors */
+.badge.status-open{
+  background:#eeeeee;
+  color:#444;
+}
+.badge.status-overdue{
+  background:#ffe4e4;
+  color:#b00020;
+  border:1px solid #efaaaa;
+}
+.badge.status-paid{
+  background:#e5f7e9;
+  color:#137333;
+  border:1px solid #a8ddb3;
+}
+.stats-pdf-item.status-overdue-card{
+  border-color:#e36b6b;
+}
+.stats-pdf-item.status-paid-card{
+  border-color:#9bd0a6;
+}
+.stats-pdf-actions button.mahnung-auto{
+  background:#d22d29;
+  color:#fff;
+  border-color:#d22d29;
 }
 
 </style>
@@ -1181,7 +1225,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v104 · PDF Rechnungen Liste · Rechnung sperren · Scanbot · Enable Banking</b></p>
+      <p class="small"><b>Version v107 · Auto Mahnung · Bank Bezahlt grün · PDF Aktionen · Scanbot</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -2719,12 +2763,11 @@ function saveCurrentInvoiceSilently(){
   const i=arr.findIndex(x=>x.nr===d.nr);
 
   if(i>=0){
-    // Never overwrite an explicitly locked invoice.
-    if(arr[i].locked)return true;
     d.paid=!!arr[i].paid;
     d.bankMatch=arr[i].bankMatch||null;
-    d.locked=!!arr[i].locked;
-    d.lockedAt=arr[i].lockedAt||'';
+    d.pdfFolder=arr[i].pdfFolder||d.pdfFolder||'';
+    d.locked=false;
+    d.lockedAt='';
     arr[i]=d;
   }else{
     arr.unshift(d);
@@ -2744,14 +2787,11 @@ function saveInvoice(){
   let arr=getInvoices();
   const i=arr.findIndex(x=>x.nr===d.nr);
   if(i>=0){
-    if(arr[i].locked){
-      alert('🔒 Diese Rechnung ist gesperrt. Zuerst entsperren.');
-      return;
-    }
     d.paid=arr[i].paid;
     d.bankMatch=arr[i].bankMatch||null;
-    d.locked=!!arr[i].locked;
-    d.lockedAt=arr[i].lockedAt||'';
+    d.pdfFolder=arr[i].pdfFolder||d.pdfFolder||'';
+    d.locked=false;
+    d.lockedAt='';
     arr[i]=d;
   }else arr.unshift(d);
   setInvoices(arr);alert('Rechnung gespeichert');renderDashboard();
@@ -3021,6 +3061,143 @@ async function emptyTrash(){
 }
 
 
+
+function editInvoiceFromPdfList(i){
+  const x=getInvoices()[i];
+  if(!x)return;
+  loadInvoice(i);
+}
+
+let invoiceFolderPickerIndex=-1;
+
+function defaultInvoiceFolderName(x){
+  const d=String(x?.date||'');
+  if(/^\d{4}-\d{2}/.test(d)){
+    const [y,m]=d.slice(0,7).split('-').map(Number);
+    try{
+      return new Intl.DateTimeFormat('de-DE',{month:'long',year:'numeric'}).format(new Date(y,m-1,1));
+    }catch(e){}
+  }
+  return 'Rechnungen';
+}
+function openInvoiceFolderPicker(i){
+  const x=getInvoices()[i];
+  if(!x)return;
+  invoiceFolderPickerIndex=i;
+
+  const modal=document.getElementById('invoiceFolderModal');
+  const info=document.getElementById('invoiceFolderInvoiceInfo');
+  const select=document.getElementById('invoiceFolderSelect');
+  const input=document.getElementById('invoiceFolderNew');
+
+  if(info)info.textContent=(x.nr||'')+' · '+(x.kunde||'');
+  if(input)input.value='';
+
+  const current=invoiceFolderLabel(x);
+  const names=invoiceFolderNames();
+  const def=current||defaultInvoiceFolderName(x);
+  if(def && !names.some(n=>n.toLocaleLowerCase('de-DE')===def.toLocaleLowerCase('de-DE')))names.unshift(def);
+
+  if(select){
+    select.innerHTML=names.length
+      ? names.map(n=>`<option value="${escAttr(n)}">${esc(n)}</option>`).join('')
+      : `<option value="${escAttr(def)}">${esc(def)}</option>`;
+    select.value=current||def;
+  }
+
+  modal?.classList.remove('hidden');
+}
+function closeInvoiceFolderPicker(){
+  invoiceFolderPickerIndex=-1;
+  document.getElementById('invoiceFolderModal')?.classList.add('hidden');
+}
+function saveInvoiceFolderChoice(){
+  const i=invoiceFolderPickerIndex;
+  const a=getInvoices();
+  const x=a[i];
+  if(!x)return;
+
+  const typed=(document.getElementById('invoiceFolderNew')?.value||'').trim();
+  const selected=(document.getElementById('invoiceFolderSelect')?.value||'').trim();
+  const folder=typed||selected||defaultInvoiceFolderName(x);
+
+  x.pdfFolder=folder;
+  x.savedAt=new Date().toISOString();
+  setInvoices(a);
+  cloudUpsertInvoice(x).catch(()=>{});
+  closeInvoiceFolderPicker();
+  renderDashboard();
+}
+function removeInvoiceFolderChoice(){
+  const i=invoiceFolderPickerIndex;
+  const a=getInvoices();
+  const x=a[i];
+  if(!x)return;
+  x.pdfFolder='';
+  x.savedAt=new Date().toISOString();
+  setInvoices(a);
+  cloudUpsertInvoice(x).catch(()=>{});
+  closeInvoiceFolderPicker();
+  renderDashboard();
+}
+
+function invoiceFolderLabel(x){
+  return String(x?.pdfFolder||'').trim();
+}
+function invoiceFolderNames(){
+  const set=new Map();
+  getInvoices().forEach(x=>{
+    const f=invoiceFolderLabel(x);
+    if(f)set.set(f.toLocaleLowerCase('de-DE'),f);
+  });
+  return Array.from(set.values()).sort((a,b)=>a.localeCompare(b,'de',{numeric:true,sensitivity:'base'}));
+}
+
+
+function localTodayYmd(){
+  const d=new Date();
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function invoiceStatusInfo(x){
+  if(x?.paid){
+    return {
+      key:'paid',
+      cls:'status-paid',
+      cardCls:'status-paid-card',
+      text:x.bankMatch?'✅ Bezahlt · Bank':'✅ Bezahlt'
+    };
+  }
+
+  const due=calcDueDate(x?.date||'',parseInt(x?.tage)||14);
+  const today=localTodayYmd();
+
+  if(due && due<today){
+    const a=new Date(due+'T00:00:00');
+    const b=new Date(today+'T00:00:00');
+    const days=Math.max(1,Math.floor((b-a)/(24*60*60*1000)));
+    return {
+      key:'overdue',
+      cls:'status-overdue',
+      cardCls:'status-overdue-card',
+      text:`🔴 Mahnung · ${days} Tag${days===1?'':'e'} überfällig`
+    };
+  }
+
+  return {
+    key:'open',
+    cls:'status-open',
+    cardCls:'',
+    text:'Offen'
+  };
+}
+function invoiceStatusBadgeHtml(x){
+  const s=invoiceStatusInfo(x);
+  return `<span class="badge ${s.cls}">${esc(s.text)}</span>`;
+}
+
 function renderStatsInvoiceList(){
   const box=document.getElementById('statsInvoiceList');
   if(!box)return;
@@ -3033,23 +3210,31 @@ function renderStatsInvoiceList(){
 
   box.innerHTML=arr.map((x,i)=>{
     const kind=invoiceDocumentLabel(x);
-    return `<div class="stats-pdf-item ${x.locked?'locked':''}">
+    const folder=invoiceFolderLabel(x);
+    const status=invoiceStatusInfo(x);
+
+    return `<div class="stats-pdf-item ${status.cardCls}">
       <div class="stats-pdf-top">
         <div>
           <b>${esc(x.nr||'Ohne Nummer')}</b><br>
           ${esc(x.kunde||'')}<br>
           <span class="small">${esc(kind)} · ${fmtDate(x.date)}</span>
-          ${x.locked?'<br><span class="lock-badge">🔒 Gesperrt</span>':''}
+          ${folder?`<br><span class="stats-pdf-folder">📁 ${esc(folder)}</span>`:''}
         </div>
         <div style="text-align:right">
           <b>${euro(x.total||0)}</b><br>
-          <span class="badge">${x.paid?(x.bankMatch?'Bezahlt · Bank':'Bezahlt'):'Offen'}</span>
+          ${invoiceStatusBadgeHtml(x)}
         </div>
       </div>
       <div class="stats-pdf-actions">
         <button onclick="pdfInvoice(${i})">📄 PDF</button>
-        <button onclick="toggleInvoiceLock(${i})">${x.locked?'🔓 Entsperren':'🔒 Sperren'}</button>
-        <button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button>
+        <button onclick="editInvoiceFromPdfList(${i})">✏️ Bearbeiten</button>
+        <button onclick="pdfInvoice(${i},'share')">📤 Senden / teilen</button>
+        <button class="${status.key==='overdue'?'mahnung-auto':''}" onclick="mahnungInvoice(${i})">${status.key==='overdue'?'🔴 Mahnung':'⚠️ Mahnung'}</button>
+        <button onclick="togglePaid(${i})">${x.paid?'↩️ Offen setzen':'✅ Bezahlt'}</button>
+        <button onclick="openInvoiceFolderPicker(${i})">📁 ${folder?'Ordner ändern':'Ordner'}</button>
+        <button onclick="copyInvoice(${i})">📋 Kopieren</button>
+        <button onclick="deleteInvoice(${i})">🗑️ Löschen</button>
       </div>
     </div>`;
   }).join('');
@@ -3073,7 +3258,7 @@ function renderDashboard(){
   else box.innerHTML=arr.map((x,i)=>{
     const kind=invoiceDocumentLabel(x);
     const percent=x.anzahlungPercent?` ${num(x.anzahlungPercent).replace(',00','')}%`:'';
-    return `<div class="invoice ${x.locked?'invoice-locked':''}"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${esc(kind)}${percent} · ${fmtDate(x.date)} · Material ${euro(x.material||0)}</span>${x.locked?'<br><span class="lock-badge">🔒 Gesperrt</span>':''}</div><div style="text-align:right"><b>${euro(x.total||0)}</b><br><span class="badge">${x.paid?(x.bankMatch?'Bezahlt · Bank':'Bezahlt'):'Offen'}</span></div></div><div class="actions"><button onclick="loadInvoice(${i})">${x.locked?'🔒 Öffnen':'Öffnen'}</button><button onclick="pdfInvoice(${i})">PDF</button><button onclick="copyInvoice(${i})">Kopieren</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button class="lock-action" onclick="toggleInvoiceLock(${i})">${x.locked?'🔓 Entsperren':'🔒 Sperren'}</button><button onclick="deleteInvoice(${i})">${x.locked?'🔒 Löschen':'Löschen'}</button></div></div>`;
+    return `<div class="invoice"><div class="invoice-top"><div><b>${esc(x.nr||'Ohne Nummer')}</b><br>${esc(x.kunde||'')}<br><span class="small">${esc(kind)}${percent} · ${fmtDate(x.date)} · Material ${euro(x.material||0)}</span></div><div style="text-align:right"><b>${euro(x.total||0)}</b><br>${invoiceStatusBadgeHtml(x)}</div></div><div class="actions"><button onclick="loadInvoice(${i})">Öffnen</button><button onclick="pdfInvoice(${i})">PDF</button><button onclick="copyInvoice(${i})">Kopieren</button><button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button><button onclick="deleteInvoice(${i})">Löschen</button></div></div>`;
   }).join('');
 
   const offers=getOffers();
@@ -3091,10 +3276,6 @@ function renderDashboard(){
 }
 function loadInvoice(i){
   const x=getInvoices()[i];if(!x)return;
-  if(x.locked){
-    alert('🔒 Rechnung ist gesperrt. Zum Bearbeiten zuerst in der Liste entsperren. PDF, Kopieren und Bezahlt/Offen bleiben verfügbar.');
-    return;
-  }
   showForm('Rechnung');
   setInvoiceContext(x.invoiceKind||'Rechnung',x.offerNr||invoiceLinkedOfferNr(x),x.anzahlungPercent||0);
   document.getElementById('formTitle').textContent=invoiceDocumentLabel(x);
@@ -3110,7 +3291,7 @@ function loadInvoice(i){
 }
 
 
-async function pdfInvoice(i){
+async function pdfInvoice(i,mode='open'){
   const x=getInvoices()[i];if(!x)return;
   const {jsPDF}=window.jspdf||{};
   if(!jsPDF){alert('PDF-Modul konnte nicht geladen werden. Bitte Internetverbindung prüfen.');return}
@@ -3251,14 +3432,159 @@ async function pdfInvoice(i){
   pdf.text([company.email?('E-Mail '+company.email):'',company.phone?('Tel. '+company.phone):'',company.website?('Website '+company.website):'',company.bank?('Bank '+company.bank):''].filter(Boolean).join('    '),105,286,{align:'center'});
   pdf.text([company.bic?('SWIFT/BIC '+company.bic):'',company.iban?('IBAN '+company.iban):''].filter(Boolean).join('    '),105,290,{align:'center'});
 
-  // PDF zuerst zur Ansicht öffnen. Teilen erfolgt danach über den iPhone-PDF-Viewer.
   const blob=pdf.output('blob');
+
+  if(mode==='share'){
+    const safeNr=String(docNr||'Rechnung').replace(/[^A-Za-z0-9ÄÖÜäöüß._-]+/g,'_');
+    const file=new File([blob],`Rechnung_${safeNr}.pdf`,{type:'application/pdf'});
+    const text=`Rechnung ${docNr}${x.kunde?' · '+x.kunde:''}`;
+
+    if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+      try{
+        await navigator.share({files:[file],title:`Rechnung ${docNr}`,text});
+        return;
+      }catch(e){
+        if(e?.name==='AbortError')return;
+      }
+    }
+  }
+
   const url=URL.createObjectURL(blob);
   const w=window.open(url,'_blank');
-  if(!w){
-    // Falls Safari das neue Fenster blockiert, PDF im aktuellen Tab öffnen.
-    window.location.href=url;
+  if(!w)window.location.href=url;
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+
+
+async function mahnungInvoice(i){
+  const x=getInvoices()[i];
+  if(!x)return;
+  if(x.paid){
+    const ok=confirm('Diese Rechnung ist bereits als bezahlt markiert. Mahnung trotzdem erstellen?');
+    if(!ok)return;
   }
+
+  const {jsPDF}=window.jspdf||{};
+  if(!jsPDF){alert('PDF-Modul konnte nicht geladen werden.');return}
+
+  const company=getCompanyProfile();
+  const companyName=company.name||'FR Rechnung';
+  const total=Number(x.total)||0;
+  const nr=x.nr||'';
+  const invoiceDate=x.date||'';
+  const due=calcDueDate(invoiceDate,parseInt(x.tage)||14);
+  const today=new Date().toISOString().slice(0,10);
+  const epc=epcPayload(total,nr);
+  const qrData=epc?await makeQrDataUrl(epc):'';
+
+  const pdf=new jsPDF({unit:'mm',format:'a4'});
+  const left=18,right=192;
+  let y=20;
+
+  if(logo){
+    try{
+      const format=logo.startsWith('data:image/jpeg')?'JPEG':'PNG';
+      pdf.addImage(logo,format,left,y,38,19,'','FAST');
+    }catch(e){}
+  }
+
+  pdf.setFontSize(8.5);
+  pdf.setFont(undefined,'normal');
+  [
+    companyName,
+    company.address,
+    company.email,
+    company.phone
+  ].filter(Boolean).forEach((t,k)=>pdf.text(String(t),right,y+2+k*4,{align:'right'}));
+
+  y=48;
+  pdf.setDrawColor(201,45,41);
+  pdf.setLineWidth(.7);
+  pdf.line(left,y,right,y);
+  y+=14;
+
+  pdf.setFontSize(20);
+  pdf.setFont(undefined,'bold');
+  pdf.text('MAHNUNG',left,y);
+
+  pdf.setFontSize(9);
+  pdf.setFont(undefined,'normal');
+  pdf.text('Datum: '+fmtDate(today),right,y,{align:'right'});
+  y+=16;
+
+  pdf.setFont(undefined,'bold');
+  pdf.text('Empfänger:',left,y);
+  pdf.setFont(undefined,'normal');
+  pdf.text(x.kunde||'',left+22,y);
+  y+=6;
+  if(x.adresse){
+    const lines=pdf.splitTextToSize(x.adresse,100);
+    pdf.text(lines,left,y);
+    y+=lines.length*5+4;
+  }
+
+  pdf.setFontSize(11);
+  pdf.setFont(undefined,'bold');
+  pdf.text(`Offene Rechnung ${nr}`,left,y);
+  y+=8;
+
+  pdf.setFontSize(10);
+  pdf.setFont(undefined,'normal');
+  const body=[
+    `Rechnungsdatum: ${fmtDate(invoiceDate)}`,
+    `Fälligkeitsdatum: ${fmtDate(due)}`,
+    `Offener Betrag: ${euro(total).replace(/\u00a0/g,' ')}`,
+    '',
+    'Wir bitten Sie, den offenen Betrag innerhalb von 7 Tagen zu überweisen.',
+    'Falls die Zahlung bereits erfolgt ist, betrachten Sie dieses Schreiben bitte als gegenstandslos.'
+  ];
+  body.forEach(t=>{
+    if(t===''){y+=4;return}
+    const lines=pdf.splitTextToSize(t,165);
+    pdf.text(lines,left,y);
+    y+=lines.length*5;
+  });
+
+  if(qrData){
+    y=Math.max(y+8,165);
+    try{
+      pdf.addImage(qrData,'PNG',left,y,42,42);
+      pdf.setFontSize(9);
+      pdf.setFont(undefined,'bold');
+      pdf.text('Direkt bezahlen',left+48,y+8);
+      pdf.setFont(undefined,'normal');
+      pdf.text('QR-Code mit Banking-App scannen.',left+48,y+14);
+      pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),left+48,y+20);
+      pdf.text('Verwendung: Rechnung '+nr,left+48,y+26);
+    }catch(e){}
+  }
+
+  pdf.setDrawColor(100);
+  pdf.line(left,276,right,276);
+  pdf.setFontSize(7.5);
+  pdf.setFont(undefined,'normal');
+  pdf.text([companyName,company.iban?('IBAN '+company.iban):'',company.bic?('BIC '+company.bic):''].filter(Boolean).join(' · '),105,284,{align:'center'});
+
+  const blob=pdf.output('blob');
+  const safeNr=String(nr||'Rechnung').replace(/[^A-Za-z0-9ÄÖÜäöüß._-]+/g,'_');
+  const file=new File([blob],`Mahnung_${safeNr}.pdf`,{type:'application/pdf'});
+
+  if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+    try{
+      await navigator.share({
+        files:[file],
+        title:`Mahnung ${nr}`,
+        text:`Mahnung zur Rechnung ${nr}${x.kunde?' · '+x.kunde:''}`
+      });
+      return;
+    }catch(e){
+      if(e?.name==='AbortError')return;
+    }
+  }
+
+  const url=URL.createObjectURL(blob);
+  const w=window.open(url,'_blank');
+  if(!w)window.location.href=url;
   setTimeout(()=>URL.revokeObjectURL(url),60000);
 }
 
@@ -3289,36 +3615,11 @@ function copyInvoice(i){
 }
 
 
-function toggleInvoiceLock(i){
-  const a=getInvoices();
-  const x=a[i];
-  if(!x)return;
-
-  if(x.locked){
-    if(!confirm('Rechnung wirklich entsperren? Danach kann sie wieder bearbeitet und gelöscht werden.'))return;
-    x.locked=false;
-    x.lockedAt='';
-  }else{
-    if(!confirm('Rechnung sperren? Danach kann sie nicht bearbeitet oder gelöscht werden, bis du sie wieder entsperrst.'))return;
-    x.locked=true;
-    x.lockedAt=new Date().toISOString();
-  }
-
-  x.savedAt=new Date().toISOString();
-  setInvoices(a);
-  renderDashboard();
-  cloudUpsertInvoice(x).catch(()=>{});
-}
-
 function togglePaid(i){let a=getInvoices();if(!a[i])return;a[i].paid=!a[i].paid;a[i].savedAt=new Date().toISOString();setInvoices(a);renderDashboard();cloudUpsertInvoice(a[i]).catch(()=>{})}
 async function deleteInvoice(i){
   let a=getInvoices();
   const x=a[i];
   if(!x)return;
-  if(x.locked){
-    alert('🔒 Rechnung ist gesperrt. Zuerst entsperren, dann možeš je obrisati.');
-    return;
-  }
   if(!confirm('Rechnung in den Papierkorb verschieben?'))return;
   const nr=x.nr;
   addToTrash(x);
@@ -3672,6 +3973,24 @@ ${companyName}`);
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
   <script>if(${JSON.stringify(!!epcText)}){new QRCode(document.getElementById('payQr'),{text:${JSON.stringify(epcText)},width:120,height:120,correctLevel:QRCode.CorrectLevel.M});}<\/script>
   
+
+<div id="invoiceFolderModal" class="invoice-folder-modal hidden">
+  <div class="invoice-folder-box">
+    <h3>📁 Rechnung in Ordner</h3>
+    <p id="invoiceFolderInvoiceInfo" class="small"></p>
+
+    <label>Ordner auswählen</label>
+    <select id="invoiceFolderSelect"></select>
+
+    <label>oder neuen Ordner schreiben</label>
+    <input id="invoiceFolderNew" placeholder="z.B. August 2026, HB, Kappler …">
+
+    <button class="btn" type="button" onclick="saveInvoiceFolderChoice()">📁 In Ordner speichern</button>
+    <button class="btn outline" type="button" onclick="removeInvoiceFolderChoice()">Ordner entfernen</button>
+    <button class="btn outline" type="button" onclick="closeInvoiceFolderPicker()">Abbrechen</button>
+  </div>
+</div>
+
 </body></html>`);
   w.document.close();
 }
@@ -6189,6 +6508,16 @@ async function openDocumentScanner(ev){
 
 document.addEventListener('DOMContentLoaded',loadScanbotLicenseKeyIntoUi);
 setTimeout(loadScanbotLicenseKeyIntoUi,700);
+
+
+let frStatusRefreshTimer=null;
+function startInvoiceStatusRefresh(){
+  if(frStatusRefreshTimer)clearInterval(frStatusRefreshTimer);
+  frStatusRefreshTimer=setInterval(()=>{
+    try{renderDashboard()}catch(e){}
+  },15*60*1000);
+}
+document.addEventListener('DOMContentLoaded',startInvoiceStatusRefresh);
 
 async function initAccountGate(){
   showAccountScreen();
