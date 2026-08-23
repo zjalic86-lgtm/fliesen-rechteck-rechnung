@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V111: V110 JavaScript Fix -->
+<!-- FR Rechnung V112: Rechnung Ordner sichtbar in Dokumente -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -717,6 +717,40 @@ label{font-weight:700}
   color:#333;
 }
 
+
+/* V112 PDF Rechnungen inside Dokumente folders */
+.documents-folder-section-title{
+  margin:16px 0 8px;
+  font-size:17px;
+  font-weight:800;
+}
+.documents-invoice-item{
+  border:1px solid #dfe4ea;
+  border-radius:14px;
+  padding:12px;
+  margin:10px 0;
+  background:#fff;
+}
+.documents-invoice-top{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:flex-start;
+}
+.documents-invoice-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
+  margin-top:10px;
+}
+.documents-invoice-actions button{
+  padding:10px;
+  border-radius:10px;
+  border:1px solid #ccc;
+  background:#fff;
+  font-weight:700;
+}
+
 </style>
 </head>
 <body>
@@ -1096,7 +1130,7 @@ label{font-weight:700}
 
   <div id="documents" class="card hidden">
     <h2>📄 Dokumente / Scanner</h2>
-    <p class="small">Rechnung oder Beleg fotografieren, nach Monat speichern und als Monats-PDF an den Steuerberater senden.</p>
+    <p class="small">Belege scannen und PDF Rechnungen gemeinsam in Ordnern verwalten.</p>
 
     <div class="measure-card">
       <h3>Neuen Beleg scannen</h3>
@@ -1162,6 +1196,7 @@ label{font-weight:700}
     </div>
 
     <div id="documentsFolders" class="documents-folders"></div>
+    <div id="documentsInvoiceList"></div>
     <div id="documentsList"></div>
     <button class="btn outline" type="button" onclick="home()">Zurück</button>
   </div>
@@ -1246,7 +1281,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v111 · Ordner Fix · Auto Mahnung · Bank Bezahlt grün · Scanbot</b></p>
+      <p class="small"><b>Version v112 · Rechnung Ordner in Dokumente · Auto Mahnung · Bank Sync · Scanbot</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -5573,527 +5608,102 @@ async function frDocsGetAllForUser(){
     req.onerror=()=>{db.close();reject(req.error||new Error('Lesen Fehler'))};
   });
 }
+
+function invoicesForDocumentFolder(folderName){
+  const key=frDocFolderKey(folderName);
+  return getInvoices()
+    .map((x,i)=>({x,i}))
+    .filter(o=>frDocFolderKey(invoiceFolderLabel(o.x))===key)
+    .sort((a,b)=>String(b.x.date||'').localeCompare(String(a.x.date||'')));
+}
+function renderInvoicesInDocumentFolder(folderName){
+  const box=document.getElementById('documentsInvoiceList');
+  if(!box)return;
+
+  if(!folderName){
+    box.innerHTML='';
+    return;
+  }
+
+  const rows=invoicesForDocumentFolder(folderName);
+  if(!rows.length){
+    box.innerHTML='';
+    return;
+  }
+
+  box.innerHTML=
+    '<div class="documents-folder-section-title">📄 PDF Rechnungen</div>'+
+    rows.map(({x,i})=>{
+      const status=invoiceStatusInfo(x);
+      return `<div class="documents-invoice-item">
+        <div class="documents-invoice-top">
+          <div>
+            <b>${esc(x.nr||'Ohne Nummer')}</b><br>
+            ${esc(x.kunde||'')}<br>
+            <span class="small">${fmtDate(x.date)} · 📁 ${esc(invoiceFolderLabel(x))}</span>
+          </div>
+          <div style="text-align:right">
+            <b>${euro(x.total||0)}</b><br>
+            <span class="badge ${status.cls}">${esc(status.text)}</span>
+          </div>
+        </div>
+        <div class="documents-invoice-actions">
+          <button onclick="pdfInvoice(${i})">📄 PDF</button>
+          <button onclick="pdfInvoice(${i},'share')">📤 Senden / teilen</button>
+          <button onclick="editInvoiceFromPdfList(${i})">✏️ Bearbeiten</button>
+          <button onclick="openInvoiceFolderPicker(${i})">📁 Ordner ändern</button>
+        </div>
+      </div>`;
+    }).join('');
+}
+
 async function renderDocumentFolders(){
   const box=document.getElementById('documentsFolders');
   if(!box)return;
+
   try{
     const all=await frDocsGetAllForUser();
-    const groups={};
+    const groups=new Map();
+
+    function ensure(name){
+      const key=frDocFolderKey(name);
+      if(!groups.has(key))groups.set(key,{name,docs:[],invoices:[]});
+      return groups.get(key);
+    }
+
     all.forEach(d=>{
-      const month=d.month||(d.date||'').slice(0,7)||'Ohne Monat';
-      if(!groups[month])groups[month]=[];
-      groups[month].push(d);
+      const name=frDocFolderName(d);
+      ensure(name).docs.push(d);
     });
-    const months=Object.keys(groups).sort().reverse();
-    if(!months.length){
-      box.innerHTML='';
+
+    getInvoices().forEach((x,i)=>{
+      const name=invoiceFolderLabel(x);
+      if(name)ensure(name).invoices.push({x,i});
+    });
+
+    const rows=Array.from(groups.values())
+      .sort((a,b)=>a.name.localeCompare(b.name,'de',{numeric:true,sensitivity:'base'}));
+
+    if(!rows.length){
+      box.innerHTML='<div class="documents-folder-empty">Noch keine Ordner. Ordner kannst du beim Beleg oder bei einer PDF Rechnung auswählen.</div>';
       return;
     }
-    box.innerHTML=months.map(month=>{
-      const count=groups[month].length;
-      const title=month==='Ohne Monat'?'Ohne Monat':getDocumentsFolderName(month);
-      return `<button class="documents-folder-card" type="button" onclick="openDocumentsFolder('${escAttr(month)}')">
+
+    box.innerHTML=rows.map(g=>{
+      const parts=[];
+      if(g.docs.length)parts.push(`${g.docs.length} Beleg${g.docs.length===1?'':'e'}`);
+      if(g.invoices.length)parts.push(`${g.invoices.length} Rechnung${g.invoices.length===1?'':'en'}`);
+      return `<button class="documents-folder-card" type="button" onclick="openDocumentsFolderByName('${escAttr(g.name)}')">
         <span class="folder-main">
           <span class="folder-icon">📁</span>
           <span>
-            <span class="folder-title">${esc(title)}</span>
-            <span class="folder-meta">${esc(month)} · ${count} Dokument${count===1?'':'e'} · ${isPastDocumentMonth(month)?'Fertig':'Läuft'}</span>
+            <span class="folder-title">${esc(g.name)}</span>
+            <span class="folder-meta">${esc(parts.join(' · ')||'Leer')}</span>
           </span>
         </span>
         <span class="folder-arrow">›</span>
       </button>`;
     }).join('');
-  }catch(e){
-    box.innerHTML='';
-  }
-}
-function openDocumentsFolder(month){
-  if(month==='Ohne Monat')return;
-  const f=document.getElementById('documentsMonthFilter');
-  if(f)f.value=month;
-  const folder=document.getElementById('documentsFolderName');
-  if(folder)folder.value=getDocumentsFolderName(month);
-  renderDocuments();
-}
-function safeFolderFileName(value){
-  return String(value||'Belege')
-    .replace(/[\\/:*?"<>|]+/g,'-')
-    .replace(/\s+/g,' ')
-    .trim()||'Belege';
-}
-function safeDocumentFilePart(value){
-  return String(value||'Beleg')
-    .replace(/[\\/:*?"<>|]+/g,'-')
-    .replace(/\s+/g,'_')
-    .replace(/[^A-Za-z0-9ÄÖÜäöüß._-]+/g,'_')
-    .slice(0,70)||'Beleg';
-}
-
-function documentErrorText(e){
-  if(!e)return 'Unbekannter Fehler';
-  if(typeof e==='string')return e;
-  if(e.message)return e.message;
-  if(e.error&&e.error.message)return e.error.message;
-  if(e.target&&e.target.error&&e.target.error.message)return e.target.error.message;
-  return 'Dokument konnte nicht gelesen werden.';
-}
-async function normalizeStoredDocumentBlob(value,mime){
-  if(value instanceof Blob)return value;
-  if(value instanceof ArrayBuffer)return new Blob([value],{type:mime||'image/jpeg'});
-  if(ArrayBuffer.isView(value))return new Blob([value],{type:mime||'image/jpeg'});
-  throw new Error('Gespeicherte Bilddatei ist beschädigt.');
-}
-async function storedDocumentBlobInfo(d){
-  try{
-    const blob=await normalizeStoredDocumentBlob(d?.blob,d?.mime);
-    if(!blob || blob.size<20)throw new Error('Bilddatei ist leer.');
-    const head=new Uint8Array(await blob.slice(0,16).arrayBuffer());
-    const isJpeg=head.length>=3&&head[0]===0xFF&&head[1]===0xD8&&head[2]===0xFF;
-    const isPng=head.length>=8&&head[0]===0x89&&head[1]===0x50&&head[2]===0x4E&&head[3]===0x47&&head[4]===0x0D&&head[5]===0x0A&&head[6]===0x1A&&head[7]===0x0A;
-    if(!isJpeg&&!isPng)throw new Error('Kein gültiges JPEG/PNG.');
-    return {ok:true,blob,mime:isPng?'image/png':'image/jpeg',ext:isPng?'png':'jpg'};
-  }catch(e){
-    return {ok:false,error:documentErrorText(e)};
-  }
-}
-async function blobToDataUrlSafe(blob){
-  const b=await normalizeStoredDocumentBlob(blob);
-  const bytes=new Uint8Array(await b.arrayBuffer());
-  let binary='';
-  const chunk=0x8000;
-  for(let i=0;i<bytes.length;i+=chunk){
-    binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+chunk,bytes.length)));
-  }
-  return `data:${b.type||'image/jpeg'};base64,${btoa(binary)}`;
-}
-async function validateDataImage(data){
-  return await new Promise((resolve,reject)=>{
-    const i=new Image();
-    i.onload=()=>resolve({w:i.naturalWidth||i.width,h:i.naturalHeight||i.height});
-    i.onerror=()=>reject(new Error('Bild kann nicht angezeigt werden.'));
-    i.src=data;
-  });
-}
-async function splitValidDocuments(arr){
-  const valid=[],broken=[];
-  for(const d of arr){
-    const info=await storedDocumentBlobInfo(d);
-    if(info.ok)valid.push({...d,_blob:info.blob,_mime:info.mime,_ext:info.ext});
-    else broken.push({doc:d,error:info.error});
-  }
-  return {valid,broken};
-}
-function brokenDocumentsMessage(broken){
-  if(!broken?.length)return '';
-  const names=broken.slice(0,5).map((x,i)=>`${i+1}. ${x.doc?.name||'Beleg'} · ${x.doc?.date||''}`).join('\n');
-  return `${broken.length} gespeicherte Beleg(e) sind beschädigt und müssen neu gescannt werden:\n${names}`;
-}
-
-async function buildDocumentsMonthPdfBlob(month,arr){
-  const {jsPDF}=window.jspdf||{};
-  if(!jsPDF)throw new Error('PDF-Modul konnte nicht geladen werden.');
-
-  const checked=await splitValidDocuments(arr);
-  if(!checked.valid.length)throw new Error('Keine gültigen Belegbilder vorhanden. Bitte beschädigte Belege neu scannen.');
-
-  const pdf=new jsPDF({unit:'mm',format:'a4'});
-  const pageW=210,pageH=297,margin=12;
-
-  for(let i=0;i<checked.valid.length;i++){
-    const d=checked.valid[i];
-    if(i>0)pdf.addPage();
-    pdf.setFontSize(13);pdf.setFont(undefined,'bold');
-    pdf.text(`${d.name||'Beleg'} · ${fmtDate(d.date)}`,margin,12);
-    pdf.setFontSize(9);pdf.setFont(undefined,'normal');
-    const meta=[d.category||'',d.amount?euro(d.amount):'',d.note||''].filter(Boolean).join(' · ');
-    if(meta)pdf.text(pdf.splitTextToSize(meta,pageW-margin*2),margin,18);
-
-    const data=await blobToDataUrlSafe(d._blob);
-    const size=await validateDataImage(data);
-    const maxW=pageW-margin*2,maxH=pageH-34;
-    const scale=Math.min(maxW/size.w,maxH/size.h);
-    const w=size.w*scale,h=size.h*scale;
-    pdf.addImage(data,d._mime==='image/png'?'PNG':'JPEG',(pageW-w)/2,26,w,h,'','FAST');
-  }
-
-  return {blob:pdf.output('blob'),broken:checked.broken,valid:checked.valid};
-}
-async function sendDocumentsMonthFolder(){
-  const month=document.getElementById('documentsMonthFilter')?.value||currentMonthValue();
-  saveTaxAdvisorEmail();
-  saveDocumentsFolderName();
-
-  const arr=await frDocsGetMonth(month);
-  if(!arr.length){alert('Keine Dokumente in diesem Monat.');return}
-  if(!window.JSZip){alert('ZIP-Modul konnte nicht geladen werden.');return}
-
-  try{
-    const checked=await splitValidDocuments(arr);
-    if(!checked.valid.length){
-      alert('Keine gültigen Belege vorhanden. Bitte beschädigte Belege neu scannen.');
-      return;
-    }
-
-    if(checked.broken.length){
-      const ok=confirm(
-        brokenDocumentsMessage(checked.broken)+
-        '\n\nDie gültigen Belege trotzdem als Monatsordner erstellen?'
-      );
-      if(!ok)return;
-    }
-
-    const folderName=safeFolderFileName(getDocumentsFolderName(month));
-    const zip=new JSZip();
-    const folder=zip.folder(folderName);
-
-    for(let i=0;i<checked.valid.length;i++){
-      const d=checked.valid[i];
-      const nr=String(i+1).padStart(2,'0');
-      const name=safeDocumentFilePart(d.name||'Beleg');
-      const date=(d.date||month).replace(/-/g,'_');
-      folder.file(`${nr}_${date}_${name}.${d._ext}`,d._blob);
-    }
-
-    const pdfResult=await buildDocumentsMonthPdfBlob(month,checked.valid);
-    folder.file(`Monats-PDF_${month}.pdf`,pdfResult.blob);
-
-    const advisor=(localStorage.getItem(userKey('frTaxAdvisorEmail'))||'').trim();
-    const info=[
-      `Monat: ${month}`,
-      `Ordner: ${folderName}`,
-      `Gültige Dokumente: ${checked.valid.length}`,
-      checked.broken.length?`Beschädigte Dokumente (neu scannen): ${checked.broken.length}`:'',
-      advisor?`Steuerberater: ${advisor}`:''
-    ].filter(Boolean).join('\n');
-    folder.file('INFO.txt',info);
-
-    if(checked.broken.length){
-      folder.file('BITTE_NEU_SCANNEN.txt',brokenDocumentsMessage(checked.broken));
-    }
-
-    const zipBlob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
-    const file=new File([zipBlob],`${folderName}.zip`,{type:'application/zip'});
-    const text=advisor?`Monatsordner ${folderName} für Steuerberater ${advisor}`:`Monatsordner ${folderName}`;
-
-    if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
-      try{
-        await navigator.share({files:[file],title:`Monatsordner ${folderName}`,text});
-        return;
-      }catch(e){
-        if(e?.name==='AbortError')return;
-      }
-    }
-
-    const url=URL.createObjectURL(zipBlob);
-    const a=document.createElement('a');
-    a.href=url;a.download=file.name;a.click();
-    setTimeout(()=>URL.revokeObjectURL(url),30000);
-  }catch(e){
-    alert('Monatsordner Fehler: '+documentErrorText(e));
-  }
-}
-
-
-function isPastDocumentMonth(month){
-  if(!month || !/^\d{4}-\d{2}$/.test(month))return false;
-  return month < currentMonthValue();
-}
-function renderMonthFolderSendArea(){
-  const box=document.getElementById('monthFolderSendArea');
-  if(!box)return;
-  const month=document.getElementById('documentsMonthFilter')?.value||currentMonthValue();
-  if(isPastDocumentMonth(month)){
-    box.innerHTML=`
-      <div class="month-folder-ready">
-        <b>✅ Monat abgeschlossen</b>
-        <span>Alle Belege aus ${esc(getDocumentsFolderName(month))} zusammen senden.</span>
-      </div>
-      <button class="btn" type="button" onclick="sendDocumentsMonthFolder()">📁 Ganzen Monatsordner senden</button>
-      <button class="btn outline" type="button" onclick="shareDocumentsMonthPdf()">📄 Nur Monats-PDF</button>`;
-  }else{
-    box.innerHTML=`
-      <div class="month-folder-running">
-        <b>🟡 Aktueller Monat läuft</b>
-        <span>Belege weiter sammeln. Senden wird nach Monatsende freigeschaltet.</span>
-      </div>`;
-  }
-}
-
-async function renderDocuments(){
-  renderMonthFolderSendArea();
-  renderDocumentFolders();
-  const box=document.getElementById('documentsList');
-  if(!box)return;
-
-  const month=document.getElementById('documentsMonthFilter')?.value||currentMonthValue();
-  const folder=document.getElementById('documentsFolderName');
-  if(folder && document.activeElement!==folder)folder.value=getDocumentsFolderName(month);
-
-  try{
-    const arr=await frDocsGetMonth(month);
-    const checked=await splitValidDocuments(arr);
-    const count=document.getElementById('documentsCount');
-    if(count){
-      count.textContent=month+' · '+arr.length+' Dokument(e)'+
-        (checked.broken.length?` · ⚠️ ${checked.broken.length} neu scannen`:'');
-    }
-
-    if(!arr.length){
-      box.innerHTML='<p class="small">Noch keine Dokumente in diesem Monat.</p>';
-      return;
-    }
-
-    box.innerHTML='';
-    for(const d of arr){
-      const info=await storedDocumentBlobInfo(d);
-      const div=document.createElement('div');
-      div.className='docscan-item';
-
-      let thumbHtml='';
-      let url='';
-      if(info.ok){
-        url=URL.createObjectURL(info.blob);
-        thumbHtml=`<img class="docscan-thumb" src="${url}" alt="Beleg">`;
-      }else{
-        thumbHtml=`<div class="docscan-thumb broken-doc-thumb">⚠️<br><small>Neu<br>scannen</small></div>`;
-      }
-
-      div.innerHTML=`<div class="docscan-top">${thumbHtml}<div><b>${esc(d.name||'Beleg')}</b><br><span class="docscan-meta">${fmtDate(d.date)} · ${esc(d.category||'')}<br>${d.amount?euro(d.amount):''}${d.note?'<br>'+esc(d.note):''}${!info.ok?'<br><b style="color:#c62828">Bild beschädigt – neu scannen</b>':''}</span></div></div><div class="docscan-actions">${info.ok?`<button onclick="openStoredDocument('${escAttr(d.id)}')">Öffnen</button>`:''}<button onclick="deleteStoredDocument('${escAttr(d.id)}')">Löschen</button></div>`;
-
-      if(info.ok){
-        const thumb=div.querySelector('.docscan-thumb');
-        if(thumb){
-          thumb.addEventListener('load',()=>setTimeout(()=>URL.revokeObjectURL(url),500),{once:true});
-          thumb.addEventListener('error',()=>{URL.revokeObjectURL(url);thumb.replaceWith(Object.assign(document.createElement('div'),{className:'docscan-thumb broken-doc-thumb',innerHTML:'⚠️<br><small>Neu<br>scannen</small>'}));},{once:true});
-        }
-      }
-      box.appendChild(div);
-    }
-  }catch(e){
-    box.innerHTML='<p class="small">Fehler: '+esc(documentErrorText(e))+'</p>';
-  }
-}
-async function getStoredDocumentById(id){const db=await frDocsDb();return new Promise((resolve,reject)=>{const req=db.transaction('documents','readonly').objectStore('documents').get(id);req.onsuccess=()=>{db.close();resolve(req.result||null)};req.onerror=()=>{db.close();reject(req.error)}})}
-async function openStoredDocument(id){const d=await getStoredDocumentById(id);if(!d)return;const u=URL.createObjectURL(d.blob);const w=window.open(u,'_blank');if(!w)location.href=u;setTimeout(()=>URL.revokeObjectURL(u),60000)}
-async function shareStoredDocument(id){const d=await getStoredDocumentById(id);if(!d)return;const file=new File([d.blob],`Beleg_${d.date}_${(d.name||'Dokument').replace(/[^a-z0-9_-]+/gi,'_')}.jpg`,{type:'image/jpeg'});if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){try{await navigator.share({files:[file],title:'Beleg '+d.date,text:d.name||'Beleg'});return}catch(e){if(e?.name==='AbortError')return}}const u=URL.createObjectURL(d.blob);const a=document.createElement('a');a.href=u;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(u),30000)}
-async function deleteStoredDocument(id){if(!confirm('Dokument wirklich löschen?'))return;await frDocsDelete(id);renderDocuments()}
-async function shareDocumentsMonthPdf(){
-  const month=document.getElementById('documentsMonthFilter')?.value||currentMonthValue();
-  saveTaxAdvisorEmail();
-  const arr=await frDocsGetMonth(month);
-  if(!arr.length){alert('Keine Dokumente in diesem Monat.');return}
-
-  try{
-    const result=await buildDocumentsMonthPdfBlob(month,arr);
-
-    if(result.broken.length){
-      const ok=confirm(
-        brokenDocumentsMessage(result.broken)+
-        '\n\nPDF mit den gültigen Belegen trotzdem erstellen?'
-      );
-      if(!ok)return;
-    }
-
-    const file=new File([result.blob],`Belege_${month}.pdf`,{type:'application/pdf'});
-    const advisor=localStorage.getItem(userKey('frTaxAdvisorEmail'))||'';
-    const text=advisor?`Monatsbelege ${month} · Steuerberater: ${advisor}`:`Monatsbelege ${month}`;
-
-    if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){
-      try{await navigator.share({files:[file],title:`Belege ${month}`,text});return}
-      catch(e){if(e?.name==='AbortError')return}
-    }
-
-    const url=URL.createObjectURL(result.blob);
-    const a=document.createElement('a');
-    a.href=url;a.download=`Belege_${month}.pdf`;a.click();
-    setTimeout(()=>URL.revokeObjectURL(url),30000);
-  }catch(e){
-    alert('Monats-PDF Fehler: '+documentErrorText(e));
-  }
-}
-
-
-
-// ===== V102 MANUAL DOCUMENT FOLDERS =====
-function frDocFolderName(d){
-  const own=String(d?.folder||'').trim();
-  if(own)return own;
-  const month=String(d?.month||'').trim();
-  if(month)return defaultDocumentsFolderName(month);
-  return 'Ohne Ordner';
-}
-function frDocFolderKey(v){
-  return String(v||'').trim().toLocaleLowerCase('de-DE');
-}
-function frDocDefaultFolder(){
-  const month=document.getElementById('docScanMonth')?.value||currentMonthValue();
-  return defaultDocumentsFolderName(month);
-}
-async function frDocsGetFolder(folderName){
-  const all=await frDocsGetAllForUser();
-  const key=frDocFolderKey(folderName);
-  return all
-    .filter(d=>frDocFolderKey(frDocFolderName(d))===key)
-    .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.savedAt||'').localeCompare(String(a.savedAt||'')));
-}
-async function frDocFolderNames(){
-  const all=await frDocsGetAllForUser();
-  const map=new Map();
-  all.forEach(d=>{
-    const name=frDocFolderName(d);
-    if(name)map.set(frDocFolderKey(name),name);
-  });
-  const def=frDocDefaultFolder();
-  if(def)map.set(frDocFolderKey(def),def);
-  return Array.from(map.values()).sort((a,b)=>a.localeCompare(b,'de',{numeric:true,sensitivity:'base'}));
-}
-async function refreshDocumentFolderSelectors(preferred){
-  const names=await frDocFolderNames();
-  const currentPreferred=String(preferred||'').trim();
-
-  const saveSelect=document.getElementById('docScanFolderSelect');
-  if(saveSelect){
-    const old=String(saveSelect.value||'').trim();
-    saveSelect.innerHTML=names.map(n=>`<option value="${escAttr(n)}">${esc(n)}</option>`).join('');
-    const wanted=currentPreferred||old||frDocDefaultFolder();
-    if(wanted && !names.some(n=>frDocFolderKey(n)===frDocFolderKey(wanted))){
-      saveSelect.insertAdjacentHTML('beforeend',`<option value="${escAttr(wanted)}">${esc(wanted)}</option>`);
-    }
-    saveSelect.value=names.find(n=>frDocFolderKey(n)===frDocFolderKey(wanted))||wanted||names[0]||'';
-  }
-
-  const filter=document.getElementById('documentsFolderFilter');
-  if(filter){
-    const old=String(filter.value||'').trim();
-    filter.innerHTML=names.map(n=>`<option value="${escAttr(n)}">${esc(n)}</option>`).join('');
-    const wanted=currentPreferred||old||saveSelect?.value||frDocDefaultFolder();
-    if(wanted && !names.some(n=>frDocFolderKey(n)===frDocFolderKey(wanted))){
-      filter.insertAdjacentHTML('beforeend',`<option value="${escAttr(wanted)}">${esc(wanted)}</option>`);
-    }
-    filter.value=names.find(n=>frDocFolderKey(n)===frDocFolderKey(wanted))||wanted||names[0]||'';
-  }
-}
-function docScanFolderSelectionChanged(){
-  const select=document.getElementById('docScanFolderSelect');
-  const filter=document.getElementById('documentsFolderFilter');
-  if(select?.value && filter)filter.value=select.value;
-}
-function documentsFolderChanged(){
-  const filter=document.getElementById('documentsFolderFilter');
-  const select=document.getElementById('docScanFolderSelect');
-  if(filter?.value && select){
-    const exists=[...select.options].some(o=>frDocFolderKey(o.value)===frDocFolderKey(filter.value));
-    if(!exists)select.insertAdjacentHTML('beforeend',`<option value="${escAttr(filter.value)}">${esc(filter.value)}</option>`);
-    select.value=filter.value;
-  }
-  renderDocuments();
-}
-
-async function showDocuments(){
-  hide();
-  document.getElementById('documents')?.classList.remove('hidden');
-
-  const today=new Date().toISOString().slice(0,10);
-  const d=document.getElementById('docScanDate');
-  if(d&&!d.value)d.value=today;
-  const m=document.getElementById('docScanMonth');
-  if(m&&!m.value)m.value=today.slice(0,7);
-
-  const em=document.getElementById('taxAdvisorEmail');
-  if(em)em.value=localStorage.getItem(userKey('frTaxAdvisorEmail'))||'';
-
-  loadScanbotLicenseKeyIntoUi();
-  await refreshDocumentFolderSelectors();
-  await renderDocuments();
-}
-
-async function saveScannedDocument(){
-  if(!cloudUser){alert('Bitte zuerst anmelden.');return}
-  if(!scannedDocumentBlob){alert('Bitte zuerst Rechnung / Beleg fotografieren.');return}
-
-  const date=document.getElementById('docScanDate')?.value||new Date().toISOString().slice(0,10);
-  const month=document.getElementById('docScanMonth')?.value||date.slice(0,7);
-  const selected=(document.getElementById('docScanFolderSelect')?.value||'').trim();
-  const typed=(document.getElementById('docScanFolderNew')?.value||'').trim();
-  const folder=typed||selected||defaultDocumentsFolderName(month);
-
-  const row={
-    id:'DOC-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),
-    userId:cloudUser.id,
-    date,month,folder,
-    name:(document.getElementById('docScanName')?.value||'').trim(),
-    amount:Number(document.getElementById('docScanAmount')?.value||0),
-    category:document.getElementById('docScanCategory')?.value||'Sonstige',
-    note:(document.getElementById('docScanNote')?.value||'').trim(),
-    mime:scannedDocumentBlob.type||'image/jpeg',
-    blob:scannedDocumentBlob,
-    savedAt:new Date().toISOString()
-  };
-
-  try{
-    await frDocsPut(row);
-    scannedDocumentBlob=null;
-    revokeScanPreview();
-
-    const img=document.getElementById('docScanPreview');
-    if(img){img.style.display='none';img.removeAttribute('src')}
-    document.getElementById('docScanCapture')?.classList.remove('has-image');
-
-    const inp=document.getElementById('docScanInput');
-    if(inp)inp.value='';
-
-    ['docScanName','docScanAmount','docScanNote'].forEach(id=>{
-      const el=document.getElementById(id);if(el)el.value='';
-    });
-    const newFolder=document.getElementById('docScanFolderNew');
-    if(newFolder)newFolder.value='';
-
-    await refreshDocumentFolderSelectors(folder);
-
-    const filter=document.getElementById('documentsFolderFilter');
-    if(filter)filter.value=folder;
-    const saveSelect=document.getElementById('docScanFolderSelect');
-    if(saveSelect)saveSelect.value=folder;
-
-    await renderDocuments();
-    alert('Dokument gespeichert · 📁 '+folder);
-  }catch(e){
-    alert('Speichern Fehler: '+documentErrorText(e));
-  }
-}
-
-async function renderDocumentFolders(){
-  const box=document.getElementById('documentsFolders');
-  if(!box)return;
-  try{
-    const all=await frDocsGetAllForUser();
-    const groups=new Map();
-
-    all.forEach(d=>{
-      const name=frDocFolderName(d);
-      const key=frDocFolderKey(name);
-      if(!groups.has(key))groups.set(key,{name,docs:[]});
-      groups.get(key).docs.push(d);
-    });
-
-    const rows=Array.from(groups.values()).sort((a,b)=>a.name.localeCompare(b.name,'de',{numeric:true,sensitivity:'base'}));
-
-    if(!rows.length){
-      box.innerHTML='<div class="documents-folder-empty">Noch keine Ordner. Beim ersten Dokument kannst du einen Ordnernamen schreiben.</div>';
-      return;
-    }
-
-    box.innerHTML=rows.map(g=>`
-      <button class="documents-folder-card" type="button" onclick="openDocumentsFolderByName('${escAttr(g.name)}')">
-        <span class="folder-main">
-          <span class="folder-icon">📁</span>
-          <span>
-            <span class="folder-title">${esc(g.name)}</span>
-            <span class="folder-meta">${g.docs.length} Dokument${g.docs.length===1?'':'e'}</span>
-          </span>
-        </span>
-        <span class="folder-arrow">›</span>
-      </button>`).join('');
   }catch(e){
     box.innerHTML='';
   }
@@ -6111,6 +5721,7 @@ async function renderDocuments(){
   await renderDocumentFolders();
 
   const box=document.getElementById('documentsList');
+  const invoiceBox=document.getElementById('documentsInvoiceList');
   if(!box)return;
 
   const filter=document.getElementById('documentsFolderFilter');
@@ -6122,27 +5733,38 @@ async function renderDocuments(){
   }
 
   try{
-    const arr=folderName?await frDocsGetFolder(folderName):[];
+    if(!folderName){
+      if(invoiceBox)invoiceBox.innerHTML='';
+      box.innerHTML='<p class="small">Bitte Ordner auswählen.</p>';
+      const count=document.getElementById('documentsCount');
+      if(count)count.textContent='Kein Ordner ausgewählt';
+      return;
+    }
+
+    renderInvoicesInDocumentFolder(folderName);
+
+    const arr=await frDocsGetFolder(folderName);
     const checked=await splitValidDocuments(arr);
+    const invoiceCount=invoicesForDocumentFolder(folderName).length;
     const count=document.getElementById('documentsCount');
 
     if(count){
-      count.textContent=folderName
-        ? `📁 ${folderName} · ${arr.length} Dokument(e)`+(checked.broken.length?` · ⚠️ ${checked.broken.length} neu scannen`:'')
-        : 'Kein Ordner ausgewählt';
-    }
-
-    if(!folderName){
-      box.innerHTML='<p class="small">Bitte Ordner auswählen.</p>';
-      return;
+      const parts=[];
+      if(arr.length)parts.push(`${arr.length} Beleg${arr.length===1?'':'e'}`);
+      if(invoiceCount)parts.push(`${invoiceCount} Rechnung${invoiceCount===1?'':'en'}`);
+      count.textContent=`📁 ${folderName} · ${parts.join(' · ')||'Leer'}`+
+        (checked.broken.length?` · ⚠️ ${checked.broken.length} neu scannen`:'');
     }
 
     if(!arr.length){
-      box.innerHTML='<p class="small">Noch keine Dokumente in diesem Ordner.</p>';
+      box.innerHTML=invoiceCount
+        ? ''
+        : '<p class="small">Noch keine Dokumente in diesem Ordner.</p>';
       return;
     }
 
-    box.innerHTML='';
+    box.innerHTML='<div class="documents-folder-section-title">🧾 Belege / Scans</div>';
+
     for(const d of arr){
       const info=await storedDocumentBlobInfo(d);
       const div=document.createElement('div');
@@ -6186,6 +5808,7 @@ async function renderDocuments(){
       box.appendChild(div);
     }
   }catch(e){
+    if(invoiceBox)invoiceBox.innerHTML='';
     box.innerHTML='<p class="small">Fehler: '+esc(documentErrorText(e))+'</p>';
   }
 }
