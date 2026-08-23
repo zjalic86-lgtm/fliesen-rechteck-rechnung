@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V108: Rechnung Ordner Modal Fix -->
+<!-- FR Rechnung V109: Rechnung Ordner nur Monat -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -704,6 +704,19 @@ label{font-weight:700}
   -webkit-overflow-scrolling:touch;
 }
 
+
+/* V109 invoice folder month + company */
+.invoice-folder-preview{
+  margin:10px 0 14px;
+  padding:10px 12px;
+  border-radius:10px;
+  background:#f3f6fb;
+  border:1px solid #d9e2f0;
+  font-size:13px;
+  font-weight:800;
+  color:#333;
+}
+
 </style>
 </head>
 <body>
@@ -1233,7 +1246,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v108 · Ordner Fix · Auto Mahnung · Bank Bezahlt grün · Scanbot</b></p>
+      <p class="small"><b>Version v109 · Ordner nur Monat · Auto Mahnung · Bank Bezahlt grün · Scanbot</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1363,16 +1376,15 @@ label{font-weight:700}
 
 <div id="invoiceFolderModal" class="invoice-folder-modal hidden" aria-hidden="true">
   <div class="invoice-folder-box">
-    <h3>📁 Rechnung in Ordner</h3>
+    <h3>📁 Rechnung in Monatsordner</h3>
     <p id="invoiceFolderInvoiceInfo" class="small"></p>
 
-    <label>Ordner auswählen</label>
-    <select id="invoiceFolderSelect"></select>
+    <label>Monat auswählen</label>
+    <input id="invoiceFolderMonth" type="month" onchange="updateInvoiceFolderPreview()">
 
-    <label>oder neuen Ordner schreiben</label>
-    <input id="invoiceFolderNew" placeholder="z.B. August 2026, HB, Kappler …">
+    <div id="invoiceFolderPreview" class="invoice-folder-preview"></div>
 
-    <button class="btn" type="button" onclick="saveInvoiceFolderChoice()">📁 In Ordner speichern</button>
+    <button class="btn" type="button" onclick="saveInvoiceFolderChoice()">📁 In Monatsordner speichern</button>
     <button class="btn outline" type="button" onclick="removeInvoiceFolderChoice()">Ordner entfernen</button>
     <button class="btn outline" type="button" onclick="closeInvoiceFolderPicker()">Abbrechen</button>
   </div>
@@ -3096,15 +3108,30 @@ function editInvoiceFromPdfList(i){
 
 let invoiceFolderPickerIndex=-1;
 
-function defaultInvoiceFolderName(x){
+function invoiceMonthValue(x){
   const d=String(x?.date||'');
-  if(/^\d{4}-\d{2}/.test(d)){
-    const [y,m]=d.slice(0,7).split('-').map(Number);
-    try{
-      return new Intl.DateTimeFormat('de-DE',{month:'long',year:'numeric'}).format(new Date(y,m-1,1));
-    }catch(e){}
-  }
-  return 'Rechnungen';
+  if(/^\d{4}-\d{2}/.test(d))return d.slice(0,7);
+  return localTodayYmd().slice(0,7);
+}
+function invoiceMonthLabel(month){
+  const [y,m]=String(month||'').split('-').map(Number);
+  if(!m)return '';
+  try{
+    return new Intl.DateTimeFormat('de-DE',{month:'long'}).format(new Date(y||new Date().getFullYear(),m-1,1));
+  }catch(e){return month}
+}
+function defaultInvoiceFolderName(x){
+  return invoiceMonthLabel(invoiceMonthValue(x));
+}
+function buildInvoiceFolderName(){
+  const month=document.getElementById('invoiceFolderMonth')?.value||'';
+  return invoiceMonthLabel(month);
+}
+function updateInvoiceFolderPreview(){
+  const box=document.getElementById('invoiceFolderPreview');
+  if(!box)return;
+  const name=buildInvoiceFolderName();
+  box.textContent=name ? `📁 ${name}` : '';
 }
 function openInvoiceFolderPicker(i){
   const x=getInvoices()[i];
@@ -3113,23 +3140,12 @@ function openInvoiceFolderPicker(i){
 
   const modal=document.getElementById('invoiceFolderModal');
   const info=document.getElementById('invoiceFolderInvoiceInfo');
-  const select=document.getElementById('invoiceFolderSelect');
-  const input=document.getElementById('invoiceFolderNew');
+  const month=document.getElementById('invoiceFolderMonth');
 
   if(info)info.textContent=(x.nr||'')+' · '+(x.kunde||'');
-  if(input)input.value='';
+  if(month)month.value=invoiceMonthValue(x);
 
-  const current=invoiceFolderLabel(x);
-  const names=invoiceFolderNames();
-  const def=current||defaultInvoiceFolderName(x);
-  if(def && !names.some(n=>n.toLocaleLowerCase('de-DE')===def.toLocaleLowerCase('de-DE')))names.unshift(def);
-
-  if(select){
-    select.innerHTML=names.length
-      ? names.map(n=>`<option value="${escAttr(n)}">${esc(n)}</option>`).join('')
-      : `<option value="${escAttr(def)}">${esc(def)}</option>`;
-    select.value=current||def;
-  }
+  updateInvoiceFolderPreview();
 
   if(modal){
     modal.classList.remove('hidden');
@@ -3143,8 +3159,6 @@ function closeInvoiceFolderPicker(){
     modal.classList.add('hidden');
     modal.setAttribute('aria-hidden','true');
   }
-  const input=document.getElementById('invoiceFolderNew');
-  if(input)input.value='';
 }
 function saveInvoiceFolderChoice(){
   const i=invoiceFolderPickerIndex;
@@ -3152,12 +3166,11 @@ function saveInvoiceFolderChoice(){
   const x=a[i];
   if(!x)return;
 
-  const typed=(document.getElementById('invoiceFolderNew')?.value||'').trim();
-  const selected=(document.getElementById('invoiceFolderSelect')?.value||'').trim();
-  const folder=typed||selected||defaultInvoiceFolderName(x);
-
+  const folder=buildInvoiceFolderName()||defaultInvoiceFolderName(x);
   x.pdfFolder=folder;
+  x.pdfFolderMonth=document.getElementById('invoiceFolderMonth')?.value||invoiceMonthValue(x);
   x.savedAt=new Date().toISOString();
+
   setInvoices(a);
   cloudUpsertInvoice(x).catch(()=>{});
   closeInvoiceFolderPicker();
@@ -3182,7 +3195,8 @@ function invoiceFolderLabel(x){
 function invoiceFolderNames(){
   const set=new Map();
   getInvoices().forEach(x=>{
-    const f=invoiceFolderLabel(x);
+    const month=x?.pdfFolderMonth||invoiceMonthValue(x);
+    const f=invoiceMonthLabel(month);
     if(f)set.set(f.toLocaleLowerCase('de-DE'),f);
   });
   return Array.from(set.values()).sort((a,b)=>a.localeCompare(b,'de',{numeric:true,sensitivity:'base'}));
@@ -3267,7 +3281,7 @@ function renderStatsInvoiceList(){
         <button onclick="pdfInvoice(${i},'share')">📤 Senden / teilen</button>
         <button class="${status.key==='overdue'?'mahnung-auto':''}" onclick="mahnungInvoice(${i})">${status.key==='overdue'?'🔴 Mahnung':'⚠️ Mahnung'}</button>
         <button onclick="togglePaid(${i})">${x.paid?'↩️ Offen setzen':'✅ Bezahlt'}</button>
-        <button onclick="openInvoiceFolderPicker(${i})">📁 ${folder?'Ordner ändern':'Ordner'}</button>
+        <button onclick="openInvoiceFolderPicker(${i})">📁 ${folder?folder:'Monat'}</button>
         <button onclick="copyInvoice(${i})">📋 Kopieren</button>
         <button onclick="deleteInvoice(${i})">🗑️ Löschen</button>
       </div>
