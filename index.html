@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V118: Rechnungsordner wirklich in Dokumente -->
+<!-- FR Rechnung V119: PDF Rechnung wie Beleg in Dokumente -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -768,7 +768,7 @@ label{font-weight:700}
       <button class="btn" type="button" onclick="accountSignIn()">Anmelden</button>
       <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
       <button class="btn outline" type="button" onclick="accountForgotPassword()">Passwort vergessen / setzen</button>
-      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v118</div>
+      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v119</div>
     </div>
 
     <div id="accountRecovery" class="hidden">
@@ -1283,7 +1283,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v118 · Rechnungsordner in Dokumente · Stari PIN · Scanbot · Bank Sync</b></p>
+      <p class="small"><b>Version v119 · PDF wie Beleg · Stari PIN · Scanbot · Bank Sync</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -5806,41 +5806,32 @@ function renderInvoicesInDocumentFolder(folderName){
   const box=document.getElementById('documentsInvoiceList');
   if(!box)return;
 
-  if(!folderName){
-    box.innerHTML='';
-    return;
-  }
+  const rows=folderName?invoicesForDocumentFolder(folderName):[];
+  if(!rows.length){box.innerHTML='';return}
 
-  const rows=invoicesForDocumentFolder(folderName);
-  if(!rows.length){
-    box.innerHTML='';
-    return;
-  }
-
-  box.innerHTML=
-    '<div class="documents-folder-section-title">📄 PDF Rechnungen</div>'+
-    rows.map(({x,i})=>{
-      const status=invoiceStatusInfo(x);
-      return `<div class="documents-invoice-item">
-        <div class="documents-invoice-top">
-          <div>
-            <b>${esc(x.nr||'Ohne Nummer')}</b><br>
-            ${esc(x.kunde||'')}<br>
-            <span class="small">${fmtDate(x.date)} · 📁 ${esc(invoiceFolderLabel(x))}</span>
-          </div>
-          <div style="text-align:right">
-            <b>${euro(x.total||0)}</b><br>
-            <span class="badge ${status.cls}">${esc(status.text)}</span>
-          </div>
+  box.innerHTML=rows.map(({x,i})=>{
+    const status=invoiceStatusInfo(x);
+    return `<div class="docscan-item">
+      <div class="docscan-top">
+        <div class="docscan-thumb broken-doc-thumb">📄</div>
+        <div>
+          <b>${esc(x.nr||'Rechnung')}</b><br>
+          <span class="docscan-meta">
+            ${esc(x.kunde||'')}
+            ${x.date?'<br>'+fmtDate(x.date):''}
+            <br>${euro(x.total||0)}
+            <br>📁 ${esc(invoiceFolderLabel(x))}
+            <br><span class="badge ${status.cls}">${esc(status.text)}</span>
+          </span>
         </div>
-        <div class="documents-invoice-actions">
-          <button onclick="pdfInvoice(${i})">📄 PDF</button>
-          <button onclick="pdfInvoice(${i},'share')">📤 Senden / teilen</button>
-          <button onclick="editInvoiceFromPdfList(${i})">✏️ Bearbeiten</button>
-          <button onclick="openInvoiceFolderPicker(${i})">📁 Ordner ändern</button>
-        </div>
-      </div>`;
-    }).join('');
+      </div>
+      <div class="docscan-actions">
+        <button onclick="pdfInvoice(${i})">Öffnen</button>
+        <button onclick="pdfInvoice(${i},'share')">Senden</button>
+        <button onclick="openInvoiceFolderPicker(${i})">Ordner</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function renderDocumentFolders(){
@@ -5949,7 +5940,7 @@ async function renderDocuments(){
       return;
     }
 
-    box.innerHTML='<div class="documents-folder-section-title">🧾 Belege / Scans</div>';
+    box.innerHTML='';
 
     for(const d of arr){
       const info=await storedDocumentBlobInfo(d);
@@ -6636,16 +6627,15 @@ async function renderDocumentFolders(){
     }
 
     box.innerHTML=rows.map(g=>{
-      const parts=[];
-      if(g.docs.length)parts.push(`${g.docs.length} Beleg${g.docs.length===1?'':'e'}`);
-      if(g.invoices.length)parts.push(`${g.invoices.length} Rechnung${g.invoices.length===1?'':'en'}`);
+      const totalItems=g.docs.length+g.invoices.length;
+      const meta=`${totalItems} Beleg${totalItems===1?'':'e'}`;
 
       return `<button class="documents-folder-card" type="button" onclick="openDocumentsFolderByName('${escAttr(g.name)}')">
         <span class="folder-main">
           <span class="folder-icon">📁</span>
           <span>
             <span class="folder-title">${esc(g.name)}</span>
-            <span class="folder-meta">${esc(parts.join(' · '))}</span>
+            <span class="folder-meta">${esc(meta)}</span>
           </span>
         </span>
         <span class="folder-arrow">›</span>
@@ -6713,10 +6703,8 @@ async function renderDocuments(){
   const count=document.getElementById('documentsCount');
 
   if(count){
-    const parts=[];
-    if(docs.length)parts.push(`${docs.length} Beleg${docs.length===1?'':'e'}`);
-    if(invoiceCount)parts.push(`${invoiceCount} Rechnung${invoiceCount===1?'':'en'}`);
-    count.textContent=`📁 ${folderName} · ${parts.join(' · ')||'Leer'}`;
+    const totalItems=docs.length+invoiceCount;
+    count.textContent=`📁 ${folderName} · ${totalItems} Beleg${totalItems===1?'':'e'}`;
   }
 
   if(!docs.length){
