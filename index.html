@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V88: Blue Scanner Vorschau -->
+<!-- FR Rechnung V89: Fullscreen Dokument Scanner -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -333,6 +333,95 @@ label{font-weight:700}
   content:'';position:absolute;left:12%;right:12%;top:50%;height:2px;
   background:rgba(0,122,255,.82);box-shadow:0 0 12px rgba(0,122,255,.85);
   pointer-events:none;z-index:2;
+}
+
+
+/* V89 fullscreen document scanner */
+.fr-doc-scanner{
+  position:fixed;inset:0;z-index:999999;
+  background:#000;color:#fff;
+  display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+.fr-doc-scanner.hidden{display:none!important}
+.fr-doc-scanner video{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;background:#111;
+}
+.fr-doc-scan-dim{
+  position:absolute;inset:0;
+  background:rgba(0,0,0,.08);
+  pointer-events:none;
+}
+.fr-doc-scan-guide{
+  position:absolute;
+  left:8%;right:8%;top:16%;bottom:16%;
+  border:3px solid #0a84ff;
+  border-radius:5px;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.16),0 0 18px rgba(10,132,255,.5);
+  pointer-events:none;
+  transition:.18s ease;
+}
+.fr-doc-scan-guide:before,
+.fr-doc-scan-guide:after{
+  content:"";position:absolute;inset:-3px;border-radius:5px;pointer-events:none;
+}
+.fr-doc-scan-guide:before{
+  border-top:7px solid #0a84ff;border-bottom:7px solid #0a84ff;
+  clip-path:polygon(0 0,18% 0,18% 100%,0 100%,0 82%,100% 82%,100% 100%,82% 100%,82% 0,100% 0,100% 18%,0 18%);
+}
+.fr-doc-scan-guide:after{
+  border-left:7px solid #0a84ff;border-right:7px solid #0a84ff;
+  clip-path:polygon(0 0,18% 0,18% 100%,0 100%,0 82%,100% 82%,100% 100%,82% 100%,82% 0,100% 0,100% 18%,0 18%);
+}
+.fr-doc-scan-top{
+  position:relative;z-index:3;
+  display:flex;align-items:center;justify-content:center;
+  min-height:76px;padding:10px 18px;
+}
+.fr-doc-scan-close{
+  position:absolute;left:20px;top:14px;
+  width:52px;height:52px;border-radius:50%;
+  border:0;background:rgba(45,45,45,.72);color:#fff;
+  font-size:36px;line-height:1;font-weight:300;
+}
+.fr-doc-scan-hint{
+  margin-top:42px;padding:9px 17px;border-radius:12px;
+  background:rgba(65,65,65,.44);font-size:16px;font-weight:600;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+}
+.fr-doc-scan-bottom{
+  position:absolute;z-index:4;left:0;right:0;bottom:calc(18px + env(safe-area-inset-bottom));
+  display:flex;align-items:flex-end;justify-content:center;
+  padding:0 24px;
+}
+.fr-doc-shutter{
+  width:82px;height:82px;border-radius:50%;
+  border:7px solid rgba(255,255,255,.94);
+  background:#fff;
+  box-shadow:0 0 0 5px rgba(45,45,45,.72);
+}
+.fr-doc-scan-tools{
+  position:absolute;left:0;right:0;bottom:108px;
+  display:flex;justify-content:center;gap:34px;z-index:4;
+}
+.fr-doc-scan-tool{
+  width:58px;height:58px;border-radius:50%;border:0;
+  background:rgba(45,45,45,.68);color:#fff;font-size:23px;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+}
+.fr-doc-scan-tool-label{
+  position:absolute;top:61px;left:50%;transform:translateX(-50%);
+  white-space:nowrap;font-size:12px;color:#fff;
+}
+.fr-doc-scan-tool-wrap{position:relative;text-align:center}
+.fr-doc-scan-status{
+  position:absolute;z-index:4;left:50%;transform:translateX(-50%);
+  bottom:194px;background:rgba(0,0,0,.42);padding:7px 12px;border-radius:10px;
+  font-size:13px;white-space:nowrap;
+}
+@media(max-width:520px){
+  .fr-doc-scan-guide{left:10%;right:10%;top:18%;bottom:18%}
 }
 
 </style>
@@ -713,12 +802,12 @@ label{font-weight:700}
     <div class="measure-card">
       <h3>Neuen Beleg scannen</h3>
       <label>Foto / Scan</label>
-      <label id="docScanCapture" class="docscan-capture" for="docScanInput">
-        <input id="docScanInput" type="file" accept="image/*" capture="environment" onchange="documentScanSelected(event)">
+      <label id="docScanCapture" class="docscan-capture" onclick="openDocumentScanner(event)">
+        <input id="docScanInput" type="file" accept="image/*" capture="environment" onchange="documentScanSelected(event)" onclick="event.stopPropagation()">
         <div class="docscan-empty">
           <div class="scan-icon">▣</div>
           <div>Rechnung scannen</div>
-          <div class="scan-sub">Kamera öffnen · Beleg in den blauen Rahmen halten</div>
+          <div class="scan-sub">Scanner öffnen · Dokument automatisch im blauen Rahmen</div>
         </div>
         <img id="docScanPreview" class="docscan-preview-img" alt="Scan Vorschau">
         <span class="docscan-corner tl"></span><span class="docscan-corner tr"></span>
@@ -829,7 +918,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v88 · Blue Scanner · Foto · Enable Banking</b></p>
+      <p class="small"><b>Version v89 · Dokument Scanner · Foto · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -3201,7 +3290,40 @@ ${companyName}`);
   <button class="printbtn" onclick="window.close()">← Zurück</button>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
   <script>if(${JSON.stringify(!!epcText)}){new QRCode(document.getElementById('payQr'),{text:${JSON.stringify(epcText)},width:120,height:120,correctLevel:QRCode.CorrectLevel.M});}<\/script>
-  </body></html>`);
+  
+<div id="frDocumentScanner" class="fr-doc-scanner hidden" aria-hidden="true">
+  <video id="frDocumentScannerVideo" playsinline muted autoplay></video>
+  <div class="fr-doc-scan-dim"></div>
+  <div id="frDocumentScannerGuide" class="fr-doc-scan-guide"></div>
+
+  <div class="fr-doc-scan-top">
+    <button class="fr-doc-scan-close" type="button" onclick="closeDocumentScanner()">×</button>
+    <div class="fr-doc-scan-hint">Positioniere das Dokument.</div>
+  </div>
+
+  <div id="frDocumentScannerStatus" class="fr-doc-scan-status">Dokument im blauen Rahmen halten</div>
+
+  <div class="fr-doc-scan-tools">
+    <div class="fr-doc-scan-tool-wrap">
+      <button id="frDocTorchBtn" class="fr-doc-scan-tool" type="button" onclick="toggleDocumentTorch()">⚡</button>
+      <div class="fr-doc-scan-tool-label">Blitz</div>
+    </div>
+    <div class="fr-doc-scan-tool-wrap">
+      <button class="fr-doc-scan-tool" type="button" onclick="toggleDocumentFilter()">◉</button>
+      <div class="fr-doc-scan-tool-label">Filter</div>
+    </div>
+    <div class="fr-doc-scan-tool-wrap">
+      <button class="fr-doc-scan-tool" type="button" onclick="fallbackDocumentCamera()">▣</button>
+      <div class="fr-doc-scan-tool-label">Foto</div>
+    </div>
+  </div>
+
+  <div class="fr-doc-scan-bottom">
+    <button class="fr-doc-shutter" type="button" aria-label="Dokument aufnehmen" onclick="captureDocumentScanner()"></button>
+  </div>
+</div>
+
+</body></html>`);
   w.document.close();
 }
 
@@ -4185,6 +4307,143 @@ resetRepeatMeasureRows();
 resetAllLfmMeasureRows();
 resetRegieRows();
 
+
+
+let frDocumentCameraStream=null;
+let frDocumentTorchOn=false;
+let frDocumentFilterMode=0;
+
+async function openDocumentScanner(ev){
+  if(ev){ev.preventDefault();ev.stopPropagation()}
+  const modal=document.getElementById('frDocumentScanner');
+  const video=document.getElementById('frDocumentScannerVideo');
+  if(!modal||!video)return;
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden','false');
+  document.body.style.overflow='hidden';
+
+  try{
+    if(!navigator.mediaDevices?.getUserMedia)throw new Error('camera-not-supported');
+    frDocumentCameraStream=await navigator.mediaDevices.getUserMedia({
+      audio:false,
+      video:{
+        facingMode:{ideal:'environment'},
+        width:{ideal:1920},
+        height:{ideal:1080}
+      }
+    });
+    video.srcObject=frDocumentCameraStream;
+    await video.play();
+    const track=frDocumentCameraStream.getVideoTracks()[0];
+    const caps=track.getCapabilities?track.getCapabilities():{};
+    const torchBtn=document.getElementById('frDocTorchBtn');
+    if(torchBtn)torchBtn.style.opacity=caps.torch?1:.35;
+    const st=document.getElementById('frDocumentScannerStatus');
+    if(st)st.textContent='Dokument im blauen Rahmen halten';
+  }catch(err){
+    closeDocumentScanner();
+    fallbackDocumentCamera();
+  }
+}
+function stopDocumentCamera(){
+  try{
+    if(frDocumentCameraStream){
+      frDocumentCameraStream.getTracks().forEach(t=>t.stop());
+      frDocumentCameraStream=null;
+    }
+  }catch(e){}
+}
+function closeDocumentScanner(){
+  stopDocumentCamera();
+  const modal=document.getElementById('frDocumentScanner');
+  if(modal){modal.classList.add('hidden');modal.setAttribute('aria-hidden','true')}
+  const video=document.getElementById('frDocumentScannerVideo');
+  if(video)video.srcObject=null;
+  document.body.style.overflow='';
+  frDocumentTorchOn=false;
+}
+function fallbackDocumentCamera(){
+  closeDocumentScanner();
+  const input=document.getElementById('docScanInput');
+  if(input)input.click();
+}
+async function toggleDocumentTorch(){
+  if(!frDocumentCameraStream)return;
+  const track=frDocumentCameraStream.getVideoTracks()[0];
+  if(!track)return;
+  const caps=track.getCapabilities?track.getCapabilities():{};
+  if(!caps.torch)return;
+  try{
+    frDocumentTorchOn=!frDocumentTorchOn;
+    await track.applyConstraints({advanced:[{torch:frDocumentTorchOn}]});
+    const b=document.getElementById('frDocTorchBtn');
+    if(b)b.style.background=frDocumentTorchOn?'rgba(10,132,255,.88)':'rgba(45,45,45,.68)';
+  }catch(e){}
+}
+function toggleDocumentFilter(){
+  frDocumentFilterMode=(frDocumentFilterMode+1)%3;
+  const v=document.getElementById('frDocumentScannerVideo');
+  if(!v)return;
+  v.style.filter=frDocumentFilterMode===1?'contrast(1.15) saturate(.25) brightness(1.04)':
+                 frDocumentFilterMode===2?'grayscale(1) contrast(1.28) brightness(1.08)':'none';
+  const st=document.getElementById('frDocumentScannerStatus');
+  if(st)st.textContent=frDocumentFilterMode===0?'Farbe':frDocumentFilterMode===1?'Dokument':'Schwarzweiß';
+}
+async function captureDocumentScanner(){
+  const video=document.getElementById('frDocumentScannerVideo');
+  const guide=document.getElementById('frDocumentScannerGuide');
+  if(!video||!guide||!video.videoWidth||!video.videoHeight)return;
+
+  try{
+    const vr=video.getBoundingClientRect();
+    const gr=guide.getBoundingClientRect();
+
+    // object-fit: cover source mapping
+    const scale=Math.max(vr.width/video.videoWidth,vr.height/video.videoHeight);
+    const renderedW=video.videoWidth*scale;
+    const renderedH=video.videoHeight*scale;
+    const cropLeft=(renderedW-vr.width)/2;
+    const cropTop=(renderedH-vr.height)/2;
+
+    let sx=(gr.left-vr.left+cropLeft)/scale;
+    let sy=(gr.top-vr.top+cropTop)/scale;
+    let sw=gr.width/scale;
+    let sh=gr.height/scale;
+
+    sx=Math.max(0,Math.min(video.videoWidth-1,sx));
+    sy=Math.max(0,Math.min(video.videoHeight-1,sy));
+    sw=Math.max(1,Math.min(video.videoWidth-sx,sw));
+    sh=Math.max(1,Math.min(video.videoHeight-sy,sh));
+
+    const maxOut=1800;
+    const outScale=Math.min(1,maxOut/Math.max(sw,sh));
+    const c=document.createElement('canvas');
+    c.width=Math.max(1,Math.round(sw*outScale));
+    c.height=Math.max(1,Math.round(sh*outScale));
+    const ctx=c.getContext('2d');
+
+    if(frDocumentFilterMode===1)ctx.filter='contrast(1.15) saturate(.25) brightness(1.04)';
+    else if(frDocumentFilterMode===2)ctx.filter='grayscale(1) contrast(1.28) brightness(1.08)';
+
+    ctx.drawImage(video,sx,sy,sw,sh,0,0,c.width,c.height);
+
+    const blob=await new Promise(resolve=>c.toBlob(resolve,'image/jpeg',0.88));
+    if(!blob)throw new Error('Capture fehlgeschlagen');
+
+    scannedDocumentBlob=blob;
+    revokeScanPreview();
+    scannedDocumentObjectUrl=URL.createObjectURL(blob);
+    const img=document.getElementById('docScanPreview');
+    if(img){
+      img.src=scannedDocumentObjectUrl;
+      img.style.display='block';
+    }
+    document.getElementById('docScanCapture')?.classList.add('has-image');
+    closeDocumentScanner();
+  }catch(e){
+    alert('Scanner Fehler: '+(e?.message||e));
+  }
+}
 
 const FR_DOC_DB_NAME='fr-rechnung-documents';
 const FR_DOC_DB_VERSION=1;
