@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V115: Stable Recovery from V112 -->
+<!-- FR Rechnung V117: Stari PIN ulaz prije Cloud login-a -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -768,6 +768,7 @@ label{font-weight:700}
       <button class="btn" type="button" onclick="accountSignIn()">Anmelden</button>
       <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
       <button class="btn outline" type="button" onclick="accountForgotPassword()">Passwort vergessen / setzen</button>
+      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v117</div>
     </div>
 
     <div id="accountRecovery" class="hidden">
@@ -788,6 +789,7 @@ label{font-weight:700}
     <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="PIN ••••">
     <div id="lockError" class="lockError"></div>
     <button class="btn outline" onclick="unlockApp()">Mit PIN öffnen</button>
+    <button class="btn outline" onclick="openEmailLoginFromPin()">E-Mail Anmeldung</button>
   </div>
 </div>
 <div class="app" id="mainApp" style="display:none">
@@ -1281,7 +1283,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v115 · Stable Recovery · PDF Rechnungen · Scanbot · Bank Sync</b></p>
+      <p class="small"><b>Version v117 · Stari PIN ulaz · Auth Fix · Scanbot · Bank Sync</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1447,6 +1449,8 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
   }
 });
 let cloudUser=null;
+let frOfflinePinMode=false;
+let frOfflineOwnerId='';
 
 const LEGACY_COMPANY_PROFILE={
   name:'FR Fliesen Rechteck',
@@ -1767,6 +1771,7 @@ async function bankSync(showMessage=true){
   }
 }
 async function autoBankSync(force=false){
+  if(frOfflinePinMode)return;
   if(!cloudUser)return;
   const p=new URLSearchParams(location.search);
   if(p.get('code')||p.get('error')){
@@ -1780,7 +1785,104 @@ async function autoBankSync(force=false){
   if(force||due)await bankSync(false);
 }
 
+
+function frSavedPinContext(){
+  try{
+    const owner=(localStorage.getItem('frLegacyOwnerUserId')||'').trim();
+    const candidates=[];
+
+    if(owner){
+      candidates.push({
+        userId:owner,
+        pin:localStorage.getItem(`frPin:${owner}`)||'',
+        source:`frPin:${owner}`
+      });
+    }
+
+    candidates.push({
+      userId:owner||'legacy-local',
+      pin:localStorage.getItem('frPin')||'',
+      source:'frPin'
+    });
+
+    candidates.push({
+      userId:'no-user',
+      pin:localStorage.getItem('frPin:no-user')||'',
+      source:'frPin:no-user'
+    });
+
+    // Recovery: find an older per-user PIN key even if the owner id marker is missing.
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i)||'';
+      const m=key.match(/^frPin:(.+)$/);
+      if(!m || m[1]==='no-user')continue;
+      candidates.push({
+        userId:m[1],
+        pin:localStorage.getItem(key)||'',
+        source:key
+      });
+    }
+
+    const seen=new Set();
+    for(const c of candidates){
+      const pin=String(c.pin||'').trim();
+      const sig=`${c.userId}|${pin}`;
+      if(seen.has(sig))continue;
+      seen.add(sig);
+      if(/^\d{4,6}$/.test(pin)){
+        return {...c,pin};
+      }
+    }
+  }catch(e){}
+  return null;
+}
+
+function frOpenSavedPinMode(ctx){
+  if(!ctx || !/^\d{4,6}$/.test(String(ctx.pin||'')))return false;
+
+  frOfflinePinMode=true;
+  frOfflineOwnerId=ctx.userId||'legacy-local';
+  cloudUser={id:frOfflineOwnerId,email:'PIN lokal'};
+
+  // If very old unscoped data exists, map it to the recovered local owner.
+  try{migrateLegacyDataToCurrentUser()}catch(e){}
+
+  frPin=String(ctx.pin);
+  logo=localStorage.getItem(userKey('frLogo'))||localStorage.getItem('frLogo')||'';
+
+  try{updateCompanyUi()}catch(e){}
+  try{showLogo()}catch(e){}
+  try{renderCustomerList()}catch(e){}
+  try{renderDashboard()}catch(e){}
+  try{renderTrash()}catch(e){}
+
+  document.getElementById('accountScreen').style.display='none';
+  document.getElementById('mainApp').style.display='none';
+  document.getElementById('lockScreen').style.display='flex';
+
+  const status=document.getElementById('cloudStatus');
+  if(status)status.textContent='Lokal mit PIN · Cloud später anmelden';
+
+  setupLock();
+  return true;
+}
+
+function openEmailLoginFromPin(){
+  frOfflinePinMode=false;
+  frOfflineOwnerId='';
+  cloudUser=null;
+  frPin='';
+  showAccountScreen();
+  setAccountStatus('E-Mail und Passwort eingeben.');
+  setTimeout(()=>document.getElementById('accountEmail')?.focus(),100);
+}
+
 async function refreshCloudUser(){
+  if(frOfflinePinMode){
+    const s=document.getElementById('cloudStatus');
+    if(s)s.textContent='Lokal mit PIN · Cloud nicht angemeldet';
+    return cloudUser;
+  }
   const r=await sb.auth.getUser();
   cloudUser=r.data&&r.data.user?r.data.user:null;
   const s=document.getElementById('cloudStatus');
@@ -1798,16 +1900,60 @@ function showAccountScreen(){
   document.getElementById('lockScreen').style.display='none';
   document.getElementById('mainApp').style.display='none';
 }
-async function afterAccountLogin(){
-  await refreshCloudUser();
+function frAuthDelay(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+async function frAuthWithTimeout(promise,ms=15000){
+  let timer;
+  try{
+    return await Promise.race([
+      promise,
+      new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Zeitüberschreitung')),ms)})
+    ]);
+  }finally{
+    if(timer)clearTimeout(timer);
+  }
+}
+function frIsNetworkAuthError(e){
+  const m=String(e?.message||e||'').toLowerCase();
+  return m.includes('load failed')||m.includes('failed to fetch')||m.includes('network')||m.includes('zeitüberschreitung');
+}
+async function frSignInRequest(email,password){
+  let lastError=null;
+  for(let attempt=1;attempt<=2;attempt++){
+    try{
+      const r=await frAuthWithTimeout(sb.auth.signInWithPassword({email,password}),15000);
+      if(r?.error)throw r.error;
+      if(!r?.data?.user)throw new Error('Keine Benutzersitzung erhalten.');
+      return r.data;
+    }catch(e){
+      lastError=e;
+      if(attempt===2||!frIsNetworkAuthError(e))throw e;
+      setAccountStatus('Verbindung wird erneut versucht…');
+      await frAuthDelay(1200);
+    }
+  }
+  throw lastError||new Error('Anmeldung fehlgeschlagen.');
+}
+
+async function afterAccountLogin(userFromAuth=null){
+  // IMPORTANT: do not immediately call auth.getUser() here.
+  // signInWithPassword/getSession already returned a valid user.
+  // A second remote auth request was sending iPhone back to the login screen.
+  if(userFromAuth)cloudUser=userFromAuth;
+
+  if(!cloudUser){
+    try{
+      const r=await sb.auth.getSession();
+      cloudUser=r?.data?.session?.user||null;
+    }catch(e){
+      cloudUser=null;
+    }
+  }
   if(!cloudUser){showAccountScreen();return}
 
   migrateLegacyDataToCurrentUser();
   frPin=localStorage.getItem(userKey('frPin'))||'';
   logo=localStorage.getItem(userKey('frLogo'))||'';
 
-  // Open the authenticated UI first. Rendering errors must never throw
-  // the user back to the account/login screen.
   document.getElementById('accountScreen').style.display='none';
   document.getElementById('mainApp').style.display='none';
   document.getElementById('lockScreen').style.display='flex';
@@ -1823,7 +1969,6 @@ async function afterAccountLogin(){
     setupLock();
   }catch(e){
     console.error('setupLock',e);
-    // Safe fallback: keep the app usable if lock setup itself fails.
     finishUnlock();
   }
 
@@ -1834,11 +1979,25 @@ async function accountSignIn(){
   const email=(document.getElementById('accountEmail')?.value||'').trim();
   const password=document.getElementById('accountPassword')?.value||'';
   if(!email||!password){setAccountStatus('E-Mail und Passwort eingeben.','error');return}
+
+  const btn=document.querySelector('#accountScreen button[onclick="accountSignIn()"]');
+  if(btn)btn.disabled=true;
   setAccountStatus('Anmeldung…');
-  const r=await sb.auth.signInWithPassword({email,password});
-  if(r.error){setAccountStatus('Anmeldung Fehler: '+r.error.message,'error');return}
-  setAccountStatus('Angemeldet.','ok');
-  await afterAccountLogin();
+
+  try{
+    const data=await frSignInRequest(email,password);
+    cloudUser=data.user;
+    setAccountStatus('Angemeldet.','ok');
+    await afterAccountLogin(data.user);
+  }catch(e){
+    const raw=String(e?.message||e||'Anmeldung fehlgeschlagen.');
+    const msg=raw==='Zeitüberschreitung'
+      ? 'Zeitüberschreitung – bitte nochmals anmelden.'
+      : raw;
+    setAccountStatus('Anmeldung Fehler: '+msg,'error');
+  }finally{
+    if(btn)btn.disabled=false;
+  }
 }
 async function accountSignUp(){
   const email=(document.getElementById('accountEmail')?.value||'').trim();
@@ -1852,7 +2011,8 @@ async function accountSignUp(){
   if(r.error){setAccountStatus('Registrierung Fehler: '+r.error.message,'error');return}
   if(r.data&&r.data.session){
     setAccountStatus('Konto erstellt.','ok');
-    await afterAccountLogin();
+    cloudUser=r.data.user||r.data.session.user||null;
+    await afterAccountLogin(cloudUser);
   }else{
     setAccountStatus('Konto erstellt. Bitte Bestätigungs-E-Mail öffnen und danach anmelden.','ok');
   }
@@ -1875,7 +2035,11 @@ async function accountSetNewPassword(){
   await afterAccountLogin();
 }
 async function accountLogout(){
-  await sb.auth.signOut();
+  if(!frOfflinePinMode){
+    try{await sb.auth.signOut()}catch(e){}
+  }
+  frOfflinePinMode=false;
+  frOfflineOwnerId='';
   cloudUser=null;
   frPin='';
   logo='';
@@ -2072,6 +2236,10 @@ async function deleteAllInvoicesEverywhere(){
 }
 
 async function syncCloud(showMessage=true){
+  if(frOfflinePinMode){
+    if(showMessage)alert('PIN-Modus aktiv. Für Cloud Sync bitte zuerst per E-Mail anmelden.');
+    return false;
+  }
   await refreshCloudUser();
   if(!cloudUser){if(showMessage)alert('Bitte zuerst per E-Mail anmelden.');return false}
   try{
@@ -2109,6 +2277,7 @@ async function autoCloudSync(){
   try{ await syncCloud(false); }finally{ frCloudSyncBusy=false; }
 }
 sb.auth.onAuthStateChange((event,session)=>{
+  if(frOfflinePinMode)return;
   cloudUser=session&&session.user?session.user:null;
   if(event==='PASSWORD_RECOVERY'){
     showAccountScreen();
@@ -6234,12 +6403,18 @@ document.addEventListener('DOMContentLoaded',startInvoiceStatusRefresh);
 
 async function initAccountGate(){
   showAccountScreen();
+
+  // First choice on this iPhone: use the old saved 4–6 digit PIN.
+  // No PIN is hard-coded; it only works if the old PIN still exists locally.
+  const savedPin=frSavedPinContext();
+  if(savedPin && frOpenSavedPinMode(savedPin))return;
+
   try{
     const r=await sb.auth.getSession();
     const session=r&&r.data?r.data.session:null;
     if(session&&session.user){
       cloudUser=session.user;
-      await afterAccountLogin();
+      await afterAccountLogin(session.user);
       return;
     }
   }catch(e){
