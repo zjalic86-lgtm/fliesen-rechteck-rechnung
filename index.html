@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V96: Scanbot license paste fix -->
+<!-- FR Rechnung V97: Scanbot clipboard license fix -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -897,10 +897,12 @@ label{font-weight:700}
 
       <details class="scanbot-license-box">
         <summary>Scanner Testlizenz</summary>
-        <p class="small">Wichtig: Der Lizenzschlüssel kann mehrere Zeilen enthalten. Komplett einfügen oder die heruntergeladene .txt-Datei auswählen.</p>
+        <p class="small">Wichtig: Hier muss der lange Scanbot Lizenzschlüssel stehen – nicht nur fliesen-rechteck-rechnung.vercel.app.</p>
         <label>Scanbot Web Lizenz</label>
         <textarea id="scanbotLicenseKey" rows="7" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Scanbot Trial Key hier einfügen"></textarea>
+        <div id="scanbotLicenseStatus" class="small"></div>
         <input id="scanbotLicenseFile" type="file" accept=".txt,text/plain" class="hidden" onchange="importScanbotLicenseFile(event)">
+        <button class="btn" type="button" onclick="pasteScanbotLicenseFromClipboard()">📋 Lizenz aus Zwischenablage</button>
         <button class="btn outline" type="button" onclick="document.getElementById('scanbotLicenseFile').click()">📄 Lizenz-Datei auswählen</button>
         <button class="btn outline" type="button" onclick="saveScanbotLicenseKey()">Lizenz speichern</button>
         <a class="scanbot-trial-link" href="https://docs.scanbot.io/trial/" target="_blank" rel="noopener">7-Tage Testlizenz öffnen</a>
@@ -1022,7 +1024,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v96 · Scanbot Lizenz Fix · Foto · Enable Banking</b></p>
+      <p class="small"><b>Version v97 · Scanbot Clipboard Fix · Foto · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -4883,7 +4885,12 @@ function frScanbotLicenseStorageKey(){
 }
 function loadScanbotLicenseKeyIntoUi(){
   const el=document.getElementById('scanbotLicenseKey');
-  if(el)el.value=localStorage.getItem(frScanbotLicenseStorageKey())||'';
+  const value=localStorage.getItem(frScanbotLicenseStorageKey())||'';
+  if(el)el.value=value;
+  if(value){
+    const check=validateScanbotLicenseValue(value);
+    setScanbotLicenseStatus(check.msg,check.ok);
+  }
 }
 
 function normalizeScanbotLicenseText(value){
@@ -4905,18 +4912,59 @@ function normalizeScanbotLicenseText(value){
   return v.trim();
 }
 
+
+function validateScanbotLicenseValue(value){
+  const v=String(value||'').trim();
+  if(!v)return {ok:false,msg:'Keine Lizenz eingefügt.'};
+  if(/^([a-z0-9-]+\.)+[a-z]{2,}$/i.test(v))
+    return {ok:false,msg:'Das ist nur die Domain, nicht der Lizenzschlüssel.'};
+  if(v.length<100)
+    return {ok:false,msg:'Der Lizenzschlüssel ist zu kurz. Bitte "Copy License Key" verwenden.'};
+  return {ok:true,msg:'Lizenzschlüssel erkannt.'};
+}
+function setScanbotLicenseStatus(msg,ok){
+  const st=document.getElementById('scanbotLicenseStatus');
+  if(st){
+    st.textContent=msg||'';
+    st.style.color=ok?'#17843d':'#c62828';
+    st.style.fontWeight='700';
+  }
+}
+async function pasteScanbotLicenseFromClipboard(){
+  try{
+    const raw=await navigator.clipboard.readText();
+    const value=normalizeScanbotLicenseText(raw);
+    const el=document.getElementById('scanbotLicenseKey');
+    if(el)el.value=value;
+    const check=validateScanbotLicenseValue(value);
+    setScanbotLicenseStatus(check.msg,check.ok);
+    if(!check.ok)return;
+    localStorage.setItem(frScanbotLicenseStorageKey(),value);
+    frScanbotSdkPromise=null;
+    frScanbotLicenseUsed=null;
+    alert('Scanbot Lizenz gespeichert. Jetzt Rechnung scannen.');
+  }catch(e){
+    alert('Zwischenablage konnte nicht gelesen werden. Auf der Scanbot-Seite "Copy License Key" drücken und hier nochmals versuchen.');
+  }
+}
+
 function saveScanbotLicenseKey(){
   const el=document.getElementById('scanbotLicenseKey');
   if(!el)return;
   const value=normalizeScanbotLicenseText(el.value);
   el.value=value;
 
-  if(value)localStorage.setItem(frScanbotLicenseStorageKey(),value);
-  else localStorage.removeItem(frScanbotLicenseStorageKey());
+  const check=validateScanbotLicenseValue(value);
+  setScanbotLicenseStatus(check.msg,check.ok);
+  if(!check.ok){
+    alert(check.msg);
+    return;
+  }
 
+  localStorage.setItem(frScanbotLicenseStorageKey(),value);
   frScanbotSdkPromise=null;
   frScanbotLicenseUsed=null;
-  alert(value?'Scanbot Lizenz gespeichert. Jetzt Rechnung scannen.':'Scanbot Lizenz entfernt.');
+  alert('Scanbot Lizenz gespeichert. Jetzt Rechnung scannen.');
 }
 
 async function importScanbotLicenseFile(event){
@@ -4927,13 +4975,15 @@ async function importScanbotLicenseFile(event){
     const value=normalizeScanbotLicenseText(text);
     const el=document.getElementById('scanbotLicenseKey');
     if(el)el.value=value;
-    if(value){
+    const check=validateScanbotLicenseValue(value);
+    setScanbotLicenseStatus(check.msg,check.ok);
+    if(check.ok){
       localStorage.setItem(frScanbotLicenseStorageKey(),value);
       frScanbotSdkPromise=null;
       frScanbotLicenseUsed=null;
       alert('Scanbot Lizenz-Datei gespeichert. Jetzt Rechnung scannen.');
     }else{
-      alert('In der Datei wurde kein Lizenzschlüssel gefunden.');
+      alert(check.msg);
     }
   }catch(e){
     alert('Lizenz-Datei konnte nicht gelesen werden.');
