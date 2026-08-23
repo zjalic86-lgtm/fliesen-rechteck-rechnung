@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V89: Fullscreen Dokument Scanner -->
+<!-- FR Rechnung V90: iPhone reliable document scanner -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -423,6 +423,25 @@ label{font-weight:700}
 @media(max-width:520px){
   .fr-doc-scan-guide{left:10%;right:10%;top:18%;bottom:18%}
 }
+
+
+/* V90 iPhone scanner reliability */
+.fr-doc-scan-fallback{
+  position:absolute;z-index:6;left:22px;right:22px;top:50%;transform:translateY(-50%);
+  background:rgba(20,20,20,.82);color:#fff;border-radius:18px;padding:20px;text-align:center;
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+}
+.fr-doc-scan-fallback.hidden{display:none!important}
+.fr-doc-scan-fallback b{display:block;font-size:20px;margin-bottom:8px}
+.fr-doc-scan-fallback p{margin:0 0 16px;color:rgba(255,255,255,.82);line-height:1.35}
+.fr-doc-scan-native-btn{
+  width:100%;border:0;border-radius:14px;background:#0a84ff;color:#fff;
+  padding:14px 16px;font-size:17px;font-weight:800;
+}
+.fr-doc-scanner.camera-error .fr-doc-scan-guide,
+.fr-doc-scanner.camera-error .fr-doc-scan-status,
+.fr-doc-scanner.camera-error .fr-doc-scan-tools,
+.fr-doc-scanner.camera-error .fr-doc-scan-bottom{display:none!important}
 
 </style>
 </head>
@@ -918,7 +937,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v89 · Dokument Scanner · Foto · Enable Banking</b></p>
+      <p class="small"><b>Version v90 · Dokument Scanner · Foto · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -3318,6 +3337,13 @@ ${companyName}`);
     </div>
   </div>
 
+
+  <div id="frDocumentScannerFallback" class="fr-doc-scan-fallback hidden">
+    <b>Kamera nicht verfügbar</b>
+    <p>Tippe unten, damit die iPhone-Kamera sicher geöffnet wird.</p>
+    <button class="fr-doc-scan-native-btn" type="button" onclick="openNativeDocumentCamera()">📷 iPhone Kamera öffnen</button>
+  </div>
+
   <div class="fr-doc-scan-bottom">
     <button class="fr-doc-shutter" type="button" aria-label="Dokument aufnehmen" onclick="captureDocumentScanner()"></button>
   </div>
@@ -4317,32 +4343,51 @@ async function openDocumentScanner(ev){
   if(ev){ev.preventDefault();ev.stopPropagation()}
   const modal=document.getElementById('frDocumentScanner');
   const video=document.getElementById('frDocumentScannerVideo');
+  const fallback=document.getElementById('frDocumentScannerFallback');
   if(!modal||!video)return;
-  modal.classList.remove('hidden');
+
+  modal.classList.remove('hidden','camera-error');
   modal.setAttribute('aria-hidden','false');
+  if(fallback)fallback.classList.add('hidden');
   document.body.style.overflow='hidden';
 
+  stopDocumentCamera();
+  video.setAttribute('playsinline','');
+  video.setAttribute('webkit-playsinline','');
+  video.muted=true;
+  video.autoplay=true;
+
   try{
-    if(!navigator.mediaDevices?.getUserMedia)throw new Error('camera-not-supported');
+    if(!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      throw new Error('Kamera wird in dieser Web-App nicht unterstützt.');
+    }
     frDocumentCameraStream=await navigator.mediaDevices.getUserMedia({
       audio:false,
-      video:{
-        facingMode:{ideal:'environment'},
-        width:{ideal:1920},
-        height:{ideal:1080}
-      }
+      video:{facingMode:{ideal:'environment'}}
     });
     video.srcObject=frDocumentCameraStream;
-    await video.play();
+
+    await new Promise((resolve,reject)=>{
+      let done=false;
+      const ok=()=>{if(done)return;done=true;cleanup();resolve()};
+      const bad=()=>{if(done)return;done=true;cleanup();reject(new Error('Kamera konnte nicht gestartet werden.'))};
+      const cleanup=()=>{video.removeEventListener('loadedmetadata',ok);video.removeEventListener('error',bad)};
+      video.addEventListener('loadedmetadata',ok,{once:true});
+      video.addEventListener('error',bad,{once:true});
+      setTimeout(ok,1200);
+    });
+    try{await video.play()}catch(e){}
+
     const track=frDocumentCameraStream.getVideoTracks()[0];
-    const caps=track.getCapabilities?track.getCapabilities():{};
+    const caps=(track&&track.getCapabilities)?track.getCapabilities():{};
     const torchBtn=document.getElementById('frDocTorchBtn');
-    if(torchBtn)torchBtn.style.opacity=caps.torch?1:.35;
+    if(torchBtn)torchBtn.style.opacity=caps&&caps.torch?1:.35;
     const st=document.getElementById('frDocumentScannerStatus');
     if(st)st.textContent='Dokument im blauen Rahmen halten';
   }catch(err){
-    closeDocumentScanner();
-    fallbackDocumentCamera();
+    stopDocumentCamera();
+    modal.classList.add('camera-error');
+    if(fallback)fallback.classList.remove('hidden');
   }
 }
 function stopDocumentCamera(){
@@ -4356,16 +4401,24 @@ function stopDocumentCamera(){
 function closeDocumentScanner(){
   stopDocumentCamera();
   const modal=document.getElementById('frDocumentScanner');
-  if(modal){modal.classList.add('hidden');modal.setAttribute('aria-hidden','true')}
+  if(modal){modal.classList.add('hidden');modal.classList.remove('camera-error');modal.setAttribute('aria-hidden','true')}
+  const fallback=document.getElementById('frDocumentScannerFallback');
+  if(fallback)fallback.classList.add('hidden');
   const video=document.getElementById('frDocumentScannerVideo');
   if(video)video.srcObject=null;
   document.body.style.overflow='';
   frDocumentTorchOn=false;
 }
-function fallbackDocumentCamera(){
-  closeDocumentScanner();
+function openNativeDocumentCamera(){
   const input=document.getElementById('docScanInput');
-  if(input)input.click();
+  closeDocumentScanner();
+  if(input){
+    input.value='';
+    input.click();
+  }
+}
+function fallbackDocumentCamera(){
+  openNativeDocumentCamera();
 }
 async function toggleDocumentTorch(){
   if(!frDocumentCameraStream)return;
@@ -4508,7 +4561,7 @@ async function compressDocumentImage(file){
 }
 async function documentScanSelected(e){
   const file=e?.target?.files?.[0];if(!file)return;
-  try{scannedDocumentBlob=await compressDocumentImage(file);revokeScanPreview();scannedDocumentObjectUrl=URL.createObjectURL(scannedDocumentBlob);const img=document.getElementById('docScanPreview');img.src=scannedDocumentObjectUrl;img.style.display='block';document.getElementById('docScanCapture')?.classList.add('has-image')}catch(err){alert('Scan Fehler: '+(err?.message||err))}
+  try{scannedDocumentBlob=await compressDocumentImage(file);revokeScanPreview();scannedDocumentObjectUrl=URL.createObjectURL(scannedDocumentBlob);const img=document.getElementById('docScanPreview');if(img){img.src=scannedDocumentObjectUrl;img.style.display='block'}const cap=document.getElementById('docScanCapture');if(cap){cap.classList.add('has-image');setTimeout(()=>cap.scrollIntoView({behavior:'smooth',block:'center'}),80)}}catch(err){alert('Scan Fehler: '+(err?.message||err))}
 }
 async function saveScannedDocument(){
   if(!cloudUser){alert('Bitte zuerst anmelden.');return}
