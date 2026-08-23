@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V100: Monatsordner sammeln und einmal senden -->
+<!-- FR Rechnung V101: Dokumentfehler robust + Monatsordner -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -562,6 +562,26 @@ label{font-weight:700}
 .month-folder-running{background:#fff8df;border:1px solid #ecd98e}
 .month-folder-ready span,.month-folder-running span{font-size:13px;color:#555}
 
+
+/* V101 broken document indicator */
+.broken-doc-thumb{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  font-size:28px;
+  color:#c62828;
+  background:#fff2f2;
+  border:1px solid #efbcbc;
+}
+.broken-doc-thumb small{
+  font-size:11px;
+  line-height:1.15;
+  color:#c62828;
+  font-weight:800;
+}
+
 </style>
 </head>
 <body>
@@ -1079,7 +1099,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v100 · Monatsordner sammeln · Scanbot · Enable Banking</b></p>
+      <p class="small"><b>Version v101 · Monatsordner · Dokument Fix · Scanbot · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -5014,68 +5034,152 @@ function safeDocumentFilePart(value){
     .replace(/[^A-Za-z0-9ÄÖÜäöüß._-]+/g,'_')
     .slice(0,70)||'Beleg';
 }
+
+function documentErrorText(e){
+  if(!e)return 'Unbekannter Fehler';
+  if(typeof e==='string')return e;
+  if(e.message)return e.message;
+  if(e.error&&e.error.message)return e.error.message;
+  if(e.target&&e.target.error&&e.target.error.message)return e.target.error.message;
+  return 'Dokument konnte nicht gelesen werden.';
+}
+async function normalizeStoredDocumentBlob(value,mime){
+  if(value instanceof Blob)return value;
+  if(value instanceof ArrayBuffer)return new Blob([value],{type:mime||'image/jpeg'});
+  if(ArrayBuffer.isView(value))return new Blob([value],{type:mime||'image/jpeg'});
+  throw new Error('Gespeicherte Bilddatei ist beschädigt.');
+}
+async function storedDocumentBlobInfo(d){
+  try{
+    const blob=await normalizeStoredDocumentBlob(d?.blob,d?.mime);
+    if(!blob || blob.size<20)throw new Error('Bilddatei ist leer.');
+    const head=new Uint8Array(await blob.slice(0,16).arrayBuffer());
+    const isJpeg=head.length>=3&&head[0]===0xFF&&head[1]===0xD8&&head[2]===0xFF;
+    const isPng=head.length>=8&&head[0]===0x89&&head[1]===0x50&&head[2]===0x4E&&head[3]===0x47&&head[4]===0x0D&&head[5]===0x0A&&head[6]===0x1A&&head[7]===0x0A;
+    if(!isJpeg&&!isPng)throw new Error('Kein gültiges JPEG/PNG.');
+    return {ok:true,blob,mime:isPng?'image/png':'image/jpeg',ext:isPng?'png':'jpg'};
+  }catch(e){
+    return {ok:false,error:documentErrorText(e)};
+  }
+}
+async function blobToDataUrlSafe(blob){
+  const b=await normalizeStoredDocumentBlob(blob);
+  const bytes=new Uint8Array(await b.arrayBuffer());
+  let binary='';
+  const chunk=0x8000;
+  for(let i=0;i<bytes.length;i+=chunk){
+    binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+chunk,bytes.length)));
+  }
+  return `data:${b.type||'image/jpeg'};base64,${btoa(binary)}`;
+}
+async function validateDataImage(data){
+  return await new Promise((resolve,reject)=>{
+    const i=new Image();
+    i.onload=()=>resolve({w:i.naturalWidth||i.width,h:i.naturalHeight||i.height});
+    i.onerror=()=>reject(new Error('Bild kann nicht angezeigt werden.'));
+    i.src=data;
+  });
+}
+async function splitValidDocuments(arr){
+  const valid=[],broken=[];
+  for(const d of arr){
+    const info=await storedDocumentBlobInfo(d);
+    if(info.ok)valid.push({...d,_blob:info.blob,_mime:info.mime,_ext:info.ext});
+    else broken.push({doc:d,error:info.error});
+  }
+  return {valid,broken};
+}
+function brokenDocumentsMessage(broken){
+  if(!broken?.length)return '';
+  const names=broken.slice(0,5).map((x,i)=>`${i+1}. ${x.doc?.name||'Beleg'} · ${x.doc?.date||''}`).join('\n');
+  return `${broken.length} gespeicherte Beleg(e) sind beschädigt und müssen neu gescannt werden:\n${names}`;
+}
+
 async function buildDocumentsMonthPdfBlob(month,arr){
   const {jsPDF}=window.jspdf||{};
   if(!jsPDF)throw new Error('PDF-Modul konnte nicht geladen werden.');
+
+  const checked=await splitValidDocuments(arr);
+  if(!checked.valid.length)throw new Error('Keine gültigen Belegbilder vorhanden. Bitte beschädigte Belege neu scannen.');
+
   const pdf=new jsPDF({unit:'mm',format:'a4'});
   const pageW=210,pageH=297,margin=12;
-  for(let i=0;i<arr.length;i++){
-    const d=arr[i];
+
+  for(let i=0;i<checked.valid.length;i++){
+    const d=checked.valid[i];
     if(i>0)pdf.addPage();
     pdf.setFontSize(13);pdf.setFont(undefined,'bold');
     pdf.text(`${d.name||'Beleg'} · ${fmtDate(d.date)}`,margin,12);
     pdf.setFontSize(9);pdf.setFont(undefined,'normal');
     const meta=[d.category||'',d.amount?euro(d.amount):'',d.note||''].filter(Boolean).join(' · ');
     if(meta)pdf.text(pdf.splitTextToSize(meta,pageW-margin*2),margin,18);
-    const data=await blobToDataUrl(d.blob);
-    const size=await imageSizeFromDataUrl(data);
+
+    const data=await blobToDataUrlSafe(d._blob);
+    const size=await validateDataImage(data);
     const maxW=pageW-margin*2,maxH=pageH-34;
     const scale=Math.min(maxW/size.w,maxH/size.h);
     const w=size.w*scale,h=size.h*scale;
-    pdf.addImage(data,'JPEG',(pageW-w)/2,26,w,h,'','FAST');
+    pdf.addImage(data,d._mime==='image/png'?'PNG':'JPEG',(pageW-w)/2,26,w,h,'','FAST');
   }
-  return pdf.output('blob');
+
+  return {blob:pdf.output('blob'),broken:checked.broken,valid:checked.valid};
 }
 async function sendDocumentsMonthFolder(){
   const month=document.getElementById('documentsMonthFilter')?.value||currentMonthValue();
   saveTaxAdvisorEmail();
   saveDocumentsFolderName();
+
   const arr=await frDocsGetMonth(month);
   if(!arr.length){alert('Keine Dokumente in diesem Monat.');return}
   if(!window.JSZip){alert('ZIP-Modul konnte nicht geladen werden.');return}
 
   try{
+    const checked=await splitValidDocuments(arr);
+    if(!checked.valid.length){
+      alert('Keine gültigen Belege vorhanden. Bitte beschädigte Belege neu scannen.');
+      return;
+    }
+
+    if(checked.broken.length){
+      const ok=confirm(
+        brokenDocumentsMessage(checked.broken)+
+        '\n\nDie gültigen Belege trotzdem als Monatsordner erstellen?'
+      );
+      if(!ok)return;
+    }
+
     const folderName=safeFolderFileName(getDocumentsFolderName(month));
     const zip=new JSZip();
     const folder=zip.folder(folderName);
 
-    for(let i=0;i<arr.length;i++){
-      const d=arr[i];
-      const ext=(d.mime||'').includes('png')?'png':'jpg';
+    for(let i=0;i<checked.valid.length;i++){
+      const d=checked.valid[i];
       const nr=String(i+1).padStart(2,'0');
       const name=safeDocumentFilePart(d.name||'Beleg');
       const date=(d.date||month).replace(/-/g,'_');
-      folder.file(`${nr}_${date}_${name}.${ext}`,d.blob);
+      folder.file(`${nr}_${date}_${name}.${d._ext}`,d._blob);
     }
 
-    const pdfBlob=await buildDocumentsMonthPdfBlob(month,arr);
-    folder.file(`Monats-PDF_${month}.pdf`,pdfBlob);
+    const pdfResult=await buildDocumentsMonthPdfBlob(month,checked.valid);
+    folder.file(`Monats-PDF_${month}.pdf`,pdfResult.blob);
 
     const advisor=(localStorage.getItem(userKey('frTaxAdvisorEmail'))||'').trim();
     const info=[
       `Monat: ${month}`,
       `Ordner: ${folderName}`,
-      `Dokumente: ${arr.length}`,
+      `Gültige Dokumente: ${checked.valid.length}`,
+      checked.broken.length?`Beschädigte Dokumente (neu scannen): ${checked.broken.length}`:'',
       advisor?`Steuerberater: ${advisor}`:''
     ].filter(Boolean).join('\n');
     folder.file('INFO.txt',info);
 
+    if(checked.broken.length){
+      folder.file('BITTE_NEU_SCANNEN.txt',brokenDocumentsMessage(checked.broken));
+    }
+
     const zipBlob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
     const file=new File([zipBlob],`${folderName}.zip`,{type:'application/zip'});
-
-    const text=advisor
-      ? `Monatsordner ${folderName} für Steuerberater ${advisor}`
-      : `Monatsordner ${folderName}`;
+    const text=advisor?`Monatsordner ${folderName} für Steuerberater ${advisor}`:`Monatsordner ${folderName}`;
 
     if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
       try{
@@ -5091,7 +5195,7 @@ async function sendDocumentsMonthFolder(){
     a.href=url;a.download=file.name;a.click();
     setTimeout(()=>URL.revokeObjectURL(url),30000);
   }catch(e){
-    alert('Monatsordner Fehler: '+(e?.message||e));
+    alert('Monatsordner Fehler: '+documentErrorText(e));
   }
 }
 
@@ -5124,34 +5228,94 @@ function renderMonthFolderSendArea(){
 async function renderDocuments(){
   renderMonthFolderSendArea();
   renderDocumentFolders();
-  const box=document.getElementById('documentsList');if(!box)return;const month=document.getElementById('documentsMonthFilter')?.value||currentMonthValue();
-  const folder=document.getElementById('documentsFolderName');if(folder && document.activeElement!==folder)folder.value=getDocumentsFolderName(month);
-  try{const arr=await frDocsGetMonth(month);document.getElementById('documentsCount').textContent=month+' · '+arr.length+' Dokument(e)';if(!arr.length){box.innerHTML='<p class="small">Noch keine Dokumente in diesem Monat.</p>';return}box.innerHTML='';arr.forEach(d=>{const url=URL.createObjectURL(d.blob);const div=document.createElement('div');div.className='docscan-item';div.innerHTML=`<div class="docscan-top"><img class="docscan-thumb" src="${url}" alt="Beleg"><div><b>${esc(d.name||'Beleg')}</b><br><span class="docscan-meta">${fmtDate(d.date)} · ${esc(d.category||'')}<br>${d.amount?euro(d.amount):''}${d.note?'<br>'+esc(d.note):''}</span></div></div><div class="docscan-actions"><button onclick="openStoredDocument('${escAttr(d.id)}')">Öffnen</button><button onclick="deleteStoredDocument('${escAttr(d.id)}')">Löschen</button></div>`;const thumb=div.querySelector('.docscan-thumb');if(thumb){thumb.addEventListener('load',()=>setTimeout(()=>URL.revokeObjectURL(url),500),{once:true});thumb.addEventListener('error',()=>{URL.revokeObjectURL(url);thumb.alt='Bildfehler';},{once:true})}box.appendChild(div)});}catch(e){box.innerHTML='<p class="small">Fehler: '+esc(e?.message||e)+'</p>'}
+  const box=document.getElementById('documentsList');
+  if(!box)return;
+
+  const month=document.getElementById('documentsMonthFilter')?.value||currentMonthValue();
+  const folder=document.getElementById('documentsFolderName');
+  if(folder && document.activeElement!==folder)folder.value=getDocumentsFolderName(month);
+
+  try{
+    const arr=await frDocsGetMonth(month);
+    const checked=await splitValidDocuments(arr);
+    const count=document.getElementById('documentsCount');
+    if(count){
+      count.textContent=month+' · '+arr.length+' Dokument(e)'+
+        (checked.broken.length?` · ⚠️ ${checked.broken.length} neu scannen`:'');
+    }
+
+    if(!arr.length){
+      box.innerHTML='<p class="small">Noch keine Dokumente in diesem Monat.</p>';
+      return;
+    }
+
+    box.innerHTML='';
+    for(const d of arr){
+      const info=await storedDocumentBlobInfo(d);
+      const div=document.createElement('div');
+      div.className='docscan-item';
+
+      let thumbHtml='';
+      let url='';
+      if(info.ok){
+        url=URL.createObjectURL(info.blob);
+        thumbHtml=`<img class="docscan-thumb" src="${url}" alt="Beleg">`;
+      }else{
+        thumbHtml=`<div class="docscan-thumb broken-doc-thumb">⚠️<br><small>Neu<br>scannen</small></div>`;
+      }
+
+      div.innerHTML=`<div class="docscan-top">${thumbHtml}<div><b>${esc(d.name||'Beleg')}</b><br><span class="docscan-meta">${fmtDate(d.date)} · ${esc(d.category||'')}<br>${d.amount?euro(d.amount):''}${d.note?'<br>'+esc(d.note):''}${!info.ok?'<br><b style="color:#c62828">Bild beschädigt – neu scannen</b>':''}</span></div></div><div class="docscan-actions">${info.ok?`<button onclick="openStoredDocument('${escAttr(d.id)}')">Öffnen</button>`:''}<button onclick="deleteStoredDocument('${escAttr(d.id)}')">Löschen</button></div>`;
+
+      if(info.ok){
+        const thumb=div.querySelector('.docscan-thumb');
+        if(thumb){
+          thumb.addEventListener('load',()=>setTimeout(()=>URL.revokeObjectURL(url),500),{once:true});
+          thumb.addEventListener('error',()=>{URL.revokeObjectURL(url);thumb.replaceWith(Object.assign(document.createElement('div'),{className:'docscan-thumb broken-doc-thumb',innerHTML:'⚠️<br><small>Neu<br>scannen</small>'}));},{once:true});
+        }
+      }
+      box.appendChild(div);
+    }
+  }catch(e){
+    box.innerHTML='<p class="small">Fehler: '+esc(documentErrorText(e))+'</p>';
+  }
 }
 async function getStoredDocumentById(id){const db=await frDocsDb();return new Promise((resolve,reject)=>{const req=db.transaction('documents','readonly').objectStore('documents').get(id);req.onsuccess=()=>{db.close();resolve(req.result||null)};req.onerror=()=>{db.close();reject(req.error)}})}
 async function openStoredDocument(id){const d=await getStoredDocumentById(id);if(!d)return;const u=URL.createObjectURL(d.blob);const w=window.open(u,'_blank');if(!w)location.href=u;setTimeout(()=>URL.revokeObjectURL(u),60000)}
 async function shareStoredDocument(id){const d=await getStoredDocumentById(id);if(!d)return;const file=new File([d.blob],`Beleg_${d.date}_${(d.name||'Dokument').replace(/[^a-z0-9_-]+/gi,'_')}.jpg`,{type:'image/jpeg'});if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){try{await navigator.share({files:[file],title:'Beleg '+d.date,text:d.name||'Beleg'});return}catch(e){if(e?.name==='AbortError')return}}const u=URL.createObjectURL(d.blob);const a=document.createElement('a');a.href=u;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(u),30000)}
 async function deleteStoredDocument(id){if(!confirm('Dokument wirklich löschen?'))return;await frDocsDelete(id);renderDocuments()}
-async function blobToDataUrl(blob){return await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob)})}
-async function imageSizeFromDataUrl(data){return await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve({w:i.naturalWidth,h:i.naturalHeight});i.onerror=reject;i.src=data})}
 async function shareDocumentsMonthPdf(){
   const month=document.getElementById('documentsMonthFilter')?.value||currentMonthValue();
   saveTaxAdvisorEmail();
   const arr=await frDocsGetMonth(month);
   if(!arr.length){alert('Keine Dokumente in diesem Monat.');return}
+
   try{
-    const blob=await buildDocumentsMonthPdfBlob(month,arr);
-    const file=new File([blob],`Belege_${month}.pdf`,{type:'application/pdf'});
+    const result=await buildDocumentsMonthPdfBlob(month,arr);
+
+    if(result.broken.length){
+      const ok=confirm(
+        brokenDocumentsMessage(result.broken)+
+        '\n\nPDF mit den gültigen Belegen trotzdem erstellen?'
+      );
+      if(!ok)return;
+    }
+
+    const file=new File([result.blob],`Belege_${month}.pdf`,{type:'application/pdf'});
     const advisor=localStorage.getItem(userKey('frTaxAdvisorEmail'))||'';
     const text=advisor?`Monatsbelege ${month} · Steuerberater: ${advisor}`:`Monatsbelege ${month}`;
+
     if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){
       try{await navigator.share({files:[file],title:`Belege ${month}`,text});return}
       catch(e){if(e?.name==='AbortError')return}
     }
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download=`Belege_${month}.pdf`;a.click();
+
+    const url=URL.createObjectURL(result.blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=`Belege_${month}.pdf`;a.click();
     setTimeout(()=>URL.revokeObjectURL(url),30000);
-  }catch(e){alert('Monats-PDF Fehler: '+(e?.message||e))}
+  }catch(e){
+    alert('Monats-PDF Fehler: '+documentErrorText(e));
+  }
 }
 
 
