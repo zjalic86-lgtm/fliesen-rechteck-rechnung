@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V99: Monatsordner für Steuerberater -->
+<!-- FR Rechnung V100: Monatsordner sammeln und einmal senden -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -289,7 +289,7 @@ label{font-weight:700}
 .docscan-top{display:grid;grid-template-columns:92px 1fr;gap:12px;align-items:start}
 .docscan-thumb{width:92px;height:112px;object-fit:cover;border-radius:10px;border:1px solid #ddd;background:#f2f2f2}
 .docscan-meta{font-size:13px;color:#555;line-height:1.45}
-.docscan-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:10px}
+.docscan-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
 .docscan-actions button{padding:10px;border-radius:10px;border:1px solid #ccc;background:#fff;font-weight:700}
 @media(max-width:620px){.docscan-actions{grid-template-columns:1fr}.docscan-top{grid-template-columns:80px 1fr}.docscan-thumb{width:80px;height:98px}}
 
@@ -547,6 +547,20 @@ label{font-weight:700}
 .documents-folder-card .folder-title{font-weight:800;font-size:16px}
 .documents-folder-card .folder-meta{font-size:12px;color:#666;margin-top:2px}
 .documents-folder-card .folder-arrow{font-size:28px;color:#888}
+
+
+/* V100 monthly collect workflow */
+.month-folder-ready,.month-folder-running{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  border-radius:12px;
+  padding:12px 14px;
+  margin:12px 0;
+}
+.month-folder-ready{background:#edf8ef;border:1px solid #bfe3c5}
+.month-folder-running{background:#fff8df;border:1px solid #ecd98e}
+.month-folder-ready span,.month-folder-running span{font-size:13px;color:#555}
 
 </style>
 </head>
@@ -965,6 +979,8 @@ label{font-weight:700}
 
     <div class="measure-card">
       <h3>📁 Monatsordner</h3>
+      <p class="small"><b>Jeden Tag nur scannen und speichern.</b> Alle Belege werden automatisch im richtigen Monatsordner gesammelt. Erst wenn der Monat vorbei ist, den ganzen Ordner einmal an den Steuerberater senden.</p>
+
       <label>Monat auswählen</label>
       <input id="documentsMonthFilter" type="month" onchange="documentsMonthChanged()">
 
@@ -974,9 +990,7 @@ label{font-weight:700}
       <label>Steuerberater E-Mail</label>
       <input id="taxAdvisorEmail" type="email" placeholder="steuerberater@email.at" onchange="saveTaxAdvisorEmail()">
 
-      <button class="btn" type="button" onclick="sendDocumentsMonthFolder()">📁 Monatsordner senden</button>
-      <button class="btn outline" type="button" onclick="shareDocumentsMonthPdf()">📤 Nur Monats-PDF senden</button>
-      <p class="small">Der Ordner enthält alle gescannten Belege dieses Monats + ein Monats-PDF.</p>
+      <div id="monthFolderSendArea"></div>
       <p id="documentsCount" class="small"></p>
     </div>
 
@@ -1065,7 +1079,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v99 · Monatsordner · Scanbot · Enable Banking</b></p>
+      <p class="small"><b>Version v100 · Monatsordner sammeln · Scanbot · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -4879,6 +4893,7 @@ function showDocuments(){
   const folder=document.getElementById('documentsFolderName');if(folder)folder.value=getDocumentsFolderName(f?.value||currentMonthValue());
   const em=document.getElementById('taxAdvisorEmail');if(em)em.value=localStorage.getItem(userKey('frTaxAdvisorEmail'))||'';
   loadScanbotLicenseKeyIntoUi();
+  renderMonthFolderSendArea();
   renderDocuments();
 }
 function saveTaxAdvisorEmail(){localStorage.setItem(userKey('frTaxAdvisorEmail'),(document.getElementById('taxAdvisorEmail')?.value||'').trim())}
@@ -4928,6 +4943,7 @@ function documentsMonthChanged(){
   const month=document.getElementById('documentsMonthFilter')?.value||currentMonthValue();
   const folder=document.getElementById('documentsFolderName');
   if(folder)folder.value=getDocumentsFolderName(month);
+  renderMonthFolderSendArea();
   renderDocuments();
 }
 async function frDocsGetAllForUser(){
@@ -4967,7 +4983,7 @@ async function renderDocumentFolders(){
           <span class="folder-icon">📁</span>
           <span>
             <span class="folder-title">${esc(title)}</span>
-            <span class="folder-meta">${esc(month)} · ${count} Dokument${count===1?'':'e'}</span>
+            <span class="folder-meta">${esc(month)} · ${count} Dokument${count===1?'':'e'} · ${isPastDocumentMonth(month)?'Fertig':'Läuft'}</span>
           </span>
         </span>
         <span class="folder-arrow">›</span>
@@ -5079,11 +5095,38 @@ async function sendDocumentsMonthFolder(){
   }
 }
 
+
+function isPastDocumentMonth(month){
+  if(!month || !/^\d{4}-\d{2}$/.test(month))return false;
+  return month < currentMonthValue();
+}
+function renderMonthFolderSendArea(){
+  const box=document.getElementById('monthFolderSendArea');
+  if(!box)return;
+  const month=document.getElementById('documentsMonthFilter')?.value||currentMonthValue();
+  if(isPastDocumentMonth(month)){
+    box.innerHTML=`
+      <div class="month-folder-ready">
+        <b>✅ Monat abgeschlossen</b>
+        <span>Alle Belege aus ${esc(getDocumentsFolderName(month))} zusammen senden.</span>
+      </div>
+      <button class="btn" type="button" onclick="sendDocumentsMonthFolder()">📁 Ganzen Monatsordner senden</button>
+      <button class="btn outline" type="button" onclick="shareDocumentsMonthPdf()">📄 Nur Monats-PDF</button>`;
+  }else{
+    box.innerHTML=`
+      <div class="month-folder-running">
+        <b>🟡 Aktueller Monat läuft</b>
+        <span>Belege weiter sammeln. Senden wird nach Monatsende freigeschaltet.</span>
+      </div>`;
+  }
+}
+
 async function renderDocuments(){
+  renderMonthFolderSendArea();
   renderDocumentFolders();
   const box=document.getElementById('documentsList');if(!box)return;const month=document.getElementById('documentsMonthFilter')?.value||currentMonthValue();
   const folder=document.getElementById('documentsFolderName');if(folder && document.activeElement!==folder)folder.value=getDocumentsFolderName(month);
-  try{const arr=await frDocsGetMonth(month);document.getElementById('documentsCount').textContent=month+' · '+arr.length+' Dokument(e)';if(!arr.length){box.innerHTML='<p class="small">Noch keine Dokumente in diesem Monat.</p>';return}box.innerHTML='';arr.forEach(d=>{const url=URL.createObjectURL(d.blob);const div=document.createElement('div');div.className='docscan-item';div.innerHTML=`<div class="docscan-top"><img class="docscan-thumb" src="${url}" alt="Beleg"><div><b>${esc(d.name||'Beleg')}</b><br><span class="docscan-meta">${fmtDate(d.date)} · ${esc(d.category||'')}<br>${d.amount?euro(d.amount):''}${d.note?'<br>'+esc(d.note):''}</span></div></div><div class="docscan-actions"><button onclick="openStoredDocument('${escAttr(d.id)}')">Öffnen</button><button onclick="shareStoredDocument('${escAttr(d.id)}')">Senden</button><button onclick="deleteStoredDocument('${escAttr(d.id)}')">Löschen</button></div>`;const thumb=div.querySelector('.docscan-thumb');if(thumb){thumb.addEventListener('load',()=>setTimeout(()=>URL.revokeObjectURL(url),500),{once:true});thumb.addEventListener('error',()=>{URL.revokeObjectURL(url);thumb.alt='Bildfehler';},{once:true})}box.appendChild(div)});}catch(e){box.innerHTML='<p class="small">Fehler: '+esc(e?.message||e)+'</p>'}
+  try{const arr=await frDocsGetMonth(month);document.getElementById('documentsCount').textContent=month+' · '+arr.length+' Dokument(e)';if(!arr.length){box.innerHTML='<p class="small">Noch keine Dokumente in diesem Monat.</p>';return}box.innerHTML='';arr.forEach(d=>{const url=URL.createObjectURL(d.blob);const div=document.createElement('div');div.className='docscan-item';div.innerHTML=`<div class="docscan-top"><img class="docscan-thumb" src="${url}" alt="Beleg"><div><b>${esc(d.name||'Beleg')}</b><br><span class="docscan-meta">${fmtDate(d.date)} · ${esc(d.category||'')}<br>${d.amount?euro(d.amount):''}${d.note?'<br>'+esc(d.note):''}</span></div></div><div class="docscan-actions"><button onclick="openStoredDocument('${escAttr(d.id)}')">Öffnen</button><button onclick="deleteStoredDocument('${escAttr(d.id)}')">Löschen</button></div>`;const thumb=div.querySelector('.docscan-thumb');if(thumb){thumb.addEventListener('load',()=>setTimeout(()=>URL.revokeObjectURL(url),500),{once:true});thumb.addEventListener('error',()=>{URL.revokeObjectURL(url);thumb.alt='Bildfehler';},{once:true})}box.appendChild(div)});}catch(e){box.innerHTML='<p class="small">Fehler: '+esc(e?.message||e)+'</p>'}
 }
 async function getStoredDocumentById(id){const db=await frDocsDb();return new Promise((resolve,reject)=>{const req=db.transaction('documents','readonly').objectStore('documents').get(id);req.onsuccess=()=>{db.close();resolve(req.result||null)};req.onerror=()=>{db.close();reject(req.error)}})}
 async function openStoredDocument(id){const d=await getStoredDocumentById(id);if(!d)return;const u=URL.createObjectURL(d.blob);const w=window.open(u,'_blank');if(!w)location.href=u;setTimeout(()=>URL.revokeObjectURL(u),60000)}
