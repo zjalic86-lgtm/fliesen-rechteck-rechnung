@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V103: Rechnung sperren in Liste -->
+<!-- FR Rechnung V104: PDF Rechnungen unter Auswertung -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -613,6 +613,45 @@ label{font-weight:700}
   border-color:#999;
 }
 
+
+/* V104 PDF Rechnung list under Auswertung */
+.stats-pdf-list{
+  margin-top:22px;
+  padding-top:18px;
+  border-top:1px solid #e3e3e3;
+}
+.stats-pdf-list h3{margin:0 0 4px}
+.stats-pdf-item{
+  border:1px solid #dedede;
+  border-radius:14px;
+  padding:12px;
+  margin:10px 0;
+  background:#fff;
+}
+.stats-pdf-item.locked{background:#fafafa}
+.stats-pdf-top{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+}
+.stats-pdf-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:7px;
+  margin-top:10px;
+}
+.stats-pdf-actions button{
+  padding:10px;
+  border-radius:10px;
+  border:1px solid #ccc;
+  background:#fff;
+  font-weight:700;
+}
+@media(max-width:620px){
+  .stats-pdf-actions{grid-template-columns:1fr}
+}
+
 </style>
 </head>
 <body>
@@ -705,6 +744,12 @@ label{font-weight:700}
         <div class="stat">Material gesamt<b id="statMaterial">0,00 €</b></div>
         <div class="stat">Übrig nach Material<b id="statProfit">0,00 €</b></div>
         <div class="stat">Offene Rechnungen<b id="statOpenCount">0</b></div>
+      </div>
+
+      <div class="stats-pdf-list">
+        <h3>📄 PDF Rechnungen</h3>
+        <p class="small">Gespeicherte, gesendete und gesperrte Rechnungen.</p>
+        <div id="statsInvoiceList"></div>
       </div>
     </div>
   </div>
@@ -1136,7 +1181,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v103 · Rechnung sperren · Dokument Ordner · Scanbot · Enable Banking</b></p>
+      <p class="small"><b>Version v104 · PDF Rechnungen Liste · Rechnung sperren · Scanbot · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -2663,6 +2708,34 @@ function currentInvoiceData(){
     savedAt:new Date().toISOString()
   }
 }
+
+function saveCurrentInvoiceSilently(){
+  if(docType!=='Rechnung')return true;
+
+  const d=currentInvoiceData();
+  if(!d.nr || !d.items.length)return false;
+
+  let arr=getInvoices();
+  const i=arr.findIndex(x=>x.nr===d.nr);
+
+  if(i>=0){
+    // Never overwrite an explicitly locked invoice.
+    if(arr[i].locked)return true;
+    d.paid=!!arr[i].paid;
+    d.bankMatch=arr[i].bankMatch||null;
+    d.locked=!!arr[i].locked;
+    d.lockedAt=arr[i].lockedAt||'';
+    arr[i]=d;
+  }else{
+    arr.unshift(d);
+  }
+
+  setInvoices(arr);
+  renderDashboard();
+  cloudUpsertInvoice(d).catch(()=>{});
+  return true;
+}
+
 function saveInvoice(){
   if(docType!=='Rechnung'){alert('Angebot wird noch nicht in Rechnungen gespeichert.');return}
   const d=currentInvoiceData();
@@ -2670,7 +2743,17 @@ function saveInvoice(){
   if(d.items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
   let arr=getInvoices();
   const i=arr.findIndex(x=>x.nr===d.nr);
-  if(i>=0){d.paid=arr[i].paid;arr[i]=d}else arr.unshift(d);
+  if(i>=0){
+    if(arr[i].locked){
+      alert('🔒 Diese Rechnung ist gesperrt. Zuerst entsperren.');
+      return;
+    }
+    d.paid=arr[i].paid;
+    d.bankMatch=arr[i].bankMatch||null;
+    d.locked=!!arr[i].locked;
+    d.lockedAt=arr[i].lockedAt||'';
+    arr[i]=d;
+  }else arr.unshift(d);
   setInvoices(arr);alert('Rechnung gespeichert');renderDashboard();
   cloudUpsertInvoice(d).catch(()=>{});
 }
@@ -2937,6 +3020,41 @@ async function emptyTrash(){
   }catch(e){}
 }
 
+
+function renderStatsInvoiceList(){
+  const box=document.getElementById('statsInvoiceList');
+  if(!box)return;
+
+  const arr=getInvoices();
+  if(!arr.length){
+    box.innerHTML='<p class="small">Noch keine PDF Rechnungen gespeichert.</p>';
+    return;
+  }
+
+  box.innerHTML=arr.map((x,i)=>{
+    const kind=invoiceDocumentLabel(x);
+    return `<div class="stats-pdf-item ${x.locked?'locked':''}">
+      <div class="stats-pdf-top">
+        <div>
+          <b>${esc(x.nr||'Ohne Nummer')}</b><br>
+          ${esc(x.kunde||'')}<br>
+          <span class="small">${esc(kind)} · ${fmtDate(x.date)}</span>
+          ${x.locked?'<br><span class="lock-badge">🔒 Gesperrt</span>':''}
+        </div>
+        <div style="text-align:right">
+          <b>${euro(x.total||0)}</b><br>
+          <span class="badge">${x.paid?(x.bankMatch?'Bezahlt · Bank':'Bezahlt'):'Offen'}</span>
+        </div>
+      </div>
+      <div class="stats-pdf-actions">
+        <button onclick="pdfInvoice(${i})">📄 PDF</button>
+        <button onclick="toggleInvoiceLock(${i})">${x.locked?'🔓 Entsperren':'🔒 Sperren'}</button>
+        <button onclick="togglePaid(${i})">${x.paid?'Offen setzen':'Bezahlt'}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function renderDashboard(){
   const arr=getInvoices();
   const total=arr.reduce((s,x)=>s+(Number(x.total)||0),0);
@@ -2949,6 +3067,7 @@ function renderDashboard(){
   document.getElementById('statMaterial').textContent=euro(material);
   document.getElementById('statProfit').textContent=euro(total-material);
   document.getElementById('statOpenCount').textContent=arr.filter(x=>!x.paid).length;
+  renderStatsInvoiceList();
   const box=document.getElementById('invoiceList');
   if(!arr.length){box.innerHTML='<p class="small">Noch keine Rechnungen gespeichert.</p>'}
   else box.innerHTML=arr.map((x,i)=>{
@@ -3262,6 +3381,12 @@ function makeQrDataUrl(text,size=260){
 
 async function sharePDF(){
   const items=collectItems();
+  if(docType==='Rechnung'){
+    const nr=(document.getElementById('docNr')?.value||'').trim();
+    if(!nr){alert('Bitte Rechnungsnummer eingeben.');return}
+    if(items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
+    saveCurrentInvoiceSilently();
+  }
   const showPrices=(document.getElementById('pdfPriceMode').value||'on')!=='off';
   const showMaterialPrices=(document.getElementById('materialPdfPriceMode').value||'on')!=='off';
   if(items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
@@ -3450,6 +3575,12 @@ async function sharePDF(){
 
 function makeDoc(){
   const items=collectItems();
+  if(docType==='Rechnung'){
+    const nr=(document.getElementById('docNr')?.value||'').trim();
+    if(!nr){alert('Bitte Rechnungsnummer eingeben.');return}
+    if(items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
+    saveCurrentInvoiceSilently();
+  }
   const showPrices=(document.getElementById('pdfPriceMode').value||'on')!=='off';
   const showMaterialPrices=(document.getElementById('materialPdfPriceMode').value||'on')!=='off';
   if(items.length===0){alert('Bitte mindestens eine Position eingeben.');return}
