@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V97: Scanbot clipboard license fix -->
+<!-- FR Rechnung V98: Scanbot JPEG preview fix -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -1024,7 +1024,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v97 · Scanbot Clipboard Fix · Foto · Enable Banking</b></p>
+      <p class="small"><b>Version v98 · Scanbot Bild Fix · Foto · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -4860,7 +4860,7 @@ async function saveScannedDocument(){
 }
 async function renderDocuments(){
   const box=document.getElementById('documentsList');if(!box)return;const month=document.getElementById('documentsMonthFilter')?.value||currentMonthValue();
-  try{const arr=await frDocsGetMonth(month);document.getElementById('documentsCount').textContent=month+' · '+arr.length+' Dokument(e)';if(!arr.length){box.innerHTML='<p class="small">Noch keine Dokumente in diesem Monat.</p>';return}box.innerHTML='';arr.forEach(d=>{const url=URL.createObjectURL(d.blob);const div=document.createElement('div');div.className='docscan-item';div.innerHTML=`<div class="docscan-top"><img class="docscan-thumb" src="${url}"><div><b>${esc(d.name||'Beleg')}</b><br><span class="docscan-meta">${fmtDate(d.date)} · ${esc(d.category||'')}<br>${d.amount?euro(d.amount):''}${d.note?'<br>'+esc(d.note):''}</span></div></div><div class="docscan-actions"><button onclick="openStoredDocument('${escAttr(d.id)}')">Öffnen</button><button onclick="shareStoredDocument('${escAttr(d.id)}')">Senden</button><button onclick="deleteStoredDocument('${escAttr(d.id)}')">Löschen</button></div>`;box.appendChild(div);setTimeout(()=>URL.revokeObjectURL(url),5000)});}catch(e){box.innerHTML='<p class="small">Fehler: '+esc(e?.message||e)+'</p>'}
+  try{const arr=await frDocsGetMonth(month);document.getElementById('documentsCount').textContent=month+' · '+arr.length+' Dokument(e)';if(!arr.length){box.innerHTML='<p class="small">Noch keine Dokumente in diesem Monat.</p>';return}box.innerHTML='';arr.forEach(d=>{const url=URL.createObjectURL(d.blob);const div=document.createElement('div');div.className='docscan-item';div.innerHTML=`<div class="docscan-top"><img class="docscan-thumb" src="${url}" alt="Beleg"><div><b>${esc(d.name||'Beleg')}</b><br><span class="docscan-meta">${fmtDate(d.date)} · ${esc(d.category||'')}<br>${d.amount?euro(d.amount):''}${d.note?'<br>'+esc(d.note):''}</span></div></div><div class="docscan-actions"><button onclick="openStoredDocument('${escAttr(d.id)}')">Öffnen</button><button onclick="shareStoredDocument('${escAttr(d.id)}')">Senden</button><button onclick="deleteStoredDocument('${escAttr(d.id)}')">Löschen</button></div>`;const thumb=div.querySelector('.docscan-thumb');if(thumb){thumb.addEventListener('load',()=>setTimeout(()=>URL.revokeObjectURL(url),500),{once:true});thumb.addEventListener('error',()=>{URL.revokeObjectURL(url);thumb.alt='Bildfehler';},{once:true})}box.appendChild(div)});}catch(e){box.innerHTML='<p class="small">Fehler: '+esc(e?.message||e)+'</p>'}
 }
 async function getStoredDocumentById(id){const db=await frDocsDb();return new Promise((resolve,reject)=>{const req=db.transaction('documents','readonly').objectStore('documents').get(id);req.onsuccess=()=>{db.close();resolve(req.result||null)};req.onerror=()=>{db.close();reject(req.error)}})}
 async function openStoredDocument(id){const d=await getStoredDocumentById(id);if(!d)return;const u=URL.createObjectURL(d.blob);const w=window.open(u,'_blank');if(!w)location.href=u;setTimeout(()=>URL.revokeObjectURL(u),60000)}
@@ -5012,23 +5012,83 @@ function setScanbotCaptureLoading(on){
   const sub=cap?.querySelector('.scan-sub');
   if(sub)sub.textContent=on?'Scanner wird geladen…':'Scanbot öffnen · Papier automatisch erkennen & zuschneiden';
 }
+async function frScanbotImageToJpegBlob(image){
+  if(!image)throw new Error('Kein Scanbild erhalten.');
+
+  // Scanbot Web SDK v9 returns a RawImage.
+  // Correct conversion is sdk.imageToJpeg(image) -> Uint8Array.
+  const sdk=await initFrScanbotSdk();
+  let encoded=null;
+
+  if(sdk && typeof sdk.imageToJpeg==='function'){
+    encoded=await sdk.imageToJpeg(image);
+  }else if(typeof image.toJpeg==='function'){
+    encoded=await image.toJpeg();
+  }
+
+  if(!encoded)throw new Error('Scan konnte nicht als JPEG umgewandelt werden.');
+
+  if(encoded instanceof Blob){
+    return encoded.type==='image/jpeg' ? encoded : new Blob([encoded],{type:'image/jpeg'});
+  }
+  if(encoded instanceof ArrayBuffer){
+    return new Blob([new Uint8Array(encoded)],{type:'image/jpeg'});
+  }
+  if(ArrayBuffer.isView(encoded)){
+    return new Blob([encoded],{type:'image/jpeg'});
+  }
+
+  // Compatibility fallback for SDK variants that return a data URL/base64 string.
+  if(typeof encoded==='string'){
+    const s=encoded.trim();
+    if(/^data:image\/jpeg;base64,/i.test(s) || /^data:image\/jpg;base64,/i.test(s)){
+      const b64=s.split(',')[1]||'';
+      const bin=atob(b64);
+      const bytes=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+      return new Blob([bytes],{type:'image/jpeg'});
+    }
+    if(/^[A-Za-z0-9+/=\r\n]+$/.test(s) && s.length>100){
+      const bin=atob(s.replace(/\s+/g,''));
+      const bytes=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+      return new Blob([bytes],{type:'image/jpeg'});
+    }
+  }
+
+  throw new Error('Unbekanntes Scanbild-Format.');
+}
+
 async function useScanbotDocumentResult(result){
   const doc=result&&result.document;
   if(!doc || !doc.pages || !doc.pages.length)return false;
+
   let image=null;
   try{
     const page=doc.pages[0];
     const data=page.getData?page.getData():null;
+
     if(data && data.documentImageId!==null && data.documentImageId!==undefined && page.loadDocumentImage){
+      image=await page.loadDocumentImage();
+    }else if(page.loadDocumentImage){
       image=await page.loadDocumentImage();
     }else if(page.loadOriginalImage){
       image=await page.loadOriginalImage();
     }
-    if(!image)throw new Error('Kein gescanntes Dokument erhalten.');
-    const jpeg=image.toJpeg ? image.toJpeg() : null;
-    if(!jpeg)throw new Error('Scan konnte nicht als Bild gespeichert werden.');
 
-    scannedDocumentBlob=new Blob([jpeg],{type:'image/jpeg'});
+    if(!image)throw new Error('Kein gescanntes Dokument erhalten.');
+
+    scannedDocumentBlob=await frScanbotImageToJpegBlob(image);
+
+    // Verify that the blob is really a displayable image before saving it.
+    await new Promise((resolve,reject)=>{
+      const testUrl=URL.createObjectURL(scannedDocumentBlob);
+      const img=new Image();
+      img.onload=()=>{URL.revokeObjectURL(testUrl);resolve(true)};
+      img.onerror=()=>{URL.revokeObjectURL(testUrl);reject(new Error('Scanbild konnte nicht angezeigt werden.'))};
+      img.src=testUrl;
+    });
+
     revokeScanPreview();
     scannedDocumentObjectUrl=URL.createObjectURL(scannedDocumentBlob);
 
@@ -5037,20 +5097,22 @@ async function useScanbotDocumentResult(result){
       preview.src=scannedDocumentObjectUrl;
       preview.style.display='block';
     }
+
     const cap=document.getElementById('docScanCapture');
     if(cap){
       cap.classList.add('has-image');
       setTimeout(()=>cap.scrollIntoView({behavior:'smooth',block:'center'}),80);
     }
+
     const date=document.getElementById('docScanDate');
     const month=document.getElementById('docScanMonth');
     if(date && !date.value)date.value=new Date().toISOString().slice(0,10);
     if(month && !month.value && date?.value)month.value=date.value.slice(0,7);
+
     return true;
   }finally{
     try{image?.delete?.()}catch(e){}
     try{image?.dispose?.()}catch(e){}
-    // We already copied the cropped JPEG into FR Rechnung, so remove Scanbot's temporary stored document.
     try{await doc.delete?.()}catch(e){}
   }
 }
