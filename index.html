@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V90: iPhone reliable document scanner -->
+<!-- FR Rechnung V91: Scanner DOM fix -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -937,7 +937,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v90 · Dokument Scanner · Foto · Enable Banking</b></p>
+      <p class="small"><b>Version v91 · Dokument Scanner · Foto · Enable Banking</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -3310,45 +3310,6 @@ ${companyName}`);
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
   <script>if(${JSON.stringify(!!epcText)}){new QRCode(document.getElementById('payQr'),{text:${JSON.stringify(epcText)},width:120,height:120,correctLevel:QRCode.CorrectLevel.M});}<\/script>
   
-<div id="frDocumentScanner" class="fr-doc-scanner hidden" aria-hidden="true">
-  <video id="frDocumentScannerVideo" playsinline muted autoplay></video>
-  <div class="fr-doc-scan-dim"></div>
-  <div id="frDocumentScannerGuide" class="fr-doc-scan-guide"></div>
-
-  <div class="fr-doc-scan-top">
-    <button class="fr-doc-scan-close" type="button" onclick="closeDocumentScanner()">×</button>
-    <div class="fr-doc-scan-hint">Positioniere das Dokument.</div>
-  </div>
-
-  <div id="frDocumentScannerStatus" class="fr-doc-scan-status">Dokument im blauen Rahmen halten</div>
-
-  <div class="fr-doc-scan-tools">
-    <div class="fr-doc-scan-tool-wrap">
-      <button id="frDocTorchBtn" class="fr-doc-scan-tool" type="button" onclick="toggleDocumentTorch()">⚡</button>
-      <div class="fr-doc-scan-tool-label">Blitz</div>
-    </div>
-    <div class="fr-doc-scan-tool-wrap">
-      <button class="fr-doc-scan-tool" type="button" onclick="toggleDocumentFilter()">◉</button>
-      <div class="fr-doc-scan-tool-label">Filter</div>
-    </div>
-    <div class="fr-doc-scan-tool-wrap">
-      <button class="fr-doc-scan-tool" type="button" onclick="fallbackDocumentCamera()">▣</button>
-      <div class="fr-doc-scan-tool-label">Foto</div>
-    </div>
-  </div>
-
-
-  <div id="frDocumentScannerFallback" class="fr-doc-scan-fallback hidden">
-    <b>Kamera nicht verfügbar</b>
-    <p>Tippe unten, damit die iPhone-Kamera sicher geöffnet wird.</p>
-    <button class="fr-doc-scan-native-btn" type="button" onclick="openNativeDocumentCamera()">📷 iPhone Kamera öffnen</button>
-  </div>
-
-  <div class="fr-doc-scan-bottom">
-    <button class="fr-doc-shutter" type="button" aria-label="Dokument aufnehmen" onclick="captureDocumentScanner()"></button>
-  </div>
-</div>
-
 </body></html>`);
   w.document.close();
 }
@@ -4344,7 +4305,11 @@ async function openDocumentScanner(ev){
   const modal=document.getElementById('frDocumentScanner');
   const video=document.getElementById('frDocumentScannerVideo');
   const fallback=document.getElementById('frDocumentScannerFallback');
-  if(!modal||!video)return;
+  if(!modal||!video){
+    const input=document.getElementById('docScanInput');
+    if(input){input.value='';input.click()}
+    return;
+  }
 
   modal.classList.remove('hidden','camera-error');
   modal.setAttribute('aria-hidden','false');
@@ -4620,5 +4585,44 @@ document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible') setTimeout(frAutoRefresh,300);
 });
 </script>
+<div id="frDocumentScanner" class="fr-doc-scanner hidden" aria-hidden="true">
+  <video id="frDocumentScannerVideo" playsinline muted autoplay></video>
+  <div class="fr-doc-scan-dim"></div>
+  <div id="frDocumentScannerGuide" class="fr-doc-scan-guide"></div>
+
+  <div class="fr-doc-scan-top">
+    <button class="fr-doc-scan-close" type="button" onclick="closeDocumentScanner()">×</button>
+    <div class="fr-doc-scan-hint">Positioniere das Dokument.</div>
+  </div>
+
+  <div id="frDocumentScannerStatus" class="fr-doc-scan-status">Dokument im blauen Rahmen halten</div>
+
+  <div class="fr-doc-scan-tools">
+    <div class="fr-doc-scan-tool-wrap">
+      <button id="frDocTorchBtn" class="fr-doc-scan-tool" type="button" onclick="toggleDocumentTorch()">⚡</button>
+      <div class="fr-doc-scan-tool-label">Blitz</div>
+    </div>
+    <div class="fr-doc-scan-tool-wrap">
+      <button class="fr-doc-scan-tool" type="button" onclick="toggleDocumentFilter()">◉</button>
+      <div class="fr-doc-scan-tool-label">Filter</div>
+    </div>
+    <div class="fr-doc-scan-tool-wrap">
+      <button class="fr-doc-scan-tool" type="button" onclick="fallbackDocumentCamera()">▣</button>
+      <div class="fr-doc-scan-tool-label">Foto</div>
+    </div>
+  </div>
+
+
+  <div id="frDocumentScannerFallback" class="fr-doc-scan-fallback hidden">
+    <b>Kamera nicht verfügbar</b>
+    <p>Tippe unten, damit die iPhone-Kamera sicher geöffnet wird.</p>
+    <button class="fr-doc-scan-native-btn" type="button" onclick="openNativeDocumentCamera()">📷 iPhone Kamera öffnen</button>
+  </div>
+
+  <div class="fr-doc-scan-bottom">
+    <button class="fr-doc-shutter" type="button" aria-label="Dokument aufnehmen" onclick="captureDocumentScanner()"></button>
+  </div>
+</div>
+
 </body>
 </html>
