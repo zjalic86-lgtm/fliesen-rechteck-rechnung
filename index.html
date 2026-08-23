@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V113: Dokumente Ordner vollständig repariert -->
+<!-- FR Rechnung V114: Auto Login Recovery -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -1281,7 +1281,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v113 · Ordner vollständig · PDF Rechnungen · Scanbot · Bank Sync</b></p>
+      <p class="small"><b>Version v114 · Auto Login Recovery · Ordner · Scanbot · Bank Sync</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -6641,18 +6641,100 @@ async function sendDocumentsFolder(){
   }
 }
 
+
+function frFindSessionTokens(value){
+  try{
+    const obj=typeof value==='string'?JSON.parse(value):value;
+    const seen=new Set();
+    function walk(v){
+      if(!v || typeof v!=='object' || seen.has(v))return null;
+      seen.add(v);
+      if(typeof v.access_token==='string' && typeof v.refresh_token==='string'){
+        return {access_token:v.access_token,refresh_token:v.refresh_token};
+      }
+      for(const k of Object.keys(v)){
+        const found=walk(v[k]);
+        if(found)return found;
+      }
+      return null;
+    }
+    return walk(obj);
+  }catch(e){return null}
+}
+
+async function frRecoverSavedSession(){
+  // 1) Normal persisted session.
+  try{
+    const r=await sb.auth.getSession();
+    const s=r?.data?.session;
+    if(s?.user)return s;
+  }catch(e){}
+
+  // 2) Ask Supabase to refresh a persisted refresh token.
+  try{
+    const r=await sb.auth.refreshSession();
+    const s=r?.data?.session;
+    if(s?.user)return s;
+  }catch(e){}
+
+  // 3) Recover sessions saved by older FR Rechnung / Supabase storage keys.
+  const candidates=[];
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i)||'';
+      if(key==='fr-rechnung-auth' || /^sb-.*-auth-token$/i.test(key)){
+        const raw=localStorage.getItem(key);
+        if(raw)candidates.push(raw);
+      }
+    }
+  }catch(e){}
+
+  for(const raw of candidates){
+    const tokens=frFindSessionTokens(raw);
+    if(!tokens)continue;
+    try{
+      const r=await sb.auth.setSession(tokens);
+      const s=r?.data?.session;
+      if(s?.user)return s;
+    }catch(e){}
+  }
+  return null;
+}
+
 async function initAccountGate(){
   showAccountScreen();
-  const r=await sb.auth.getSession();
-  const session=r&&r.data?r.data.session:null;
-  if(session&&session.user){
-    cloudUser=session.user;
-    await afterAccountLogin();
-  }else{
-    setAccountStatus('Bitte anmelden oder neues Konto erstellen.');
-  }
+  setAccountStatus('Sitzung wird geladen …');
+
+  try{
+    const session=await frRecoverSavedSession();
+    if(session?.user){
+      cloudUser=session.user;
+      await afterAccountLogin();
+      return;
+    }
+  }catch(e){}
+
+  setAccountStatus('Bitte anmelden oder neues Konto erstellen.');
 }
 initAccountGate();
+
+let frAuthVisibilityRecovery=false;
+document.addEventListener('visibilitychange',async()=>{
+  if(document.visibilityState!=='visible' || frAuthVisibilityRecovery)return;
+  const screen=document.getElementById('accountScreen');
+  if(!screen || screen.style.display==='none')return;
+
+  frAuthVisibilityRecovery=true;
+  try{
+    const session=await frRecoverSavedSession();
+    if(session?.user){
+      cloudUser=session.user;
+      await afterAccountLogin();
+    }
+  }catch(e){}
+  frAuthVisibilityRecovery=false;
+});
+
 
 function frApplyNativeScannerLabel(){
   try{
