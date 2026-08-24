@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V123: Löschen sichtbar in Dokumente PDF Rechnung -->
+<!-- FR Rechnung V124: PDF Import aus E-Mail / Dateien in Dokumente -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -826,6 +826,13 @@ label{font-weight:700}
   }
 }
 
+
+/* V124 PDF Import */
+#docPdfStatus{
+  margin:8px 2px 12px;
+  word-break:break-word;
+}
+
 </style>
 </head>
 <body>
@@ -843,7 +850,7 @@ label{font-weight:700}
       <button class="btn" type="button" onclick="accountSignIn()">Anmelden</button>
       <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
       <button class="btn outline" type="button" onclick="accountForgotPassword()">Passwort vergessen / setzen</button>
-      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v123</div>
+      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v124</div>
     </div>
 
     <div id="accountRecovery" class="hidden">
@@ -1219,6 +1226,10 @@ label{font-weight:700}
         <a class="scanbot-trial-link" href="https://docs.scanbot.io/trial/" target="_blank" rel="noopener">7-Tage Testlizenz öffnen</a>
       </details>
       <label>Foto / Scan</label>
+      <input id="docPdfInput" type="file" accept="application/pdf,.pdf" class="hidden" onchange="documentPdfSelected(event)">
+      <button class="btn outline" type="button" onclick="document.getElementById('docPdfInput').click()">📧 PDF aus E-Mail / Dateien auswählen</button>
+      <div id="docPdfStatus" class="small"></div>
+
       <label id="docScanCapture" class="docscan-capture" onclick="openDocumentScanner(event)">
         <input id="docScanInput" type="file" accept="image/*" capture="environment" onchange="documentScanSelected(event)" onclick="event.stopPropagation()">
         <div class="docscan-empty">
@@ -1352,7 +1363,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v123 · Löschen sichtbar · Dokumente PDF Rechnung · Stari PIN</b></p>
+      <p class="small"><b>Version v124 · PDF Import E-Mail / Dateien · Dokumente Ordner · Stari PIN</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -5849,8 +5860,59 @@ async function compressDocumentImage(file){
 }
 async function documentScanSelected(e){
   const file=e?.target?.files?.[0];if(!file)return;
+  const pdfInp=document.getElementById('docPdfInput');if(pdfInp)pdfInp.value='';
+  const pdfStatus=document.getElementById('docPdfStatus');if(pdfStatus)pdfStatus.textContent='';
   try{scannedDocumentBlob=(await autoCropDocumentFile(file))||await compressDocumentImage(file);revokeScanPreview();scannedDocumentObjectUrl=URL.createObjectURL(scannedDocumentBlob);const img=document.getElementById('docScanPreview');if(img){img.src=scannedDocumentObjectUrl;img.style.display='block'}const cap=document.getElementById('docScanCapture');if(cap){cap.classList.add('has-image');setTimeout(()=>cap.scrollIntoView({behavior:'smooth',block:'center'}),80)}}catch(err){alert('Scan Fehler: '+(err?.message||err))}
 }
+
+async function documentPdfSelected(e){
+  const file=e?.target?.files?.[0];
+  if(!file)return;
+
+  const type=String(file.type||'').toLowerCase();
+  const name=String(file.name||'');
+  if(type!=='application/pdf' && !name.toLowerCase().endsWith('.pdf')){
+    alert('Bitte eine PDF-Datei auswählen.');
+    e.target.value='';
+    return;
+  }
+
+  try{
+    scannedDocumentBlob=file;
+
+    // Remove old image preview if one was selected before.
+    revokeScanPreview();
+    const img=document.getElementById('docScanPreview');
+    if(img){
+      img.style.display='none';
+      img.removeAttribute('src');
+    }
+    document.getElementById('docScanCapture')?.classList.remove('has-image');
+
+    const imageInput=document.getElementById('docScanInput');
+    if(imageInput)imageInput.value='';
+
+    // Use PDF filename as Beleg/Firma name when the field is empty.
+    const nameInput=document.getElementById('docScanName');
+    if(nameInput && !String(nameInput.value||'').trim()){
+      nameInput.value=name.replace(/\.pdf$/i,'');
+    }
+
+    const status=document.getElementById('docPdfStatus');
+    if(status){
+      const sizeKb=Math.max(1,Math.round((file.size||0)/1024));
+      status.textContent=`✅ PDF ausgewählt: ${name} · ${sizeKb} KB`;
+    }
+
+    document.getElementById('docScanFolderSelect')?.scrollIntoView({
+      behavior:'smooth',
+      block:'center'
+    });
+  }catch(err){
+    alert('PDF Fehler: '+(err?.message||err));
+  }
+}
+
 async function saveScannedDocument(){
   if(!cloudUser){alert('Bitte zuerst anmelden.');return}
   if(!scannedDocumentBlob){alert('Bitte zuerst Rechnung / Beleg fotografieren.');return}
@@ -6609,7 +6671,7 @@ async function showDocuments(){
 
 async function saveScannedDocument(){
   if(!cloudUser){alert('Bitte zuerst anmelden.');return}
-  if(!scannedDocumentBlob){alert('Bitte zuerst Rechnung / Beleg fotografieren.');return}
+  if(!scannedDocumentBlob){alert('Bitte zuerst Beleg scannen oder PDF auswählen.');return}
 
   const date=document.getElementById('docScanDate')?.value||new Date().toISOString().slice(0,10);
   const month=document.getElementById('docScanMonth')?.value||date.slice(0,7);
@@ -6646,6 +6708,11 @@ async function saveScannedDocument(){
 
     const inp=document.getElementById('docScanInput');
     if(inp)inp.value='';
+
+    const pdfInp=document.getElementById('docPdfInput');
+    if(pdfInp)pdfInp.value='';
+    const pdfStatus=document.getElementById('docPdfStatus');
+    if(pdfStatus)pdfStatus.textContent='';
 
     ['docScanName','docScanAmount','docScanNote'].forEach(id=>{
       const el=document.getElementById(id);if(el)el.value='';
