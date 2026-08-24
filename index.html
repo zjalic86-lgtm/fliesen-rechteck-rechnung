@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V121: Rechnungskarte Foto + Ordner + Mahnung 10 EUR + Teilen -->
+<!-- FR Rechnung V122: Löschen auch bei PDF Rechnung in Dokumente -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -843,7 +843,7 @@ label{font-weight:700}
       <button class="btn" type="button" onclick="accountSignIn()">Anmelden</button>
       <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
       <button class="btn outline" type="button" onclick="accountForgotPassword()">Passwort vergessen / setzen</button>
-      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v121</div>
+      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v122</div>
     </div>
 
     <div id="accountRecovery" class="hidden">
@@ -1352,7 +1352,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v121 · Rechnungskarte wie Foto · Mahnung 10 € · Ordner · Teilen · Stari PIN</b></p>
+      <p class="small"><b>Version v122 · Löschen in Dokumente · Mahnung 10 € · Ordner · Teilen · Stari PIN</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -5936,6 +5936,7 @@ function renderInvoicesInDocumentFolder(folderName){
         <button onclick="pdfInvoice(${i})">Öffnen</button>
         <button onclick="pdfInvoice(${i},'share')">Senden</button>
         <button onclick="openInvoiceFolderPicker(${i})">Ordner</button>
+        <button onclick="deleteInvoiceFromDocuments(${i})">🗑️ Löschen</button>
       </div>
     </div>`;
   }).join('');
@@ -6760,6 +6761,11 @@ async function openDocumentsFolderByName(folderName){
   const scan=document.getElementById('docScanFolderSelect');
   if(scan)scan.value=folderName;
 
+  await renderDocuments();
+}
+
+async function deleteInvoiceFromDocuments(i){
+  await deleteInvoice(i);
   await renderDocuments();
 }
 
