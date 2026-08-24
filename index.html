@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V127: Regiestunden 4 jasna dugmeta -->
+<!-- FR Rechnung V128: Unterschrift Undo / letzter Strich zurück -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -861,6 +861,17 @@ label{font-weight:700}
   }
 }
 
+
+/* V128 Signature Undo */
+.signature-actions{
+  display:grid !important;
+  grid-template-columns:1fr 1fr !important;
+  gap:8px !important;
+}
+.signature-actions .btn{
+  margin:0 !important;
+}
+
 </style>
 </head>
 <body>
@@ -878,7 +889,7 @@ label{font-weight:700}
       <button class="btn" type="button" onclick="accountSignIn()">Anmelden</button>
       <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
       <button class="btn outline" type="button" onclick="accountForgotPassword()">Passwort vergessen / setzen</button>
-      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v127</div>
+      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v128</div>
     </div>
 
     <div id="accountRecovery" class="hidden">
@@ -1008,6 +1019,7 @@ label{font-weight:700}
           <label>Dienstnehmer</label>
           <canvas id="sigDienstnehmer" class="signature-canvas"></canvas>
           <div class="signature-actions">
+            <button class="btn outline" type="button" onclick="undoRegieSignature('sigDienstnehmer')">↶ Undo</button>
             <button class="btn outline" type="button" onclick="clearRegieSignature('sigDienstnehmer')">Löschen</button>
           </div>
         </div>
@@ -1016,6 +1028,7 @@ label{font-weight:700}
           <label>Chef</label>
           <canvas id="sigChef" class="signature-canvas"></canvas>
           <div class="signature-actions">
+            <button class="btn outline" type="button" onclick="undoRegieSignature('sigChef')">↶ Undo</button>
             <button class="btn outline" type="button" onclick="clearRegieSignature('sigChef')">Löschen</button>
           </div>
         </div>
@@ -1024,6 +1037,7 @@ label{font-weight:700}
           <label>Bauleiter</label>
           <canvas id="sigBauleiter" class="signature-canvas"></canvas>
           <div class="signature-actions">
+            <button class="btn outline" type="button" onclick="undoRegieSignature('sigBauleiter')">↶ Undo</button>
             <button class="btn outline" type="button" onclick="clearRegieSignature('sigBauleiter')">Löschen</button>
           </div>
         </div>
@@ -1392,7 +1406,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v127 · Regiestunden 4 Aktionen · PDF + Unterschrift · Stari PIN</b></p>
+      <p class="small"><b>Version v128 · Unterschrift Undo · Regiestunden · PDF + Stari PIN</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -4792,6 +4806,7 @@ function showRegiestunden(){
 }
 
 const regieSignatureState={};
+const regieSignatureHistory={};
 
 function initRegieSignaturePads(){
   ['sigDienstnehmer','sigChef','sigBauleiter'].forEach(initRegieSignaturePad);
@@ -4799,6 +4814,7 @@ function initRegieSignaturePads(){
 function initRegieSignaturePad(id){
   const canvas=document.getElementById(id);
   if(!canvas)return;
+  if(!regieSignatureHistory[id])regieSignatureHistory[id]=[];
   const rect=canvas.getBoundingClientRect();
   const ratio=Math.max(1,window.devicePixelRatio||1);
   const oldData=canvas.dataset.signed==='1' ? canvas.toDataURL('image/png') : '';
@@ -4833,6 +4849,16 @@ function initRegieSignaturePad(id){
   }
   canvas.addEventListener('pointerdown',e=>{
     e.preventDefault();
+
+    if(!regieSignatureHistory[id])regieSignatureHistory[id]=[];
+    try{
+      regieSignatureHistory[id].push({
+        image:ctx.getImageData(0,0,canvas.width,canvas.height),
+        signed:canvas.dataset.signed==='1'
+      });
+      if(regieSignatureHistory[id].length>30)regieSignatureHistory[id].shift();
+    }catch(err){}
+
     drawing=true;
     canvas.dataset.signed='1';
     try{canvas.setPointerCapture(e.pointerId)}catch(err){}
@@ -4860,8 +4886,32 @@ function clearRegieSignature(id){
   const canvas=document.getElementById(id);
   if(!canvas)return;
   const ctx=canvas.getContext('2d');
+
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.restore();
+
   canvas.dataset.signed='0';
+  regieSignatureHistory[id]=[];
+}
+
+function undoRegieSignature(id){
+  const canvas=document.getElementById(id);
+  if(!canvas)return;
+
+  const history=regieSignatureHistory[id]||[];
+  const previous=history.pop();
+  if(!previous)return;
+
+  const ctx=canvas.getContext('2d');
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  try{ctx.putImageData(previous.image,0,0)}catch(e){}
+  ctx.restore();
+
+  canvas.dataset.signed=previous.signed?'1':'0';
 }
 function regieSignatureData(id){
   const canvas=document.getElementById(id);
