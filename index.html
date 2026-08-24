@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V126: Regiestunden jedan PDF + potpis + speichern -->
+<!-- FR Rechnung V127: Regiestunden 4 jasna dugmeta -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -845,6 +845,22 @@ label{font-weight:700}
   min-height:48px;
 }
 
+
+/* V127 Regiestunden - 4 klare Aktionen */
+.regie-draft-actions{
+  display:grid !important;
+  grid-template-columns:1fr 1fr !important;
+  gap:8px !important;
+}
+.regie-draft-actions button{
+  min-height:48px;
+}
+@media(max-width:520px){
+  .regie-draft-actions{
+    grid-template-columns:1fr 1fr !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -862,7 +878,7 @@ label{font-weight:700}
       <button class="btn" type="button" onclick="accountSignIn()">Anmelden</button>
       <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
       <button class="btn outline" type="button" onclick="accountForgotPassword()">Passwort vergessen / setzen</button>
-      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v126</div>
+      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v127</div>
     </div>
 
     <div id="accountRecovery" class="hidden">
@@ -1376,7 +1392,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v126 · Regiestunden 1 PDF + Unterschrift speichern · PDF Import · Stari PIN</b></p>
+      <p class="small"><b>Version v127 · Regiestunden 4 Aktionen · PDF + Unterschrift · Stari PIN</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -4717,6 +4733,14 @@ function loadRegieDraftAndRead(i){
   openRegieForReading();
 }
 
+function loadRegieDraftAndSign(i){
+  loadRegieDraft(i);
+  const btn=document.getElementById('regieAfterReadBtn');
+  if(btn)btn.classList.remove('hidden');
+  showRegieSignatures();
+}
+
+
 function deleteRegieDraft(i){
   let arr=getRegieDrafts();
   const x=arr[i];
@@ -4746,9 +4770,10 @@ function renderRegieDrafts(){
       </div>
       <div class="small" style="margin-top:6px">${esc((x.arbeiten||'').slice(0,120))}</div>
       <div class="regie-draft-actions">
-        <button type="button" onclick="loadRegieDraft(${i})">✏️ Öffnen / bearbeiten</button>
-        <button type="button" onclick="loadRegieDraftAndRead(${i})">📄 Öffnen → lesen → unterschreiben</button>
-        <button type="button" onclick="deleteRegieDraft(${i})">Löschen</button>
+        <button type="button" onclick="loadRegieDraft(${i})">✏️ Öffnen / Bearbeiten</button>
+        <button type="button" onclick="loadRegieDraftAndRead(${i})">📄 Öffnen / Lesen</button>
+        <button type="button" onclick="loadRegieDraftAndSign(${i})">✍️ Unterschreiben</button>
+        <button type="button" onclick="deleteRegieDraft(${i})">🗑️ Löschen</button>
       </div>
     </div>`).join('');
 }
