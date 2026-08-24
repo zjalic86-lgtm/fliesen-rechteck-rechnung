@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V125: Regiestunden PDF direkt iz sačuvanog zapisa + potpis -->
+<!-- FR Rechnung V126: Regiestunden jedan PDF + potpis + speichern -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -862,7 +862,7 @@ label{font-weight:700}
       <button class="btn" type="button" onclick="accountSignIn()">Anmelden</button>
       <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
       <button class="btn outline" type="button" onclick="accountForgotPassword()">Passwort vergessen / setzen</button>
-      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v125</div>
+      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v126</div>
     </div>
 
     <div id="accountRecovery" class="hidden">
@@ -981,7 +981,7 @@ label{font-weight:700}
       <div id="regieDraftList"><p class="small">Noch nichts gespeichert.</p></div>
     </div>
 
-    <button class="btn" type="button" onclick="openRegieForReading()">1. PDF öffnen zum Lesen</button>
+    <button class="btn" type="button" onclick="openRegieForReading()">1. PDF öffnen / Kunde lesen</button>
     <p class="regie-pdf-note">Kunde liest den PDF. Danach zurück in FR App und auf „2. PDF gelesen – jetzt unterschreiben“ klicken.</p>
     <button id="regieAfterReadBtn" class="btn outline hidden" type="button" onclick="showRegieSignatures()">PDF gelesen – jetzt unterschreiben</button>
 
@@ -1015,8 +1015,9 @@ label{font-weight:700}
 
       <p class="regie-pdf-note">Posle čitanja kupac/Bauleiter potpisuje direktno prstom na telefonu. Potpis se zatim ubacuje u isti PDF.</p>
 
-      <button class="btn" type="button" onclick="shareRegiePDF()">Unterschriebenes PDF senden / teilen</button>
-      <button class="btn outline" type="button" onclick="openRegiePDF()">Unterschriebenes PDF öffnen / Drucken</button>
+      <button class="btn" type="button" onclick="saveSignedRegiePDF()">💾 Unterschriebenes PDF speichern</button>
+      <button class="btn outline" type="button" onclick="shareRegiePDF()">📤 Unterschriebenes PDF senden / teilen</button>
+      <button class="btn outline" type="button" onclick="openRegiePDF()">📄 Gespeichertes PDF öffnen</button>
     </div>
 
     <button class="btn outline" type="button" onclick="clearRegieForm()">Regiestunden leeren</button>
@@ -1375,7 +1376,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v125 · Regiestunden PDF + Unterschrift Fix · PDF Import · Stari PIN</b></p>
+      <p class="small"><b>Version v126 · Regiestunden 1 PDF + Unterschrift speichern · PDF Import · Stari PIN</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -4693,6 +4694,8 @@ function loadRegieDraft(i){
   const x=getRegieDrafts()[i];
   if(!x)return;
   currentRegieDraftId=x.id||'';
+  regieSignedPdfBlob=null;
+  regieSignedPdfName='';
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||''};
   set('regieBauvorhaben',x.bauvorhaben);
   set('regieArbeiten',x.arbeiten);
@@ -4744,7 +4747,7 @@ function renderRegieDrafts(){
       <div class="small" style="margin-top:6px">${esc((x.arbeiten||'').slice(0,120))}</div>
       <div class="regie-draft-actions">
         <button type="button" onclick="loadRegieDraft(${i})">✏️ Öffnen / bearbeiten</button>
-        <button type="button" onclick="loadRegieDraftAndRead(${i})">📄 PDF lesen / unterschreiben</button>
+        <button type="button" onclick="loadRegieDraftAndRead(${i})">📄 Öffnen → lesen → unterschreiben</button>
         <button type="button" onclick="deleteRegieDraft(${i})">Löschen</button>
       </div>
     </div>`).join('');
@@ -4850,6 +4853,8 @@ function clearRegieForm(){
   const sig=document.getElementById('regieSignatureSection');
   if(sig)sig.classList.add('hidden');
   currentRegieDraftId='';
+  regieSignedPdfBlob=null;
+  regieSignedPdfName='';
   releaseRegieReadPdf();
 }
 function regieFormData(){
@@ -4962,6 +4967,8 @@ function buildRegiePDF(includeSignatures=true){
 
 
 let regieReadPdfUrl='';
+let regieSignedPdfBlob=null;
+let regieSignedPdfName='';
 
 function releaseRegieReadPdf(){
   if(regieReadPdfUrl){
@@ -5027,31 +5034,98 @@ function markCurrentRegieSigned(){
 }
 
 async function shareRegiePDF(){
-  markCurrentRegieSigned();
-  const built=buildRegiePDF(true);
-  if(!built)return;
-  const {pdf,data}=built;
-  const date=(data.datum||new Date().toISOString().slice(0,10));
-  const fileName=`Regiestunden_${date}.pdf`;
-  const blob=pdf.output('blob');
-  const file=new File([blob],fileName,{type:'application/pdf'});
+  let blob=regieSignedPdfBlob;
+  let fileName=regieSignedPdfName;
+
+  if(!blob){
+    markCurrentRegieSigned();
+    const built=buildRegiePDF(true);
+    if(!built)return;
+    const {pdf,data}=built;
+    const date=(data.datum||new Date().toISOString().slice(0,10));
+    fileName=`Regiestunden_${date}_unterschrieben.pdf`;
+    blob=pdf.output('blob');
+  }
+
+  const file=new File([blob],fileName||'Regiestunden_unterschrieben.pdf',{type:'application/pdf'});
   try{
     if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
       await navigator.share({files:[file],title:'Regiestunden'});
     }else{
-      pdf.save(fileName);
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=file.name;
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),30000);
     }
   }catch(e){
-    if(e&&e.name!=='AbortError')pdf.save(fileName);
+    if(e&&e.name!=='AbortError'){
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=file.name;
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),30000);
+    }
   }
 }
+
+function saveSignedRegiePDF(){
+  markCurrentRegieSigned();
+  const built=buildRegiePDF(true);
+  if(!built)return;
+
+  const {pdf,data}=built;
+  const date=(data.datum||new Date().toISOString().slice(0,10));
+  regieSignedPdfName=`Regiestunden_${date}_unterschrieben.pdf`;
+  regieSignedPdfBlob=pdf.output('blob');
+
+  // Save the draft status too.
+  try{
+    let arr=getRegieDrafts();
+    if(currentRegieDraftId){
+      const i=arr.findIndex(x=>x.id===currentRegieDraftId);
+      if(i>=0){
+        arr[i]={...arr[i],...currentRegieDraftData(),status:'Unterschrieben',signedAt:new Date().toISOString()};
+        setRegieDrafts(arr);
+        renderRegieDrafts();
+      }
+    }
+  }catch(e){}
+
+  const a=document.createElement('a');
+  const url=URL.createObjectURL(regieSignedPdfBlob);
+  a.href=url;
+  a.download=regieSignedPdfName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
+
+  alert('Unterschriebenes PDF gespeichert.');
+}
+
 function openRegiePDF(){
+  if(regieSignedPdfBlob){
+    const url=URL.createObjectURL(regieSignedPdfBlob);
+    const w=window.open(url,'_blank');
+    if(!w){
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=regieSignedPdfName||'Regiestunden_unterschrieben.pdf';
+      a.click();
+    }
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    return;
+  }
+
   markCurrentRegieSigned();
   const built=buildRegiePDF(true);
   if(!built)return;
   const url=built.pdf.output('bloburl');
   const w=window.open(url,'_blank');
-  if(!w)built.pdf.save(`Regiestunden_${built.data.datum||'Datum'}.pdf`);
+  if(!w)built.pdf.save(`Regiestunden_${built.data.datum||'Datum'}_unterschrieben.pdf`);
 }
 
 function showMessen(){
