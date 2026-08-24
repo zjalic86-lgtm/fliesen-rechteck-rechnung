@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V124: PDF Import aus E-Mail / Dateien in Dokumente -->
+<!-- FR Rechnung V125: Regiestunden PDF direkt iz sačuvanog zapisa + potpis -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -833,6 +833,18 @@ label{font-weight:700}
   word-break:break-word;
 }
 
+
+/* V125 Regiestunden saved-draft signing flow */
+.regie-draft-actions{
+  display:grid !important;
+  grid-template-columns:1fr !important;
+  gap:8px !important;
+}
+.regie-draft-actions button{
+  width:100%;
+  min-height:48px;
+}
+
 </style>
 </head>
 <body>
@@ -850,7 +862,7 @@ label{font-weight:700}
       <button class="btn" type="button" onclick="accountSignIn()">Anmelden</button>
       <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
       <button class="btn outline" type="button" onclick="accountForgotPassword()">Passwort vergessen / setzen</button>
-      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v124</div>
+      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v125</div>
     </div>
 
     <div id="accountRecovery" class="hidden">
@@ -970,11 +982,11 @@ label{font-weight:700}
     </div>
 
     <button class="btn" type="button" onclick="openRegieForReading()">1. PDF öffnen zum Lesen</button>
-    <p class="regie-pdf-note">PDF se otvara posebno na iPhone-u. Kunde pročita, zatim se vrati u FR App i klikne dugme ispod.</p>
+    <p class="regie-pdf-note">Kunde liest den PDF. Danach zurück in FR App und auf „2. PDF gelesen – jetzt unterschreiben“ klicken.</p>
     <button id="regieAfterReadBtn" class="btn outline hidden" type="button" onclick="showRegieSignatures()">PDF gelesen – jetzt unterschreiben</button>
 
     <div id="regieSignatureSection" class="hidden">
-      <h3>2. Unterschriften nach dem Lesen</h3>
+      <h3>3. Kunde / Bauleiter unterschreibt hier</h3>
       <div class="signature-grid">
         <div class="signature-box">
           <label>Dienstnehmer</label>
@@ -1363,7 +1375,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v124 · PDF Import E-Mail / Dateien · Dokumente Ordner · Stari PIN</b></p>
+      <p class="small"><b>Version v125 · Regiestunden PDF + Unterschrift Fix · PDF Import · Stari PIN</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -4695,6 +4707,13 @@ function loadRegieDraft(i){
   if(readBtn)readBtn.classList.add('hidden');
   window.scrollTo({top:0,behavior:'smooth'});
 }
+
+function loadRegieDraftAndRead(i){
+  loadRegieDraft(i);
+  // Direkt im selben Klick öffnen, damit iPhone/Safari den PDF-Tab erlaubt.
+  openRegieForReading();
+}
+
 function deleteRegieDraft(i){
   let arr=getRegieDrafts();
   const x=arr[i];
@@ -4724,7 +4743,8 @@ function renderRegieDrafts(){
       </div>
       <div class="small" style="margin-top:6px">${esc((x.arbeiten||'').slice(0,120))}</div>
       <div class="regie-draft-actions">
-        <button type="button" onclick="loadRegieDraft(${i})">Öffnen / weiter</button>
+        <button type="button" onclick="loadRegieDraft(${i})">✏️ Öffnen / bearbeiten</button>
+        <button type="button" onclick="loadRegieDraftAndRead(${i})">📄 PDF lesen / unterschreiben</button>
         <button type="button" onclick="deleteRegieDraft(${i})">Löschen</button>
       </div>
     </div>`).join('');
@@ -4960,21 +4980,38 @@ function showRegieSignatures(){
   }
 }
 function openRegieForReading(){
+  let d=regieFormData();
+
+  const empty=!d.bauvorhaben && !d.arbeiten && !d.arbeitszeit && !d.material;
+  if(empty){
+    const drafts=getRegieDrafts();
+    if(drafts.length){
+      let idx=0;
+      if(currentRegieDraftId){
+        const found=drafts.findIndex(x=>x.id===currentRegieDraftId);
+        if(found>=0)idx=found;
+      }
+      loadRegieDraft(idx);
+      d=regieFormData();
+    }
+  }
+
   const built=buildRegiePDF(false);
   if(!built)return;
 
   releaseRegieReadPdf();
   regieReadPdfUrl=URL.createObjectURL(built.pdf.output('blob'));
 
-  // iPhone/Safari pouzdanije prikazuje PDF u posebnom tabu nego u iframe-u.
   const w=window.open(regieReadPdfUrl,'_blank');
   if(!w){
-    // Ako popup bude blokiran, PDF se skida/otvara kao fajl.
     built.pdf.save(`Regiestunden_${built.data.datum||'Datum'}.pdf`);
   }
 
   const btn=document.getElementById('regieAfterReadBtn');
-  if(btn)btn.classList.remove('hidden');
+  if(btn){
+    btn.classList.remove('hidden');
+    btn.textContent='2. PDF gelesen – jetzt unterschreiben';
+  }
 }
 
 
