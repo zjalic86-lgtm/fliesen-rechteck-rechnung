@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
-<!-- FR Rechnung V128: Unterschrift Undo / letzter Strich zurück -->
+<!-- FR Rechnung V130: E-Mail / Passwort zuerst; lokaler PIN nur als Reserve -->
 <link rel="apple-touch-icon" href="fr-icon.png">
 <style>
 body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;color:#222}
@@ -872,25 +872,45 @@ label{font-weight:700}
   margin:0 !important;
 }
 
+
+/* V129 iPhone-iPad Cloud Sync */
+#extraCloudStatus{padding:10px 12px;border-radius:12px;background:#f5f7fa;margin:10px 0;}
+
+
+/* V130: readable login on iPhone, iPad and laptop */
+.accountScreen{overflow-y:auto;box-sizing:border-box;padding:max(20px,env(safe-area-inset-top)) 20px max(20px,env(safe-area-inset-bottom));}
+.accountScreen .accountBox{margin:auto;width:min(420px,100%);box-sizing:border-box;}
+.account-help{font-size:14px;line-height:1.4;}
+.account-new{margin-top:12px;}
+.account-new summary{cursor:pointer;color:#555;font-size:14px;}
+.fr-pin-checkbox{display:flex;align-items:flex-start;gap:10px;}
+.fr-pin-checkbox input{width:20px;height:20px;margin:0;flex-shrink:0;}
+#accountSignInButton:disabled{opacity:.65;}
+
 </style>
 </head>
 <body>
 <div id="accountScreen" class="accountScreen">
   <div class="accountBox">
     <h2>FR Rechnung</h2>
-    <p class="small">Anmelden oder neues Konto erstellen.</p>
+    <p class="small">Ein FR-Konto für iPhone, iPad und Laptop.</p>
 
-    <div id="accountNormal">
+    <form id="accountNormal" onsubmit="event.preventDefault();accountSignIn()">
       <label>E-Mail</label>
-      <input id="accountEmail" type="email" autocomplete="email" placeholder="name@email.at">
+      <input id="accountEmail" name="email" type="email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required placeholder="name@email.at">
       <label>Passwort</label>
-      <input id="accountPassword" type="password" autocomplete="current-password" placeholder="mind. 6 Zeichen">
-      <div id="accountStatus" class="accountStatus"></div>
-      <button class="btn" type="button" onclick="accountSignIn()">Anmelden</button>
-      <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
+      <input id="accountPassword" name="password" type="password" autocomplete="current-password" required placeholder="Dein FR-Passwort">
+      <div id="accountStatus" class="accountStatus" role="status" aria-live="polite"></div>
+      <button id="accountSignInButton" class="btn" type="submit">Anmelden</button>
       <button class="btn outline" type="button" onclick="accountForgotPassword()">Passwort vergessen / setzen</button>
-      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v128</div>
-    </div>
+      <p class="small account-help">Hier gilt dein FR-Passwort, nicht das Passwort deines E-Mail-Postfachs.</p>
+      <button id="accountPinFallback" class="btn outline hidden" type="button" onclick="frUseLocalPin()">Mit altem PIN lokal öffnen</button>
+      <p id="accountPinFallbackHint" class="small hidden">Nur Daten auf diesem Gerät · kein Cloud Sync.</p>
+      <details class="account-new"><summary>Noch kein FR-Konto?</summary>
+        <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
+      </details>
+      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v130</div>
+    </form>
 
     <div id="accountRecovery" class="hidden">
       <p class="small">Neues Passwort eingeben.</p>
@@ -1406,7 +1426,7 @@ label{font-weight:700}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v128 · Unterschrift Undo · Regiestunden · PDF + Stari PIN</b></p>
+      <p class="small"><b>Version v130 · E-Mail + Passwort · iPhone / iPad / Laptop</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -1504,21 +1524,22 @@ label{font-weight:700}
       <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
       <h2>Konto & Cloud Sync</h2>
       <p id="cloudStatus" class="small">Nicht angemeldet</p>
-      <button class="btn outline" type="button" onclick="accountLogout()">Benutzer abmelden</button>
-      <label>E-Mail</label>
-      <input id="cloudEmail" type="email" placeholder="name@email.at">
-      <button class="btn outline" onclick="cloudLogin()">Anmelden per E-Mail</button>
-      <button class="btn outline" onclick="copyCloudSession()">Cloud Login kopieren</button>
-      <button class="btn outline" onclick="pasteCloudSession()">Cloud Login einfügen</button>
-      <button class="btn outline" onclick="syncCloud()">Cloud Sync</button>
-      <button class="btn outline" style="border-color:#b00020;color:#b00020" onclick="deleteAllInvoicesEverywhere()">Alle Rechnungen löschen</button>
-      <button class="btn outline" onclick="cloudLogout()">Abmelden</button>
-      <p class="small">iPhone: Wenn der E-Mail-Link Safari öffnet, dort Cloud Login kopieren. Danach FR-App öffnen und Cloud Login einfügen.</p>
+      <p class="small">Auf allen Geräten mit demselben FR-Konto anmelden.</p>
+      <button class="btn outline" type="button" onclick="openEmailLoginFromPin()">Mit E-Mail + Passwort anmelden / Konto wechseln</button>
+      <button id="deviceSyncButton" class="btn" type="button" onclick="syncCloud(true)">iPhone / iPad / Laptop synchronisieren</button>
+      <p id="extraCloudStatus" class="small" role="status" aria-live="polite">Geräte-Sync noch nicht geprüft.</p>
+      <p class="small">Anmeldung und Synchronisierung sind zwei Schritte. Erst nach erfolgreichem Sync sind die übertragenen Daten auf dem anderen Gerät verfügbar.</p>
+      <button class="btn outline" type="button" onclick="accountLogout()">Auf diesem Gerät abmelden</button>
+      <details><summary>Weitere Aktionen</summary>
+        <button class="btn outline" style="border-color:#b00020;color:#b00020" onclick="deleteAllInvoicesEverywhere()">Alle Rechnungen löschen</button>
+      </details>
     </div>
 
     <div id="settings-security" class="settings-section hidden">
       <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
       <h2>Face ID & PIN</h2>
+      <label class="fr-pin-checkbox"><input id="frEmailPinLock" type="checkbox" onchange="frSetEmailPinLock()"> Nach E-Mail-Anmeldung zusätzlich mit PIN sperren</label>
+      <p class="small">Gilt nur für dieses Gerät. Dein alter PIN bleibt als lokaler Reserve-Eingang erhalten.</p>
       <p id="faceSettingsStatus" class="small">Face ID Status wird geprüft…</p>
       <button class="btn outline" type="button" onclick="registerFaceId()">Face ID einrichten</button>
       <button class="btn outline" type="button" onclick="removeFaceId()">Face ID entfernen</button>
@@ -1562,7 +1583,7 @@ label{font-weight:700}
 
 const SUPABASE_URL='https://xvdrcbqnyxgugbhtrxgl.supabase.co';
 const SUPABASE_KEY='sb_publishable_SI2AWx0-d_Uj7uc75jrfVw_srMJPuB-';
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+const sb=window.supabase?.createClient ? window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
   auth:{
     persistSession:true,
     autoRefreshToken:true,
@@ -1570,10 +1591,18 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
     storage:window.localStorage,
     storageKey:'fr-rechnung-auth'
   }
-});
+}) : null;
 let cloudUser=null;
 let frOfflinePinMode=false;
 let frOfflineOwnerId='';
+// V130: only real authentication enables Cloud access. Local PIN never does.
+let frAccountBusy=false;
+let frGateInitializing=false;
+let frRecoveryActive=false;
+let frManualAccountEntry=false;
+let frAuthUiEpoch=0;
+let frLastLocalOwner='';
+let frSyncRun=null;
 
 const LEGACY_COMPANY_PROFILE={
   name:'FR Fliesen Rechteck',
@@ -1894,7 +1923,7 @@ async function bankSync(showMessage=true){
   }
 }
 async function autoBankSync(force=false){
-  if(frOfflinePinMode)return;
+  if(frOfflinePinMode||frManualAccountEntry)return;
   if(!cloudUser)return;
   const p=new URLSearchParams(location.search);
   if(p.get('code')||p.get('error')){
@@ -1908,6 +1937,61 @@ async function autoBankSync(force=false){
   if(force||due)await bankSync(false);
 }
 
+
+
+function frAccountFallbackUi(){
+  const exists=!!frSavedPinContext();
+  for(const id of ['accountPinFallback','accountPinFallbackHint']){
+    document.getElementById(id)?.classList.toggle('hidden',!exists);
+  }
+}
+function frSetAccountBusy(busy){
+  frAccountBusy=busy;
+  document.querySelectorAll('#accountNormal button').forEach(b=>b.disabled=busy);
+  const b=document.getElementById('accountSignInButton');
+  if(b)b.textContent=busy?'Anmeldung …':'Anmelden';
+}
+function frAuthErrorMessage(e){
+  if(!sb)return 'Anmeldemodul nicht geladen. Seite neu laden oder den lokalen PIN verwenden.';
+  if(frIsNetworkAuthError(e))return 'Verbindung nicht möglich. Bitte erneut versuchen. Der alte PIN öffnet nur lokale Daten.';
+  const code=String(e?.code||'');
+  if(code==='invalid_credentials')return 'E-Mail oder FR-Passwort nicht korrekt. Bei Bedarf Passwort zurücksetzen.';
+  if(code==='email_not_confirmed')return 'Bitte zuerst die Bestätigungs-E-Mail für dein FR-Konto öffnen.';
+  return String(e?.message||'Anmeldung fehlgeschlagen. Bitte erneut versuchen.');
+}
+function frUseLocalPin(){
+  if(frAccountBusy)return;
+  const context=frSavedPinContext();
+  if(!context){setAccountStatus('Auf diesem Gerät ist kein alter PIN gespeichert.','error');return;}
+  frAuthUiEpoch++;
+  frManualAccountEntry=true;
+  frRecoveryActive=false;
+  frLastLocalOwner=context.userId||'';
+  document.getElementById('accountPassword').value='';
+  if(!frOpenSavedPinMode(context))setAccountStatus('Lokaler PIN konnte nicht geladen werden.','error');
+}
+function frSetEmailPinLock(){
+  if(!cloudUser)return;
+  const el=document.getElementById('frEmailPinLock');
+  if(!el)return;
+  if(el.checked&&!frPin){el.checked=false;alert('Bitte zuerst einen PIN unter Neuer PIN speichern.');return;}
+  localStorage.setItem(userKey('frEmailPinLock'),el.checked?'1':'0');
+}
+function frUpdateAccountControls(){
+  const el=document.getElementById('frEmailPinLock');
+  if(el)el.checked=!!cloudUser&&localStorage.getItem(userKey('frEmailPinLock'))==='1';
+  const st=document.getElementById('cloudStatus');
+  if(st)st.textContent=frOfflinePinMode?'Lokal mit PIN · kein Cloud Sync':cloudUser?'Angemeldet: '+(cloudUser.email||'FR-Konto'):'Nicht angemeldet';
+}
+function frLocalOwnerNotice(userId){
+  const owner=frLastLocalOwner||localStorage.getItem('frLegacyOwnerUserId')||'';
+  if(owner&&owner!==userId){
+    const st=document.getElementById('extraCloudStatus');
+    if(st)st.textContent='Lokale Daten gehören zu einem anderen lokalen Profil. Sie bleiben unverändert. Keine automatische Übernahme in dieses Konto.';
+    return false;
+  }
+  return true;
+}
 
 function frSavedPinContext(){
   try{
@@ -1991,26 +2075,52 @@ function frOpenSavedPinMode(ctx){
 }
 
 function openEmailLoginFromPin(){
+  if(frAccountBusy)return;
+  frAuthUiEpoch++;
+  if(frOfflinePinMode)frLastLocalOwner=frOfflineOwnerId||cloudUser?.id||'';
+  const email=frOfflinePinMode?'':cloudUser?.email||'';
+  frManualAccountEntry=true;
+  frRecoveryActive=false;
   frOfflinePinMode=false;
   frOfflineOwnerId='';
   cloudUser=null;
   frPin='';
+  document.getElementById('accountNormal').classList.remove('hidden');
+  document.getElementById('accountRecovery').classList.add('hidden');
+  const input=document.getElementById('accountEmail');
+  if(input)input.value=email||localStorage.getItem('frLastLoginEmail')||'';
+  document.getElementById('accountPassword').value='';
   showAccountScreen();
-  setAccountStatus('E-Mail und Passwort eingeben.');
-  setTimeout(()=>document.getElementById('accountEmail')?.focus(),100);
+  setAccountStatus('Mit demselben FR-Konto wie auf den anderen Geräten anmelden.');
 }
 
 async function refreshCloudUser(){
-  if(frOfflinePinMode){
-    const s=document.getElementById('cloudStatus');
-    if(s)s.textContent='Lokal mit PIN · Cloud nicht angemeldet';
+  if(frOfflinePinMode){frUpdateAccountControls();return cloudUser;}
+  if(!sb)return null;
+  const epoch=frAuthUiEpoch;
+  try{
+    const r=await frAuthWithTimeout(sb.auth.getSession(),12000);
+    if(r?.error)throw r.error;
+    if(epoch!==frAuthUiEpoch||frOfflinePinMode||frManualAccountEntry)return null;
+    const user=r?.data?.session?.user;
+    if(!user){
+      const st=document.getElementById('cloudStatus');
+      if(st)st.textContent='Cloud-Sitzung fehlt. Bitte mit E-Mail + Passwort anmelden.';
+      return null;
+    }
+    if(cloudUser&&cloudUser.id!==user.id){
+      openEmailLoginFromPin();
+      setAccountStatus('Konto wurde gewechselt. Bitte erneut anmelden.');
+      return null;
+    }
+    cloudUser=user;
+    frUpdateAccountControls();
     return cloudUser;
+  }catch(e){
+    const st=document.getElementById('cloudStatus');
+    if(st)st.textContent='Cloud nicht erreichbar · lokale Daten bleiben erhalten.';
+    return null;
   }
-  const r=await sb.auth.getUser();
-  cloudUser=r.data&&r.data.user?r.data.user:null;
-  const s=document.getElementById('cloudStatus');
-  if(s)s.textContent=cloudUser?'Angemeldet: '+cloudUser.email:'Nicht angemeldet';
-  return cloudUser;
 }
 function setAccountStatus(msg,type=''){
   const el=document.getElementById('accountStatus');
@@ -2022,6 +2132,7 @@ function showAccountScreen(){
   document.getElementById('accountScreen').style.display='flex';
   document.getElementById('lockScreen').style.display='none';
   document.getElementById('mainApp').style.display='none';
+  frAccountFallbackUi();
 }
 function frAuthDelay(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
 async function frAuthWithTimeout(promise,ms=15000){
@@ -2040,197 +2151,155 @@ function frIsNetworkAuthError(e){
   return m.includes('load failed')||m.includes('failed to fetch')||m.includes('network')||m.includes('zeitüberschreitung');
 }
 async function frSignInRequest(email,password){
-  let lastError=null;
-  for(let attempt=1;attempt<=2;attempt++){
-    try{
-      const r=await frAuthWithTimeout(sb.auth.signInWithPassword({email,password}),15000);
-      if(r?.error)throw r.error;
-      if(!r?.data?.user)throw new Error('Keine Benutzersitzung erhalten.');
-      return r.data;
-    }catch(e){
-      lastError=e;
-      if(attempt===2||!frIsNetworkAuthError(e))throw e;
-      setAccountStatus('Verbindung wird erneut versucht…');
-      await frAuthDelay(1200);
-    }
-  }
-  throw lastError||new Error('Anmeldung fehlgeschlagen.');
+  if(!sb)throw new Error('Anmeldemodul nicht geladen.');
+  const r=await frAuthWithTimeout(sb.auth.signInWithPassword({email,password}),20000);
+  if(r?.error)throw r.error;
+  if(!r?.data?.session||!r?.data?.user)throw new Error('Keine Benutzersitzung erhalten.');
+  return r.data;
 }
 
 async function afterAccountLogin(userFromAuth=null){
-  // IMPORTANT: do not immediately call auth.getUser() here.
-  // signInWithPassword/getSession already returned a valid user.
-  // A second remote auth request was sending iPhone back to the login screen.
-  if(userFromAuth)cloudUser=userFromAuth;
-
-  if(!cloudUser){
-    try{
-      const r=await sb.auth.getSession();
-      cloudUser=r?.data?.session?.user||null;
-    }catch(e){
-      cloudUser=null;
-    }
-  }
-  if(!cloudUser){showAccountScreen();return}
-
-  migrateLegacyDataToCurrentUser();
+  const user=userFromAuth||cloudUser;
+  if(!user?.id||frRecoveryActive)return;
+  frOfflinePinMode=false;
+  frOfflineOwnerId='';
+  frManualAccountEntry=false;
+  cloudUser=user;
+  localStorage.setItem('frLastLoginEmail',user.email||'');
+  document.getElementById('accountPassword').value='';
+  // Only the original owner receives unscoped legacy values; no cross-account merge.
+  const localOwnerOkay=frLocalOwnerNotice(user.id);
+  if(localOwnerOkay)migrateLegacyDataToCurrentUser();
   frPin=localStorage.getItem(userKey('frPin'))||'';
   logo=localStorage.getItem(userKey('frLogo'))||'';
-
   document.getElementById('accountScreen').style.display='none';
   document.getElementById('mainApp').style.display='none';
-  document.getElementById('lockScreen').style.display='flex';
-
-  try{updateCompanyUi()}catch(e){console.error('updateCompanyUi',e)}
-  try{showLogo()}catch(e){console.error('showLogo',e)}
-  try{loadChatgptImportToken()}catch(e){console.error('loadChatgptImportToken',e)}
-  try{renderCustomerList()}catch(e){console.error('renderCustomerList',e)}
-  try{renderDashboard()}catch(e){console.error('renderDashboard',e)}
-  try{renderTrash()}catch(e){console.error('renderTrash',e)}
-
-  try{
+  document.getElementById('lockScreen').style.display='none';
+  for(const render of [updateCompanyUi,showLogo,loadChatgptImportToken,renderCustomerList,renderDashboard,renderTrash]){
+    try{render();}catch(e){console.error('FR Ansicht',e);}
+  }
+  frUpdateAccountControls();
+  if(frPin&&localStorage.getItem(userKey('frEmailPinLock'))==='1'){
+    document.getElementById('lockScreen').style.display='flex';
     setupLock();
-  }catch(e){
-    console.error('setupLock',e);
+  }else{
     finishUnlock();
   }
-
-  setTimeout(()=>{try{syncCloud(false)}catch(e){}},300);
-  setTimeout(()=>{try{autoBankSync(false)}catch(e){}},900);
+  // A sync error must never log out the user or hide their local data.
+  const epoch=frAuthUiEpoch;
+  setTimeout(()=>{
+    if(epoch===frAuthUiEpoch&&!frOfflinePinMode&&!frManualAccountEntry&&cloudUser?.id===user.id){
+      autoCloudSync().catch(()=>{});
+    }
+  },350);
+  setTimeout(()=>{
+    if(epoch===frAuthUiEpoch&&!frOfflinePinMode&&!frManualAccountEntry&&cloudUser?.id===user.id){
+      autoBankSync(false).catch(()=>{});
+    }
+  },1000);
 }
 async function accountSignIn(){
+  if(frAccountBusy)return;
   const email=(document.getElementById('accountEmail')?.value||'').trim();
   const password=document.getElementById('accountPassword')?.value||'';
-  if(!email||!password){setAccountStatus('E-Mail und Passwort eingeben.','error');return}
-
-  const btn=document.querySelector('#accountScreen button[onclick="accountSignIn()"]');
-  if(btn)btn.disabled=true;
-  setAccountStatus('Anmeldung…');
-
+  if(!email||!password){setAccountStatus('E-Mail und FR-Passwort eingeben.','error');return;}
+  if(!document.getElementById('accountEmail').checkValidity()){setAccountStatus('Bitte eine gültige E-Mail-Adresse eingeben.','error');return;}
+  const epoch=++frAuthUiEpoch;
+  frManualAccountEntry=true;
+  frSetAccountBusy(true);
+  setAccountStatus('Anmeldung …');
   try{
     const data=await frSignInRequest(email,password);
-    cloudUser=data.user;
-    setAccountStatus('Angemeldet.','ok');
+    if(epoch!==frAuthUiEpoch)return;
+    frRecoveryActive=false;
     await afterAccountLogin(data.user);
   }catch(e){
-    const raw=String(e?.message||e||'Anmeldung fehlgeschlagen.');
-    const msg=raw==='Zeitüberschreitung'
-      ? 'Zeitüberschreitung – bitte nochmals anmelden.'
-      : raw;
-    setAccountStatus('Anmeldung Fehler: '+msg,'error');
+    if(epoch===frAuthUiEpoch)setAccountStatus(frAuthErrorMessage(e),'error');
   }finally{
-    if(btn)btn.disabled=false;
+    frSetAccountBusy(false);
   }
 }
 async function accountSignUp(){
+  if(frAccountBusy)return;
   const email=(document.getElementById('accountEmail')?.value||'').trim();
   const password=document.getElementById('accountPassword')?.value||'';
-  if(!email||password.length<6){setAccountStatus('E-Mail und Passwort mit mindestens 6 Zeichen eingeben.','error');return}
-  setAccountStatus('Konto wird erstellt…');
-  const r=await sb.auth.signUp({
-    email,password,
-    options:{emailRedirectTo:'https://fliesen-rechteck-rechnung.vercel.app/'}
-  });
-  if(r.error){setAccountStatus('Registrierung Fehler: '+r.error.message,'error');return}
-  if(r.data&&r.data.session){
-    setAccountStatus('Konto erstellt.','ok');
-    cloudUser=r.data.user||r.data.session.user||null;
-    await afterAccountLogin(cloudUser);
-  }else{
-    setAccountStatus('Konto erstellt. Bitte Bestätigungs-E-Mail öffnen und danach anmelden.','ok');
-  }
+  if(!email||!document.getElementById('accountEmail').checkValidity()||password.length<6){setAccountStatus('Gültige E-Mail und ein FR-Passwort mit mindestens 6 Zeichen eingeben.','error');return;}
+  if(!confirm('Nur für ein neues FR-Konto. Für deine vorhandenen Daten bitte mit dem bisherigen Konto anmelden. Neues Konto erstellen?'))return;
+  const epoch=++frAuthUiEpoch;
+  frSetAccountBusy(true);
+  frManualAccountEntry=true;
+  setAccountStatus('Konto wird erstellt …');
+  try{
+    if(!sb)throw new Error('Anmeldemodul nicht geladen.');
+    const r=await frAuthWithTimeout(sb.auth.signUp({email,password,options:{emailRedirectTo:'https://fliesen-rechteck-rechnung.vercel.app/'}}),20000);
+    if(r.error)throw r.error;
+    if(epoch!==frAuthUiEpoch)return;
+    if(r.data?.session){await afterAccountLogin(r.data.session.user);}
+    else setAccountStatus('Bitte Bestätigungs-E-Mail öffnen und danach anmelden.','ok');
+  }catch(e){setAccountStatus(frAuthErrorMessage(e),'error');}
+  finally{frSetAccountBusy(false);}
 }
 async function accountForgotPassword(){
+  if(frAccountBusy)return;
   const email=(document.getElementById('accountEmail')?.value||'').trim();
-  if(!email){setAccountStatus('Bitte zuerst E-Mail eingeben.','error');return}
-  const r=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://fliesen-rechteck-rechnung.vercel.app/'});
-  if(r.error){setAccountStatus('Fehler: '+r.error.message,'error');return}
-  setAccountStatus('E-Mail zum Passwort setzen wurde gesendet.','ok');
+  if(!email||!document.getElementById('accountEmail').checkValidity()){setAccountStatus('Bitte zuerst deine E-Mail-Adresse eingeben.','error');return;}
+  frSetAccountBusy(true);
+  setAccountStatus('Passwort-E-Mail wird angefordert …');
+  try{
+    if(!sb)throw new Error('Anmeldemodul nicht geladen.');
+    const r=await frAuthWithTimeout(sb.auth.resetPasswordForEmail(email,{redirectTo:'https://fliesen-rechteck-rechnung.vercel.app/'}),20000);
+    if(r.error)throw r.error;
+    setAccountStatus('Anfrage gesendet. Bitte dein E-Mail-Postfach prüfen.','ok');
+  }catch(e){setAccountStatus(frAuthErrorMessage(e),'error');}
+  finally{frSetAccountBusy(false);}
 }
 async function accountSetNewPassword(){
   const password=document.getElementById('accountNewPassword')?.value||'';
-  if(password.length<6){setAccountStatus('Passwort muss mindestens 6 Zeichen haben.','error');return}
-  const r=await sb.auth.updateUser({password});
-  if(r.error){setAccountStatus('Fehler: '+r.error.message,'error');return}
-  document.getElementById('accountRecovery').classList.add('hidden');
-  document.getElementById('accountNormal').classList.remove('hidden');
-  setAccountStatus('Neues Passwort gespeichert.','ok');
-  await afterAccountLogin();
+  if(password.length<6){setAccountStatus('Passwort muss mindestens 6 Zeichen haben.','error');alert('Passwort muss mindestens 6 Zeichen haben.');return;}
+  if(frAccountBusy)return;
+  frAccountBusy=true;
+  try{
+    const r=await frAuthWithTimeout(sb.auth.updateUser({password}),20000);
+    if(r.error)throw r.error;
+    document.getElementById('accountNewPassword').value='';
+    document.getElementById('accountRecovery').classList.add('hidden');
+    document.getElementById('accountNormal').classList.remove('hidden');
+    frRecoveryActive=false;
+    await afterAccountLogin(r.data.user);
+  }catch(e){alert(frAuthErrorMessage(e));}
+  finally{frAccountBusy=false;}
 }
 async function accountLogout(){
-  if(!frOfflinePinMode){
-    try{await sb.auth.signOut()}catch(e){}
-  }
+  if(frAccountBusy)return;
+  const wasOffline=frOfflinePinMode;
+  frAuthUiEpoch++;
+  frManualAccountEntry=true;
+  frRecoveryActive=false;
   frOfflinePinMode=false;
   frOfflineOwnerId='';
-  cloudUser=null;
-  frPin='';
-  logo='';
-  measurementList=[];
-  measurementMaterials=[];
+  cloudUser=null;frPin='';logo='';
+  measurementList=[];measurementMaterials=[];
+  document.getElementById('accountPassword').value='';
   showAccountScreen();
-  setAccountStatus('Abgemeldet.','ok');
+  setAccountStatus('Abgemeldet. Lokale Daten bleiben erhalten.','ok');
+  if(!wasOffline&&sb){
+    try{
+      const r=await frAuthWithTimeout(sb.auth.signOut({scope:'local'}),12000);
+      if(r?.error)throw r.error;
+    }catch(e){setAccountStatus('Online-Abmeldung nicht bestätigt. Gerät nicht weitergeben; nach Wiederherstellung der Verbindung erneut abmelden.','error');}
+  }
 }
 async function cloudLogin(){
-  const email=(document.getElementById('cloudEmail')?.value||'').trim();
-  if(!email)return alert('Bitte E-Mail eingeben.');
-  const r=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:'https://fliesen-rechteck-rechnung.vercel.app/'}});
-  if(r.error)return alert('Anmeldung Fehler: '+r.error.message);
-  alert('E-Mail gesendet. Link in der E-Mail öffnen.');
+  openEmailLoginFromPin();
 }
 async function cloudLogout(){await accountLogout();}
 
 async function copyCloudSession(){
-  try{
-    const r=await sb.auth.getSession();
-    const s=r&&r.data?r.data.session:null;
-    if(!s||!s.access_token||!s.refresh_token){
-      alert('Bitte zuerst per E-Mail anmelden.');
-      return;
-    }
-    const payload=JSON.stringify({
-      access_token:s.access_token,
-      refresh_token:s.refresh_token
-    });
-    if(navigator.clipboard&&navigator.clipboard.writeText){
-      await navigator.clipboard.writeText(payload);
-      alert('Cloud Login kopiert. Jetzt FR-App öffnen und „Cloud Login einfügen“ drücken.');
-    }else{
-      prompt('Cloud Login kopieren:',payload);
-    }
-  }catch(e){
-    alert('Kopieren Fehler: '+(e&&e.message?e.message:e));
-  }
+  alert('Bitte auf jedem Gerät mit deiner E-Mail und deinem FR-Passwort anmelden.');
 }
 
 async function pasteCloudSession(){
-  try{
-    let payload='';
-    if(navigator.clipboard&&navigator.clipboard.readText){
-      try{ payload=await navigator.clipboard.readText(); }catch(e){}
-    }
-    if(!payload){
-      payload=prompt('Cloud Login hier einfügen:')||'';
-    }
-    if(!payload) return;
-    let obj;
-    try{ obj=JSON.parse(payload); }
-    catch(e){ alert('Cloud Login ist ungültig.'); return; }
-    if(!obj.access_token||!obj.refresh_token){
-      alert('Cloud Login ist unvollständig.');
-      return;
-    }
-    const r=await sb.auth.setSession({
-      access_token:obj.access_token,
-      refresh_token:obj.refresh_token
-    });
-    if(r.error) throw r.error;
-    await refreshCloudUser();
-    await syncCloud(false);
-    alert('Cloud Login übernommen. Auto Sync ist jetzt aktiv.');
-  }catch(e){
-    alert('Cloud Login Fehler: '+(e&&e.message?e.message:e));
-  }
+  openEmailLoginFromPin();
 }
 
 function invoiceToCloudRow(x){
@@ -2257,14 +2326,16 @@ function invoiceToCloudRow(x){
           offerNr:x.offerNr||'',
           anzahlungPercent:Number(x.anzahlungPercent||0),
           paidAt:x.paidAt||'',
-          bankMatch:x.bankMatch||null
+          bankMatch:x.bankMatch||null,
+          pdfFolder:x.pdfFolder||'',kundeUid:x.kundeUid||'',typ:x.typ||'Privat',
+          pdfPriceMode:x.pdfPriceMode||'on',materialPdfPriceMode:x.materialPdfPriceMode||'on'
         };
       }
       return arr;
     })(),
     total:Number(x.total||0),
     paid:!!x.paid,
-    updated_at:new Date().toISOString()
+    updated_at:x.savedAt||new Date().toISOString()
   };
 }
 function cloudRowToInvoice(row){
@@ -2276,8 +2347,9 @@ function cloudRowToInvoice(row){
   return {
     id:row.invoice_number||('FR-'+Date.now()),type:'Rechnung',nr:row.invoice_number||'',
     date:row.invoice_date||new Date().toISOString().slice(0,10),kunde:row.customer_name||'',
-    adresse:row.customer_address||'',kundeUid:'',email:row.customer_email||'',bau:row.baustelle||'',
-    typ:'Privat',steuer:steuer,nachricht:row.nachricht||'',tage:String(row.payment_days||14),
+    adresse:row.customer_address||'',kundeUid:meta.kundeUid||'',email:row.customer_email||'',bau:row.baustelle||'',
+    ...(Object.prototype.hasOwnProperty.call(meta,'pdfFolder')?{pdfFolder:meta.pdfFolder||''}:{}),pdfPriceMode:meta.pdfPriceMode||'on',materialPdfPriceMode:meta.materialPdfPriceMode||'on',
+    typ:meta.typ||'Privat',steuer:steuer,nachricht:row.nachricht||'',tage:String(row.payment_days||14),
     skonto:String(row.skonto||0),material:Number(row.material_cost||0),footer:row.footer||'',items:items,
     invoiceKind:meta.invoiceKind||'Rechnung',offerNr:meta.offerNr||'',anzahlungPercent:Number(meta.anzahlungPercent||0),
     paidAt:meta.paidAt||'',bankMatch:meta.bankMatch||null,
@@ -2286,8 +2358,9 @@ function cloudRowToInvoice(row){
   };
 }
 async function cloudUpsertInvoice(x){
-  await refreshCloudUser();
-  if(!cloudUser||!x||!x.nr) return false;
+  if(frOfflinePinMode||frManualAccountEntry)return false;
+  const user=await refreshCloudUser();
+  if(!user||!cloudUser||!x||!x.nr) return false;
   unmarkInvoiceDeleted(x.nr);
   const row=invoiceToCloudRow(x);
   const q=await sb.from('invoices').select('id').eq('user_id',cloudUser.id).eq('invoice_number',x.nr).maybeSingle();
@@ -2297,10 +2370,11 @@ async function cloudUpsertInvoice(x){
   return true;
 }
 async function cloudDeleteInvoice(nr){
-  if(!nr) return false;
+  if(!nr)return false;
   markInvoiceDeleted(nr);
-  await refreshCloudUser();
-  if(!cloudUser) return false;
+  if(frOfflinePinMode||frManualAccountEntry)return false;
+  const user=await refreshCloudUser();
+  if(!user||!cloudUser)return false;
   const z=await sb.from('invoices').delete().eq('user_id',cloudUser.id).eq('invoice_number',nr);
   if(z.error) throw z.error;
   return true;
@@ -2358,38 +2432,340 @@ async function deleteAllInvoicesEverywhere(){
   }
 }
 
+
+
+// V129: iPhone <-> iPad sync for documents, Regiestunden and signatures.
+const FR_EXTRA_SYNC_ENDPOINT='/api/fr-sync';
+const FR_DOC_DELETE_KEY='frDocCloudDeleted';
+const FR_REGIE_DELETE_KEY='frRegieCloudDeleted';
+let frExtraCloudBusy=false;
+let frExtraSyncScope=null;
+function frAssertExtraSyncOwner(){
+  if(frExtraSyncScope && (frExtraSyncScope.id!==cloudUser?.id || frExtraSyncScope.epoch!==frAuthUiEpoch || frOfflinePinMode || frManualAccountEntry)){
+    throw new Error('Konto gewechselt. Synchronisierung abgebrochen; keine Datenübernahme.');
+  }
+}
+
+function frExtraCloudEnabled(){
+  return !frOfflinePinMode&&!frManualAccountEntry&&!!cloudUser?.id;
+}
+function frDeleteMap(base){
+  try{return JSON.parse(localStorage.getItem(userKey(base))||'{}')||{}}catch(e){return {}}
+}
+function frSetDeleteMap(base,map){
+  localStorage.setItem(userKey(base),JSON.stringify(map||{}));
+}
+function markDocCloudDeleted(id){
+  if(!id)return;
+  const m=frDeleteMap(FR_DOC_DELETE_KEY);m[id]=new Date().toISOString();frSetDeleteMap(FR_DOC_DELETE_KEY,m);
+}
+function clearDocCloudDeleted(id){
+  const m=frDeleteMap(FR_DOC_DELETE_KEY);if(m[id]){delete m[id];frSetDeleteMap(FR_DOC_DELETE_KEY,m)}
+}
+function markRegieCloudDeleted(id){
+  if(!id)return;
+  const m=frDeleteMap(FR_REGIE_DELETE_KEY);m[id]=new Date().toISOString();frSetDeleteMap(FR_REGIE_DELETE_KEY,m);
+}
+function clearRegieCloudDeleted(id){
+  const m=frDeleteMap(FR_REGIE_DELETE_KEY);if(m[id]){delete m[id];frSetDeleteMap(FR_REGIE_DELETE_KEY,m)}
+}
+async function frSyncToken(){
+  const s=await sb.auth.getSession();
+  return s?.data?.session?.access_token||'';
+}
+async function frSyncFetch(url,opts={}){
+  frAssertExtraSyncOwner();
+  if(!frExtraCloudEnabled())throw new Error('Bitte per E-Mail anmelden.');
+  const epoch=frAuthUiEpoch, owner=cloudUser.id;
+  const token=await frSyncToken();
+  frAssertExtraSyncOwner();
+  if(epoch!==frAuthUiEpoch||owner!==cloudUser?.id||!frExtraCloudEnabled())throw new Error('Konto gewechselt. Sync abgebrochen.');
+  if(!token)throw new Error('Cloud Session fehlt. Bitte erneut per E-Mail anmelden.');
+  const headers=new Headers(opts.headers||{});
+  headers.set('Authorization','Bearer '+token);
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),25000);
+  let r;
+  try{r=await fetch(url,{...opts,headers,signal:controller.signal});}finally{clearTimeout(timer);}
+  frAssertExtraSyncOwner();
+  if(epoch!==frAuthUiEpoch||owner!==cloudUser?.id||!frExtraCloudEnabled())throw new Error('Konto gewechselt. Sync abgebrochen.');
+  if(!r.ok){
+    let msg='Cloud Geräte-Sync Fehler ('+r.status+')';
+    try{const j=await r.json();if(j?.error)msg=j.error}catch(e){}
+    throw new Error(msg);
+  }
+  return r;
+}
+async function frSyncList(kind){
+  const r=await frSyncFetch(`${FR_EXTRA_SYNC_ENDPOINT}?action=list&kind=${encodeURIComponent(kind)}`);
+  const j=await r.json();frAssertExtraSyncOwner();return Array.isArray(j.ids)?j.ids:[];
+}
+async function frSyncGetJson(kind,id){
+  const r=await frSyncFetch(`${FR_EXTRA_SYNC_ENDPOINT}?kind=${encodeURIComponent(kind)}&id=${encodeURIComponent(id)}`);
+  const value=await r.json();frAssertExtraSyncOwner();return value;
+}
+async function frSyncGetBlob(kind,id){
+  const r=await frSyncFetch(`${FR_EXTRA_SYNC_ENDPOINT}?kind=${encodeURIComponent(kind)}&id=${encodeURIComponent(id)}`);
+  const value=await r.blob();frAssertExtraSyncOwner();return value;
+}
+async function frSyncPutJson(kind,id,obj){
+  await frSyncFetch(`${FR_EXTRA_SYNC_ENDPOINT}?kind=${encodeURIComponent(kind)}&id=${encodeURIComponent(id)}`,{
+    method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(obj||{})
+  });
+}
+async function frSyncPutBlob(kind,id,blob){
+  await frSyncFetch(`${FR_EXTRA_SYNC_ENDPOINT}?kind=${encodeURIComponent(kind)}&id=${encodeURIComponent(id)}`,{
+    method:'PUT',headers:{'Content-Type':blob?.type||'application/octet-stream'},body:blob
+  });
+}
+async function frSyncDelete(kind,id){
+  await frSyncFetch(`${FR_EXTRA_SYNC_ENDPOINT}?kind=${encodeURIComponent(kind)}&id=${encodeURIComponent(id)}`,{method:'DELETE'});
+}
+function frDocCloudMeta(d){
+  return {
+    id:String(d.id||''),date:d.date||'',month:d.month||'',folder:d.folder||'',name:d.name||'',
+    amount:Number(d.amount||0),category:d.category||'Sonstige',note:d.note||'',mime:d.mime||d.blob?.type||'application/octet-stream',
+    savedAt:d.savedAt||new Date().toISOString()
+  };
+}
+async function frCloudPutDocument(d){
+  if(!frExtraCloudEnabled()||!d?.id)return false;
+  const blob=frDocValidBlob(d);
+  if(!blob)return false;
+  await frSyncPutBlob('doc-file',d.id,blob);
+  await frSyncPutJson('doc-meta',d.id,frDocCloudMeta(d));
+  try{await frSyncDelete('doc-deleted',d.id)}catch(e){}
+  clearDocCloudDeleted(d.id);
+  return true;
+}
+async function frCloudDeleteDocument(id){
+  if(!id)return false;
+  markDocCloudDeleted(id);
+  if(!frExtraCloudEnabled())return false;
+  try{await frSyncDelete('doc-file',id)}catch(e){}
+  try{await frSyncDelete('doc-meta',id)}catch(e){}
+  await frSyncPutJson('doc-deleted',id,{id,deletedAt:new Date().toISOString()});
+  return true;
+}
+async function frCloudPutRegieDraft(x){
+  if(!frExtraCloudEnabled()||!x?.id)return false;
+  await frSyncPutJson('regie',x.id,x);
+  try{await frSyncDelete('regie-deleted',x.id)}catch(e){}
+  clearRegieCloudDeleted(x.id);
+  return true;
+}
+async function frCloudDeleteRegieDraft(id){
+  if(!id)return false;
+  markRegieCloudDeleted(id);
+  if(!frExtraCloudEnabled())return false;
+  try{await frSyncDelete('regie',id)}catch(e){}
+  await frSyncPutJson('regie-deleted',id,{id,deletedAt:new Date().toISOString()});
+  return true;
+}
+function frNewer(a,b){
+  return String(a?.savedAt||'')>String(b?.savedAt||'');
+}
+async function frSyncDocumentsCloud(){
+  const failures=[];
+  frAssertExtraSyncOwner();
+  const localDeleted=frDeleteMap(FR_DOC_DELETE_KEY);
+  const remoteDeleted=new Set(await frSyncList('doc-deleted'));
+
+  // Push pending local deletions first.
+  for(const id of Object.keys(localDeleted)){
+    if(!remoteDeleted.has(id)){
+      try{await frSyncDelete('doc-file',id)}catch(e){}
+      try{await frSyncDelete('doc-meta',id)}catch(e){}
+      await frSyncPutJson('doc-deleted',id,{id,deletedAt:localDeleted[id]||new Date().toISOString()});
+      remoteDeleted.add(id);
+    }
+  }
+
+  // Remote deletions remove stale local copies.
+  for(const id of remoteDeleted){
+    frAssertExtraSyncOwner();
+    markDocCloudDeleted(id);
+    try{await frDocsDelete(id)}catch(e){}
+  }
+
+  const remoteIds=(await frSyncList('doc-meta')).filter(id=>!remoteDeleted.has(id));
+  const remoteMeta=new Map();
+  for(const id of remoteIds){
+    try{remoteMeta.set(id,await frSyncGetJson('doc-meta',id))}catch(e){frAssertExtraSyncOwner();failures.push(id);console.warn('doc meta',id,e)}
+  }
+
+  frAssertExtraSyncOwner();
+  if(failures.length)throw new Error('Dokument-Metadaten konnten nicht geladen werden. Keine älteren Dateien hochgeladen.');
+  let local=await frDocsGetAllForUser();
+  frAssertExtraSyncOwner();
+  const localMap=new Map(local.map(d=>[String(d.id),d]));
+
+  // Pull newer/missing remote documents.
+  for(const [id,meta] of remoteMeta){
+    if(remoteDeleted.has(id))continue;
+    const l=localMap.get(id);
+    if(!l||frNewer(meta,l)){
+      try{
+        const blob=await frSyncGetBlob('doc-file',id);
+        const row={...meta,id,userId:cloudUser.id,mime:meta.mime||blob.type||'application/octet-stream',blob};
+        frAssertExtraSyncOwner();
+        await frDocsPut(row);
+        frAssertExtraSyncOwner();
+        localMap.set(id,row);
+      }catch(e){frAssertExtraSyncOwner();failures.push(id);console.warn('doc pull',id,e)}
+    }
+  }
+
+  // Push local documents that are newer or not in cloud yet.
+  for(const [id,d] of localMap){
+    if(remoteDeleted.has(id)||localDeleted[id])continue;
+    const r=remoteMeta.get(id);
+    if(!r||frNewer(d,r)){
+      try{if(!await frCloudPutDocument(d))failures.push(id)}catch(e){frAssertExtraSyncOwner();failures.push(id);console.warn('doc push',id,e)}
+    }
+  }
+
+  if(failures.length)throw new Error(failures.length+' Dokument(e) konnten nicht vollständig synchronisiert werden.');
+  frAssertExtraSyncOwner();
+  return (await frDocsGetAllForUser()).length;
+}
+async function frSyncRegieCloud(){
+  const failures=[];
+  frAssertExtraSyncOwner();
+  const localDeleted=frDeleteMap(FR_REGIE_DELETE_KEY);
+  const remoteDeleted=new Set(await frSyncList('regie-deleted'));
+
+  for(const id of Object.keys(localDeleted)){
+    if(!remoteDeleted.has(id)){
+      try{await frSyncDelete('regie',id)}catch(e){}
+      await frSyncPutJson('regie-deleted',id,{id,deletedAt:localDeleted[id]||new Date().toISOString()});
+      remoteDeleted.add(id);
+    }
+  }
+
+  let local=getRegieDrafts().filter(x=>x?.id&&!remoteDeleted.has(String(x.id))&&!localDeleted[String(x.id)]);
+  const localMap=new Map(local.map(x=>[String(x.id),x]));
+  const remoteIds=(await frSyncList('regie')).filter(id=>!remoteDeleted.has(id));
+
+  for(const id of remoteIds){
+    try{
+      const r=await frSyncGetJson('regie',id);
+      const l=localMap.get(id);
+      if(!l||frNewer(r,l))localMap.set(id,r);
+      else if(frNewer(l,r))await frCloudPutRegieDraft(l);
+    }catch(e){frAssertExtraSyncOwner();failures.push(id);console.warn('regie sync',id,e)}
+  }
+
+  for(const [id,l] of localMap){
+    if(!remoteIds.includes(id)){
+      try{if(!await frCloudPutRegieDraft(l))failures.push(id)}catch(e){frAssertExtraSyncOwner();failures.push(id);console.warn('regie push',id,e)}
+    }
+  }
+
+  const merged=Array.from(localMap.values()).filter(x=>!remoteDeleted.has(String(x.id))).sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||'')));
+  frAssertExtraSyncOwner();
+  setRegieDrafts(merged);
+  renderRegieDrafts();
+  if(failures.length)throw new Error(failures.length+' Regiestunden konnten nicht vollständig synchronisiert werden.');
+  return merged.length;
+}
+async function syncExtraCloudData(showMessage=false){
+  if(!frExtraCloudEnabled())return {documents:0,regie:0};
+  if(frExtraCloudBusy)return {documents:(await frDocsGetAllForUser()).length,regie:getRegieDrafts().length};
+  frExtraCloudBusy=true;
+  frExtraSyncScope={id:cloudUser.id,epoch:frAuthUiEpoch};
+  const st=document.getElementById('extraCloudStatus');
+  try{
+    if(st)st.textContent='iPhone ↔ iPad wird synchronisiert…';
+    const documents=await frSyncDocumentsCloud();
+    const regie=await frSyncRegieCloud();
+    frAssertExtraSyncOwner();
+    try{await refreshDocumentFolderSelectors();await renderDocuments()}catch(e){}
+    if(st)st.textContent=`✅ Geräte-Sync aktiv · ${documents} Dokumente · ${regie} Regiestunden`;
+    if(showMessage)alert(`iPhone ↔ iPad Sync fertig: ${documents} Dokumente · ${regie} Regiestunden`);
+    return {documents,regie};
+  }finally{
+    frExtraCloudBusy=false;
+    frExtraSyncScope=null;
+  }
+}
+
 async function syncCloud(showMessage=true){
-  if(frOfflinePinMode){
-    if(showMessage)alert('PIN-Modus aktiv. Für Cloud Sync bitte zuerst per E-Mail anmelden.');
+  if(frOfflinePinMode||frManualAccountEntry||!cloudUser){
+    if(showMessage)alert('Für Cloud Sync bitte zuerst mit E-Mail und FR-Passwort anmelden.');
     return false;
   }
-  await refreshCloudUser();
-  if(!cloudUser){if(showMessage)alert('Bitte zuerst per E-Mail anmelden.');return false}
+  if(frSyncRun){if(showMessage)alert('Synchronisierung läuft bereits.');return frSyncRun;}
+  frSyncRun=frRunCloudSync(showMessage);
+  try{return await frSyncRun;}finally{frSyncRun=null;}
+}
+async function frRunCloudSync(showMessage){
+  const user=await refreshCloudUser();
+  if(!user){if(showMessage)alert('Cloud nicht erreichbar oder Sitzung fehlt. Bitte erneut anmelden.');return false;}
+  const owner=user.id, epoch=frAuthUiEpoch;
+  const active=()=>cloudUser?.id===owner&&!frOfflinePinMode&&!frManualAccountEntry&&frAuthUiEpoch===epoch;
+  const status=document.getElementById('extraCloudStatus');
   try{
+    if(status)status.textContent='Cloud wird synchronisiert …';
+    // Read the remote state before writing any invoice from this device.
+    const remoteResult=await sb.from('invoices').select('*').eq('user_id',owner).order('created_at',{ascending:false});
+    if(remoteResult.error)throw remoteResult.error;
+    if(!active())return false;
     const deleted=new Set(getDeletedInvoiceNumbers().map(String));
+    const local=getInvoices();
+    // A separate local snapshot before the first sync of this release; never includes credentials.
+    const backupKey='frBeforeEmailLoginV130:'+owner;
+    if(!localStorage.getItem(backupKey))localStorage.setItem(backupKey,JSON.stringify({createdAt:new Date().toISOString(),invoices:local}));
+    const byNr=new Map(local.filter(x=>x.nr&&!deleted.has(String(x.nr))).map(x=>[String(x.nr),x]));
+    const remoteByNr=new Map((remoteResult.data||[]).map(r=>[String(r.invoice_number),cloudRowToInvoice(r)]));
     for(const nr of deleted){
-      const del=await sb.from('invoices').delete().eq('user_id',cloudUser.id).eq('invoice_number',nr);
-      if(del.error)throw del.error;
+      if(!active())return false;
+      const d=await sb.from('invoices').delete().eq('user_id',owner).eq('invoice_number',nr);
+      if(d.error)throw d.error;
     }
-    let local=getInvoices().filter(x=>!deleted.has(String(x.nr||'')));
-    setInvoices(local);
-    for(const x of local){if(x.nr)await cloudUpsertInvoice(x)}
-    const d=await sb.from('invoices').select('*').eq('user_id',cloudUser.id).order('created_at',{ascending:false});
-    if(d.error)throw d.error;
-    const byNr=new Map(local.filter(x=>x.nr).map(x=>[String(x.nr),x]));
-    for(const row of (d.data||[])){
-      const remote=cloudRowToInvoice(row);
-      if(deleted.has(String(remote.nr||'')))continue;
-      const existing=byNr.get(String(remote.nr));
-      if(!existing||String(remote.savedAt||'')>String(existing.savedAt||''))byNr.set(String(remote.nr),remote);
+    const stamp=x=>Date.parse(x?.savedAt||'')||0;
+    for(const [nr,remote] of remoteByNr){
+      if(deleted.has(nr))continue;
+      const localRow=byNr.get(nr);
+      if(!localRow||stamp(remote)>stamp(localRow))byNr.set(nr,{...localRow,...remote});
     }
-    local=Array.from(byNr.values()).filter(x=>!deleted.has(String(x.nr||''))).sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||'')));
-    setInvoices(local);renderDashboard();
-    const st=document.getElementById('cloudStatus');if(st)st.textContent='Angemeldet: '+cloudUser.email+' · Auto Sync aktiv';
-    if(showMessage)alert('Cloud Sync fertig: '+local.length+' Rechnung(en)');
+    for(const [nr,row] of byNr){
+      if(!active())return false;
+      const remote=remoteByNr.get(nr);
+      if(!remote||stamp(row)>stamp(remote)||(!Object.prototype.hasOwnProperty.call(remote,'pdfFolder')&&row.pdfFolder)){
+        if(!await cloudUpsertInvoice(row))throw new Error('Rechnung konnte nicht in Cloud gespeichert werden.');
+      }
+    }
+    if(!active())return false;
+    // Include local edits made while the request was in progress.
+    for(const x of getInvoices()){
+      if(x.nr&&!deleted.has(String(x.nr))){
+        const old=byNr.get(String(x.nr));
+        if(!old||stamp(x)>stamp(old))byNr.set(String(x.nr),x);
+      }
+    }
+    const finalDeleted=new Set(getDeletedInvoiceNumbers().map(String));
+    const merged=Array.from(byNr.values()).filter(x=>!finalDeleted.has(String(x.nr))).sort((a,b)=>stamp(b)-stamp(a));
+    setInvoices(merged);renderDashboard();
+    let extra=null, extraError='';
+    try{extra=await syncExtraCloudData(false);}catch(e){extraError=e?.message||String(e);}
+    if(!active())return false;
+    const cloudStatus=document.getElementById('cloudStatus');
+    if(cloudStatus)cloudStatus.textContent='Angemeldet: '+(user.email||'FR-Konto');
+    if(extraError){
+      if(status)status.textContent='Rechnungen synchronisiert. Dokumente / Regiestunden noch nicht vollständig: '+extraError;
+      if(showMessage)alert('Rechnungen synchronisiert.\nDokumente / Regiestunden: '+extraError);
+      return false;
+    }
+    const message=`Sync abgeschlossen · ${merged.length} Rechnungen · ${extra.documents} Dokumente · ${extra.regie} Regiestunden`;
+    if(status)status.textContent=message;
+    if(showMessage)alert(message);
     return true;
   }catch(e){
-    if(showMessage)alert('Cloud Fehler: '+(e&&e.message?e.message:e));
+    if(active()){
+      if(status)status.textContent='Cloud Sync nicht abgeschlossen: '+String(e?.message||e);
+      if(showMessage)alert('Cloud Sync nicht abgeschlossen: '+String(e?.message||e));
+    }
     return false;
   }
 }
@@ -2399,24 +2775,28 @@ async function autoCloudSync(){
   frCloudSyncBusy=true;
   try{ await syncCloud(false); }finally{ frCloudSyncBusy=false; }
 }
-sb.auth.onAuthStateChange((event,session)=>{
-  if(frOfflinePinMode)return;
-  cloudUser=session&&session.user?session.user:null;
+if(sb)sb.auth.onAuthStateChange((event,session)=>{
+  // No async SDK calls inside this callback (Supabase auth-lock requirement).
   if(event==='PASSWORD_RECOVERY'){
+    frRecoveryActive=true;
+    frManualAccountEntry=true;
+    frAuthUiEpoch++;
+    frOfflinePinMode=false;frOfflineOwnerId='';
+    cloudUser=session?.user||null;
     showAccountScreen();
     document.getElementById('accountNormal').classList.add('hidden');
     document.getElementById('accountRecovery').classList.remove('hidden');
-    setAccountStatus('Neues Passwort festlegen.','ok');
     return;
   }
+  if(frOfflinePinMode||frManualAccountEntry||frAccountBusy||frGateInitializing)return;
   if(event==='SIGNED_OUT'){
+    frAuthUiEpoch++;
+    cloudUser=null;
     showAccountScreen();
+    setAccountStatus('Cloud-Sitzung beendet. Bitte erneut anmelden.');
     return;
   }
-  if(event==='SIGNED_IN' && session&&session.user){
-    const screen=document.getElementById('accountScreen');
-    if(screen && screen.style.display!=='none') setTimeout(()=>afterAccountLogin(),0);
-  }
+  if(event==='TOKEN_REFRESHED'&&cloudUser?.id===session?.user?.id)cloudUser=session.user;
 });
 let frPin='';
 
@@ -2933,7 +3313,7 @@ function settings(){
   hide();
   document.getElementById('settings').classList.remove('hidden');
   settingsBack();
-  try{refreshCloudUser()}catch(e){}
+  frUpdateAccountControls();
 }
 function settingsBack(){
   const menu=document.getElementById('settingsMenu');
@@ -2946,7 +3326,8 @@ function openSettingsSection(name){
   document.querySelectorAll('.settings-section').forEach(x=>x.classList.add('hidden'));
   const sec=document.getElementById('settings-'+name);
   if(sec)sec.classList.remove('hidden');
-  if(name==='cloud'){try{refreshCloudUser()}catch(e){}}
+  if(name==='cloud'){frUpdateAccountControls();}
+  if(name==='security'){frUpdateAccountControls();}
   if(name==='bank'){
     try{
       updateBankStatusUi();
@@ -4682,6 +5063,7 @@ function syncMaterialPdfModeFromMeasure(){
 
 const REGIE_DRAFT_KEY='frRegieDrafts';
 let currentRegieDraftId='';
+let regiePendingSignatures={sigDienstnehmer:'',sigChef:'',sigBauleiter:''};
 
 function getRegieDrafts(){
   try{return JSON.parse(localStorage.getItem(userKey(REGIE_DRAFT_KEY))||'[]')}catch(e){return []}
@@ -4694,6 +5076,9 @@ function regieDraftId(){
 }
 function currentRegieDraftData(){
   const d=regieFormData();
+  const sigDienstnehmer=d.sigDienstnehmer||regiePendingSignatures.sigDienstnehmer||'';
+  const sigChef=d.sigChef||regiePendingSignatures.sigChef||'';
+  const sigBauleiter=d.sigBauleiter||regiePendingSignatures.sigBauleiter||'';
   return {
     id:currentRegieDraftId||regieDraftId(),
     bauvorhaben:d.bauvorhaben,
@@ -4702,7 +5087,10 @@ function currentRegieDraftData(){
     datum:d.datum||new Date().toISOString().slice(0,10),
     facharbeiter:d.facharbeiter,
     material:d.material,
-    status:(d.sigDienstnehmer||d.sigChef||d.sigBauleiter)?'Unterschrieben':'Entwurf',
+    sigDienstnehmer,
+    sigChef,
+    sigBauleiter,
+    status:(sigDienstnehmer||sigChef||sigBauleiter)?'Unterschrieben':'Entwurf',
     savedAt:new Date().toISOString()
   };
 }
@@ -4718,6 +5106,7 @@ function saveRegieDraft(){
   setRegieDrafts(arr);
   currentRegieDraftId=d.id;
   renderRegieDrafts();
+  frCloudPutRegieDraft(d).catch(e=>console.warn('Regie Cloud',e));
   alert('Regiestunden gespeichert. Du kannst später wieder öffnen und unterschreiben lassen.');
 }
 function loadRegieDraft(i){
@@ -4734,6 +5123,11 @@ function loadRegieDraft(i){
   set('regieFacharbeiter',x.facharbeiter);
   set('regieMaterial',x.material);
   ['sigDienstnehmer','sigChef','sigBauleiter'].forEach(clearRegieSignature);
+  regiePendingSignatures={
+    sigDienstnehmer:x.sigDienstnehmer||'',
+    sigChef:x.sigChef||'',
+    sigBauleiter:x.sigBauleiter||''
+  };
   const sig=document.getElementById('regieSignatureSection');
   if(sig)sig.classList.add('hidden');
   const readBtn=document.getElementById('regieAfterReadBtn');
@@ -4742,9 +5136,10 @@ function loadRegieDraft(i){
 }
 
 function loadRegieDraftAndRead(i){
+  const x=getRegieDrafts()[i];
   loadRegieDraft(i);
-  // Direkt im selben Klick öffnen, damit iPhone/Safari den PDF-Tab erlaubt.
-  openRegieForReading();
+  const signed=!!(x&&(x.sigDienstnehmer||x.sigChef||x.sigBauleiter));
+  openRegieForReading(signed);
 }
 
 function loadRegieDraftAndSign(i){
@@ -4755,7 +5150,7 @@ function loadRegieDraftAndSign(i){
 }
 
 
-function deleteRegieDraft(i){
+async function deleteRegieDraft(i){
   let arr=getRegieDrafts();
   const x=arr[i];
   if(!x)return;
@@ -4763,7 +5158,9 @@ function deleteRegieDraft(i){
   if(currentRegieDraftId===x.id)currentRegieDraftId='';
   arr.splice(i,1);
   setRegieDrafts(arr);
+  markRegieCloudDeleted(x.id);
   renderRegieDrafts();
+  try{await frCloudDeleteRegieDraft(x.id)}catch(e){console.warn('Regie delete cloud',e)}
 }
 function renderRegieDrafts(){
   const box=document.getElementById('regieDraftList');
@@ -4849,6 +5246,7 @@ function initRegieSignaturePad(id){
   }
   canvas.addEventListener('pointerdown',e=>{
     e.preventDefault();
+    if(regiePendingSignatures)regiePendingSignatures[id]='';
 
     if(!regieSignatureHistory[id])regieSignatureHistory[id]=[];
     try{
@@ -4882,6 +5280,23 @@ function initRegieSignaturePad(id){
   canvas.addEventListener('pointercancel',end);
   canvas.addEventListener('pointerleave',e=>{ if(e.buttons===0)drawing=false; });
 }
+function restoreRegieSignature(id,data){
+  const canvas=document.getElementById(id);
+  if(!canvas||!data)return;
+  const ctx=canvas.getContext('2d');
+  const img=new Image();
+  img.onload=()=>{
+    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    ctx.restore();
+    canvas.dataset.signed='1';
+    regieSignatureHistory[id]=[];
+  };
+  img.src=data;
+}
+
 function clearRegieSignature(id){
   const canvas=document.getElementById(id);
   if(!canvas)return;
@@ -4894,6 +5309,7 @@ function clearRegieSignature(id){
 
   canvas.dataset.signed='0';
   regieSignatureHistory[id]=[];
+  if(regiePendingSignatures)regiePendingSignatures[id]='';
 }
 
 function undoRegieSignature(id){
@@ -4912,6 +5328,7 @@ function undoRegieSignature(id){
   ctx.restore();
 
   canvas.dataset.signed=previous.signed?'1':'0';
+  if(regiePendingSignatures)regiePendingSignatures[id]='';
 }
 function regieSignatureData(id){
   const canvas=document.getElementById(id);
@@ -4928,6 +5345,7 @@ function clearRegieForm(){
   const sig=document.getElementById('regieSignatureSection');
   if(sig)sig.classList.add('hidden');
   currentRegieDraftId='';
+  regiePendingSignatures={sigDienstnehmer:'',sigChef:'',sigBauleiter:''};
   regieSignedPdfBlob=null;
   regieSignedPdfName='';
   releaseRegieReadPdf();
@@ -4940,9 +5358,9 @@ function regieFormData(){
     datum:(document.getElementById('regieDatum')?.value||'').trim(),
     facharbeiter:(document.getElementById('regieFacharbeiter')?.value||'').trim(),
     material:(document.getElementById('regieMaterial')?.value||'').trim(),
-    sigDienstnehmer:regieSignatureData('sigDienstnehmer'),
-    sigChef:regieSignatureData('sigChef'),
-    sigBauleiter:regieSignatureData('sigBauleiter')
+    sigDienstnehmer:regieSignatureData('sigDienstnehmer')||regiePendingSignatures.sigDienstnehmer||'',
+    sigChef:regieSignatureData('sigChef')||regiePendingSignatures.sigChef||'',
+    sigBauleiter:regieSignatureData('sigBauleiter')||regiePendingSignatures.sigBauleiter||''
   };
 }
 function regieRequiredOkay(d){
@@ -5057,11 +5475,15 @@ function showRegieSignatures(){
     sig.classList.remove('hidden');
     setTimeout(()=>{
       initRegieSignaturePads();
+      ['sigDienstnehmer','sigChef','sigBauleiter'].forEach(id=>{
+        const data=regiePendingSignatures[id]||'';
+        if(data)restoreRegieSignature(id,data);
+      });
       sig.scrollIntoView({behavior:'smooth',block:'start'});
     },80);
   }
 }
-function openRegieForReading(){
+function openRegieForReading(includeSignatures=false){
   let d=regieFormData();
 
   const empty=!d.bauvorhaben && !d.arbeiten && !d.arbeitszeit && !d.material;
@@ -5078,7 +5500,7 @@ function openRegieForReading(){
     }
   }
 
-  const built=buildRegiePDF(false);
+  const built=buildRegiePDF(!!includeSignatures);
   if(!built)return;
 
   releaseRegieReadPdf();
@@ -5102,9 +5524,15 @@ function markCurrentRegieSigned(){
   let arr=getRegieDrafts();
   const i=arr.findIndex(x=>x.id===currentRegieDraftId);
   if(i<0)return;
-  arr[i].status='Unterschrieben';
-  arr[i].savedAt=new Date().toISOString();
+  const d=currentRegieDraftData();
+  arr[i]={...arr[i],...d,status:'Unterschrieben',signedAt:arr[i].signedAt||new Date().toISOString(),savedAt:new Date().toISOString()};
   setRegieDrafts(arr);
+  regiePendingSignatures={
+    sigDienstnehmer:arr[i].sigDienstnehmer||'',
+    sigChef:arr[i].sigChef||'',
+    sigBauleiter:arr[i].sigBauleiter||''
+  };
+  frCloudPutRegieDraft(arr[i]).catch(e=>console.warn('Regie signed cloud',e));
   renderRegieDrafts();
 }
 
@@ -5164,6 +5592,12 @@ function saveSignedRegiePDF(){
       if(i>=0){
         arr[i]={...arr[i],...currentRegieDraftData(),status:'Unterschrieben',signedAt:new Date().toISOString()};
         setRegieDrafts(arr);
+        regiePendingSignatures={
+          sigDienstnehmer:arr[i].sigDienstnehmer||'',
+          sigChef:arr[i].sigChef||'',
+          sigBauleiter:arr[i].sigBauleiter||''
+        };
+        frCloudPutRegieDraft(arr[i]).catch(e=>console.warn('Regie PDF cloud',e));
         renderRegieDrafts();
       }
     }
@@ -6885,6 +7319,7 @@ async function saveScannedDocument(){
 
   try{
     await frDocsPut(row);
+    try{await frCloudPutDocument(row)}catch(e){console.warn('Dokument Cloud',e)}
     scannedDocumentBlob=null;
     revokeScanPreview();
 
@@ -7039,7 +7474,9 @@ async function openStoredDocument(id){
 }
 async function deleteStoredDocument(id){
   if(!confirm('Dokument wirklich löschen?'))return;
+  markDocCloudDeleted(id);
   await frDocsDelete(id);
+  try{await frCloudDeleteDocument(id)}catch(e){console.warn('Dokument delete cloud',e)}
   await renderDocuments();
 }
 
@@ -7200,27 +7637,28 @@ async function sendDocumentsFolder(){
 // ===== END V118 FOLDER REPAIR =====
 
 async function initAccountGate(){
+  const epoch=++frAuthUiEpoch;
+  frGateInitializing=true;
   showAccountScreen();
-
-  // First choice on this iPhone: use the old saved 4–6 digit PIN.
-  // No PIN is hard-coded; it only works if the old PIN still exists locally.
-  const savedPin=frSavedPinContext();
-  if(savedPin && frOpenSavedPinMode(savedPin))return;
-
+  const input=document.getElementById('accountEmail');
+  if(input&&!input.value)input.value=localStorage.getItem('frLastLoginEmail')||'';
+  setAccountStatus('Gespeicherte Anmeldung wird geprüft …');
   try{
-    const r=await sb.auth.getSession();
-    const session=r&&r.data?r.data.session:null;
-    if(session&&session.user){
-      cloudUser=session.user;
-      await afterAccountLogin(session.user);
-      return;
-    }
+    if(!sb)throw new Error('Anmeldemodul nicht geladen.');
+    const r=await frAuthWithTimeout(sb.auth.getSession(),10000);
+    if(epoch!==frAuthUiEpoch||frOfflinePinMode||frRecoveryActive)return;
+    if(r?.error)throw r.error;
+    const user=r?.data?.session?.user;
+    if(user){await afterAccountLogin(user);return;}
+    setAccountStatus('Mit E-Mail und FR-Passwort anmelden.');
   }catch(e){
-    console.error('getSession',e);
+    if(epoch===frAuthUiEpoch&&!frOfflinePinMode&&!frRecoveryActive)setAccountStatus(frAuthErrorMessage(e),'error');
+  }finally{
+    frGateInitializing=false;
   }
-  setAccountStatus('Bitte anmelden oder neues Konto erstellen.');
 }
-initAccountGate();
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initAccountGate,{once:true});
+else initAccountGate();
 
 function frApplyNativeScannerLabel(){
   try{
@@ -7244,9 +7682,8 @@ async function autoPullChatgptInvoices(){
   await pullChatgptInvoices(false);
 }
 async function frAutoRefresh(){
-  if(!cloudUser)return;
-  await autoPullChatgptInvoices();
-  await autoCloudSync();
+  if(!cloudUser||frOfflinePinMode||frManualAccountEntry)return;
+  try{await autoPullChatgptInvoices();await autoCloudSync();}catch(e){console.warn('FR Hintergrund-Sync nicht beendet.');}
 }
 setTimeout(frAutoRefresh,1200);
 document.addEventListener('visibilitychange',()=>{
