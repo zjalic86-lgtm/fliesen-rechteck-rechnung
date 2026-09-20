@@ -1,4 +1,5 @@
 export default async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store");
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -7,32 +8,64 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  const importToken = process.env.FR_IMPORT_TOKEN;
+  const importToken = String(process.env.FR_IMPORT_TOKEN || "").trim();
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseSecret = process.env.SUPABASE_SECRET_KEY;
 
-  // SIGURNI TEST:
-  // Ne prikazuje token, samo da li ga Vercel vidi.
-  if (req.query?.mode === "check-token") {
-    return res.status(200).json({
-      ok: true,
-      tokenConfigured: Boolean(importToken),
-      tokenLength: importToken ? importToken.length : 0
+  const auth = req.headers?.authorization;
+  const queryToken = req.query?.token;
+  const bearer = typeof auth === "string"
+    ? /^Bearer[ \t]+(.+)$/i.exec(auth.trim())
+    : null;
+
+  const token = bearer
+    ? bearer[1].trim()
+    : (!auth && typeof queryToken === "string" ? queryToken.trim() : "");
+
+  function authError(status, code, message) {
+    console.warn(JSON.stringify({
+      event: "fr_import_auth",
+      code,
+      method: req.method
+    }));
+
+    return res.status(status).json({
+      ok: false,
+      error: message,
+      code
     });
   }
 
-  const auth = req.headers.authorization || "";
-  const queryToken = req.query?.token || "";
+  if (!importToken) {
+    return authError(
+      503,
+      "FR_IMPORT_NOT_CONFIGURED",
+      "FR_IMPORT_TOKEN fehlt im aktiven Deployment. In Vercel speichern und neu deployen."
+    );
+  }
 
-  const token = auth.startsWith("Bearer ")
-    ? auth.slice(7)
-    : queryToken;
+  if (auth && !bearer) {
+    return authError(
+      401,
+      "FR_AUTH_FORMAT",
+      "Authorization muss Bearer verwenden. Im GPT API-Schluessel und Bearer auswaehlen."
+    );
+  }
 
-  if (!importToken || token !== importToken) {
-    return res.status(401).json({
-      ok: false,
-      error: "Unauthorized"
-    });
+  if (!token) {
+    return authError(
+      401,
+      "FR_TOKEN_MISSING",
+      "Kein Import-Schluessel gesendet. Schluessel in GPT oder FR-App speichern."
+    );
+  }
+
+  if (token !== importToken) {
+    return authError(
+      401,
+      "FR_TOKEN_MISMATCH",
+      "Import-Schluessel stimmt nicht mit dem aktiven Vercel-Deployment ueberein."
+    );
   }
 
   if (!supabaseUrl || !supabaseSecret) {
@@ -48,7 +81,6 @@ export default async function handler(req, res) {
     Authorization: `Bearer ${supabaseSecret}`
   };
 
-  // RECHNUNG ODER ANGEBOT SPEICHERN
   if (req.method === "POST") {
     try {
       const document = req.body;
@@ -102,7 +134,6 @@ export default async function handler(req, res) {
         document_type: documentType,
         invoice: savedDocument
       });
-
     } catch (error) {
       return res.status(500).json({
         ok: false,
@@ -111,7 +142,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // DOKUMENTE AUS FR APP ABHOLEN
   if (req.method === "GET") {
     try {
       const mode = req.query?.mode || "";
@@ -206,7 +236,6 @@ export default async function handler(req, res) {
           created_at: row.created_at
         }))
       });
-
     } catch (error) {
       return res.status(500).json({
         ok: false,
