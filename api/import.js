@@ -11,6 +11,16 @@ export default async function handler(req, res) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseSecret = process.env.SUPABASE_SECRET_KEY;
 
+  // SIGURNI TEST:
+  // Ne prikazuje token, samo da li ga Vercel vidi.
+  if (req.query?.mode === "check-token") {
+    return res.status(200).json({
+      ok: true,
+      tokenConfigured: Boolean(importToken),
+      tokenLength: importToken ? importToken.length : 0
+    });
+  }
+
   const auth = req.headers.authorization || "";
   const queryToken = req.query?.token || "";
 
@@ -157,7 +167,6 @@ export default async function handler(req, res) {
         });
       }
 
-      // Nach erfolgreichem Abruf Queue löschen
       if (Array.isArray(rows) && rows.length) {
         const ids = rows
           .map(row => row.id)
@@ -190,9 +199,6 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         ok: true,
-
-        // "invoices" bleibt für Kompatibilität
-        // mit der bestehenden FR App erhalten.
         invoices: (rows || []).map(row => ({
           ...row.invoice,
           document_type:
