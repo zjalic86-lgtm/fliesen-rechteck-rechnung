@@ -13,6 +13,7 @@ export default async function handler(req, res) {
 
   const auth = req.headers.authorization || "";
   const queryToken = req.query?.token || "";
+
   const token = auth.startsWith("Bearer ")
     ? auth.slice(7)
     : queryToken;
@@ -37,16 +38,27 @@ export default async function handler(req, res) {
     Authorization: `Bearer ${supabaseSecret}`
   };
 
+  // RECHNUNG ODER ANGEBOT SPEICHERN
   if (req.method === "POST") {
     try {
-      const invoice = req.body;
+      const document = req.body;
 
-      if (!invoice || !invoice.customer_name) {
+      if (!document || !document.customer_name) {
         return res.status(400).json({
           ok: false,
           error: "customer_name fehlt"
         });
       }
+
+      const documentType =
+        document.document_type === "Angebot"
+          ? "Angebot"
+          : "Rechnung";
+
+      const savedDocument = {
+        ...document,
+        document_type: documentType
+      };
 
       const response = await fetch(
         `${supabaseUrl}/rest/v1/fr_imports`,
@@ -57,7 +69,7 @@ export default async function handler(req, res) {
             Prefer: "return=representation"
           },
           body: JSON.stringify({
-            invoice
+            invoice: savedDocument
           })
         }
       );
@@ -73,8 +85,12 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         ok: true,
-        message: "FR Rechnung gespeichert",
-        invoice
+        message:
+          documentType === "Angebot"
+            ? "FR Angebot gespeichert"
+            : "FR Rechnung gespeichert",
+        document_type: documentType,
+        invoice: savedDocument
       });
 
     } catch (error) {
@@ -85,6 +101,7 @@ export default async function handler(req, res) {
     }
   }
 
+  // DOKUMENTE AUS FR APP ABHOLEN
   if (req.method === "GET") {
     try {
       const mode = req.query?.mode || "";
@@ -140,8 +157,7 @@ export default async function handler(req, res) {
         });
       }
 
-      // Posle uspešnog čitanja brišemo import red
-      // da se stari računi više ne vraćaju.
+      // Nach erfolgreichem Abruf Queue löschen
       if (Array.isArray(rows) && rows.length) {
         const ids = rows
           .map(row => row.id)
@@ -174,8 +190,13 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         ok: true,
+
+        // "invoices" bleibt für Kompatibilität
+        // mit der bestehenden FR App erhalten.
         invoices: (rows || []).map(row => ({
           ...row.invoice,
+          document_type:
+            row.invoice?.document_type || "Rechnung",
           created_at: row.created_at
         }))
       });
