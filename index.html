@@ -888,6 +888,12 @@ label{font-weight:700}
 .fr-pin-checkbox input{width:20px;height:20px;margin:0;flex-shrink:0;}
 #accountSignInButton:disabled{opacity:.65;}
 
+
+.fr-scan-review{position:fixed;inset:0;z-index:100000;background:#f3f4f6;overflow:auto;padding:max(12px,env(safe-area-inset-top)) 12px max(20px,env(safe-area-inset-bottom));box-sizing:border-box}
+.fr-scan-panel{max-width:680px;margin:auto;color:#191919}.fr-scan-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.fr-scan-heading h2{font-size:22px;margin:8px 0}.fr-scan-heading .btn{width:auto;margin:0;padding:10px 15px}.fr-scan-panel p{font-size:15px;line-height:1.4;margin:12px 0}
+.fr-scan-workspace{background:#26272b;padding:20px;border-radius:16px;text-align:center}.fr-scan-workspace canvas{display:block;max-width:100%;max-height:48dvh;width:auto;height:auto;margin:auto;touch-action:none}
+.fr-scan-tools,.fr-scan-footer{display:flex;gap:8px;margin:12px 0}.fr-scan-tools .btn,.fr-scan-footer .btn{flex:1;min-width:0;margin:0;padding:12px 8px;font-size:15px}.fr-scan-panel select{width:100%;box-sizing:border-box;min-height:48px}.fr-scan-panel label{font-size:16px}
+.fr-scan-review.hidden{display:none}
 </style>
 </head>
 <body>
@@ -1278,8 +1284,9 @@ label{font-weight:700}
       <h3>Neuen Beleg scannen</h3>
 
       <details class="scanbot-license-box">
-        <summary>Scanner Testlizenz</summary>
+        <summary>Optional: Scanbot mit gültiger Lizenz</summary>
         <p class="small">Wichtig: Hier muss der lange Scanbot Lizenzschlüssel stehen – nicht nur fliesen-rechteck-rechnung.vercel.app.</p>
+        <button class="btn outline" type="button" onclick="openDocumentScanner(event,true)">Scanbot öffnen</button>
         <label>Scanbot Web Lizenz</label>
         <textarea id="scanbotLicenseKey" rows="7" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Scanbot Trial Key hier einfügen"></textarea>
         <div id="scanbotLicenseStatus" class="small"></div>
@@ -1289,7 +1296,7 @@ label{font-weight:700}
         <button class="btn outline" type="button" onclick="saveScanbotLicenseKey()">Lizenz speichern</button>
         <a class="scanbot-trial-link" href="https://docs.scanbot.io/trial/" target="_blank" rel="noopener">7-Tage Testlizenz öffnen</a>
       </details>
-      <label>Foto / Scan</label>
+      <label>Beleg als PDF scannen</label>
       <input id="docPdfInput" type="file" accept="application/pdf,.pdf" class="hidden" onchange="documentPdfSelected(event)">
       <button class="btn outline" type="button" onclick="document.getElementById('docPdfInput').click()">📧 PDF aus E-Mail / Dateien auswählen</button>
       <div id="docPdfStatus" class="small"></div>
@@ -1299,12 +1306,15 @@ label{font-weight:700}
         <div class="docscan-empty">
           <div class="scan-icon">▣</div>
           <div>Rechnung scannen</div>
-          <div class="scan-sub">Scanbot öffnen · Papier automatisch erkennen & zuschneiden</div>
+          <div class="scan-sub">Ränder prüfen · sauberer PDF-Scan</div>
         </div>
         <img id="docScanPreview" class="docscan-preview-img" alt="Scan Vorschau">
         <span class="docscan-corner tl"></span><span class="docscan-corner tr"></span>
         <span class="docscan-corner bl"></span><span class="docscan-corner br"></span>
       </label>
+      <div id="docOcrStatus" class="small" role="status" aria-live="polite">Ränder prüfen, Scan übernehmen und Angaben kontrollieren. Gespeichert und geteilt wird als PDF.</div>
+      <button id="docOcrRetry" class="btn outline" type="button" onclick="recognizeReceipt()" disabled>Angaben erneut lesen</button>
+      <button id="docOcrCancel" class="btn outline hidden" type="button" onclick="++frReceiptSequence;cancelReceiptOcr()">Abbrechen / selbst ausfüllen</button>
       <div class="row">
         <div><label>Datum</label><input id="docScanDate" type="date" onchange="documentSyncMonthFromDate()"></div>
         <div><label>Monat</label><input id="docScanMonth" type="month"></div>
@@ -1321,8 +1331,9 @@ label{font-weight:700}
         <div><label>Betrag €</label><input id="docScanAmount" type="number" step="0.01" placeholder="0,00"></div>
         <div><label>Kategorie</label><select id="docScanCategory"><option>Material</option><option>Werkzeug</option><option>Auto / Tanken</option><option>Telefon / Büro</option><option>Sonstige</option></select></div>
       </div>
+      <label>Rechnungsnummer / Belegnummer</label><input id="docScanNumber" placeholder="automatisch erkannt oder selbst eingeben">
       <label>Notiz</label><input id="docScanNote" placeholder="optional">
-      <button class="btn" type="button" onclick="saveScannedDocument()">💾 Dokument speichern</button>
+      <button id="docScanSave" class="btn" type="button" onclick="saveScannedDocument()">💾 Als PDF speichern</button>
     </div>
 
     <div class="measure-card">
@@ -1336,7 +1347,7 @@ label{font-weight:700}
       <input id="taxAdvisorEmail" type="email" placeholder="steuerberater@email.at" onchange="saveTaxAdvisorEmail()">
 
       <button class="btn" type="button" onclick="sendDocumentsFolder()">📁 Ganzen Ordner senden</button>
-      <button class="btn outline" type="button" onclick="shareDocumentsFolderPdf()">📄 Nur Ordner-PDF</button>
+      <button class="btn outline" type="button" onclick="shareDocumentsFolderPdf()">📄 Alle Belege als eine PDF</button>
 
       <p id="documentsCount" class="small"></p>
     </div>
@@ -4953,6 +4964,7 @@ ${companyName}`);
   <script>if(${JSON.stringify(!!epcText)}){new QRCode(document.getElementById('payQr'),{text:${JSON.stringify(epcText)},width:120,height:120,correctLevel:QRCode.CorrectLevel.M});}<\/script>
   
 
+
 </body></html>`);
   w.document.close();
 }
@@ -6353,25 +6365,12 @@ async function startDocumentDetection(){
 
 
 async function receiveNativeDocumentScan(payload){
+  const selection=beginReceiptSelection();
   try{
-    const dataUrl=(typeof payload==='string')?payload:(payload&&payload.image)||'';
-    if(!dataUrl)throw new Error('Kein Dokument empfangen.');
-    const res=await fetch(dataUrl);
-    const blob=await res.blob();
-    scannedDocumentBlob=blob;
-    revokeScanPreview();
-    scannedDocumentObjectUrl=URL.createObjectURL(blob);
-    const img=document.getElementById('docScanPreview');
-    if(img){img.src=scannedDocumentObjectUrl;img.style.display='block'}
-    const cap=document.getElementById('docScanCapture');
-    if(cap){cap.classList.add('has-image');setTimeout(()=>cap.scrollIntoView({behavior:'smooth',block:'center'}),80)}
-    const date=document.getElementById('docScanDate');
-    const month=document.getElementById('docScanMonth');
-    if(date&&!date.value)date.value=new Date().toISOString().slice(0,10);
-    if(month&&!month.value&&date&&date.value)month.value=date.value.slice(0,7);
-  }catch(e){
-    alert('Apple Scanner Fehler: '+(e&&e.message?e.message:e));
-  }
+    const dataUrl=typeof payload==='string'?payload:payload?.image||'';
+    if(!dataUrl.startsWith('data:image/'))throw new Error('Kein Dokument empfangen.');
+    const blob=await (await fetch(dataUrl)).blob();await frReviewScan(blob,selection);
+  }catch(e){if(receiptSelectionCurrent(selection)){frReceiptBusy(false);frReceiptStatus('Scan konnte nicht gelesen werden. Bitte erneut versuchen.');}}
 }
 
 
@@ -6538,6 +6537,334 @@ async function autoCropDocumentFile(file){
 
 const FR_DOC_DB_NAME='fr-rechnung-documents';
 const FR_DOC_DB_VERSION=1;
+// Review all four page edges before rectifying; retain original pixels for every filter change.
+let frReceiptEditor=null;
+let frReceiptSaving=false;
+async function frImageCanvas(blob,maxSide=2200){
+  const url=URL.createObjectURL(blob),img=new Image();
+  try{
+    await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('Bild konnte nicht geöffnet werden.'));img.src=url;});
+    const scale=Math.min(1,maxSide/Math.max(img.naturalWidth,img.naturalHeight));
+    const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+    const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);return canvas;
+  }finally{URL.revokeObjectURL(url);}
+}
+function frCanvasBlob(canvas){return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Scan konnte nicht erstellt werden.')),'image/jpeg',.94));}
+function frCloseScanEditor(){
+  const modal=document.getElementById('frScanReview');
+  if(modal){modal.classList.add('hidden');modal.setAttribute('aria-hidden','true');}
+  if(frReceiptEditor){document.body.style.overflow=frReceiptEditor.overflow;frReceiptEditor.source.width=0;frReceiptEditor.source.height=0;}
+  frReceiptEditor=null;
+}
+function frCancelScanEditor(){frCloseScanEditor();frReceiptBusy(false);frReceiptStatus(scannedDocumentBlob?'Bisheriger Scan bleibt erhalten.':'Scan abgebrochen. Bitte einen Beleg aufnehmen.');}
+function frFullScanQuad(canvas){return [{x:0,y:0},{x:canvas.width-1,y:0},{x:canvas.width-1,y:canvas.height-1},{x:0,y:canvas.height-1}];}
+async function frReviewScan(blob,selection){
+  const source=await frImageCanvas(blob);
+  if(!receiptSelectionCurrent(selection)){source.width=0;return;}
+  frCloseScanEditor();
+  const state={source,selection,quad:frFullScanQuad(source),edited:false,preview:false,overflow:document.body.style.overflow};frReceiptEditor=state;
+  document.getElementById('frScanReview').classList.remove('hidden');document.getElementById('frScanReview').setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+  document.getElementById('frScanTone').value='color';document.getElementById('frScanApply').disabled=false;
+  document.getElementById('frScanReviewStatus').textContent='Vier Ecken auf die Papierränder ziehen. Automatische Erkennung wird geladen …';
+  frDrawScanReview();document.getElementById('frScanApply').focus();
+  // Edge detection is optional. The editable full image is available immediately if loading fails.
+  ensureOpenCv().then(()=>{
+    if(frReceiptEditor!==state||state.edited||state.preview)return;
+    const small=document.createElement('canvas'),scale=Math.min(1,1100/Math.max(source.width,source.height));small.width=Math.round(source.width*scale);small.height=Math.round(source.height*scale);small.getContext('2d').drawImage(source,0,0,small.width,small.height);
+    const q=findDocumentQuadOnCanvas(small);small.width=0;
+    if(q){state.quad=q.map(p=>({x:p.x/scale,y:p.y/scale}));document.getElementById('frScanReviewStatus').textContent='Papier erkannt. Alle vier Ecken und den vollständigen Beleg prüfen.';frDrawScanReview();}
+    else document.getElementById('frScanReviewStatus').textContent='Vier Ecken auf die Papierränder ziehen. Der vollständige Beleg muss im Rahmen bleiben.';
+  }).catch(()=>{if(frReceiptEditor===state)document.getElementById('frScanReviewStatus').textContent='Vier Ecken auf die Papierränder ziehen und Vorschau prüfen.';});
+}
+function frDrawScanReview(){
+  const s=frReceiptEditor;if(!s)return;
+  const canvas=document.getElementById('frScanReviewCanvas');
+  const scale=Math.min(1,900/Math.max(s.source.width,s.source.height));canvas.width=Math.round(s.source.width*scale);canvas.height=Math.round(s.source.height*scale);
+  const ctx=canvas.getContext('2d');ctx.drawImage(s.source,0,0,canvas.width,canvas.height);
+  ctx.fillStyle='rgba(0,0,0,.45)';ctx.beginPath();ctx.rect(0,0,canvas.width,canvas.height);s.quad.forEach((p,i)=>i?ctx.lineTo(p.x*scale,p.y*scale):ctx.moveTo(p.x*scale,p.y*scale));ctx.closePath();ctx.fill('evenodd');
+  ctx.strokeStyle='#228bff';ctx.lineWidth=4;ctx.beginPath();s.quad.forEach((p,i)=>i?ctx.lineTo(p.x*scale,p.y*scale):ctx.moveTo(p.x*scale,p.y*scale));ctx.closePath();ctx.stroke();
+  const radius=Math.max(10,canvas.width/28);s.quad.forEach((p,i)=>{ctx.beginPath();ctx.arc(p.x*scale,p.y*scale,radius,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.stroke();ctx.fillStyle='#111';ctx.font='bold '+radius+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(i+1),p.x*scale,p.y*scale);});
+  canvas.onpointerdown=e=>{
+    if(s.preview)return;const r=canvas.getBoundingClientRect();const p={x:(e.clientX-r.left)*s.source.width/r.width,y:(e.clientY-r.top)*s.source.height/r.height};
+    const distances=s.quad.map(q=>Math.hypot((q.x-p.x)*r.width/s.source.width,(q.y-p.y)*r.height/s.source.height));const n=distances.indexOf(Math.min(...distances));
+    if(distances[n]>60)return;s.drag=n;s.edited=true;canvas.setPointerCapture(e.pointerId);e.preventDefault();
+  };
+  canvas.onpointermove=e=>{if(s.drag==null||s.preview)return;const r=canvas.getBoundingClientRect();s.quad[s.drag]={x:Math.max(0,Math.min(s.source.width-1,(e.clientX-r.left)*s.source.width/r.width)),y:Math.max(0,Math.min(s.source.height-1,(e.clientY-r.top)*s.source.height/r.height))};frDrawScanReview();e.preventDefault();};
+  canvas.onpointerup=canvas.onpointercancel=()=>{s.drag=null;};
+}
+function frResetScanEdges(){const s=frReceiptEditor;if(!s)return;s.quad=frFullScanQuad(s.source);s.edited=true;s.preview=false;frDrawScanReview();}
+function frRotateScan(){
+  const s=frReceiptEditor;if(!s)return;const c=document.createElement('canvas');c.width=s.source.height;c.height=s.source.width;const ctx=c.getContext('2d');ctx.translate(c.width,0);ctx.rotate(Math.PI/2);ctx.drawImage(s.source,0,0);s.source.width=0;s.source=c;s.edited=true;s.preview=false;s.quad=frFullScanQuad(c);frDrawScanReview();
+}
+function frScanHomography(q){
+  const dest=[[0,0],[1,0],[1,1],[0,1]],a=[];
+  for(let i=0;i<4;i++){const [u,v]=dest[i],{x,y}=q[i];a.push([u,v,1,0,0,0,-x*u,-x*v,x]);a.push([0,0,0,u,v,1,-y*u,-y*v,y]);}
+  for(let col=0;col<8;col++){let pivot=col;for(let r=col+1;r<8;r++)if(Math.abs(a[r][col])>Math.abs(a[pivot][col]))pivot=r;
+    [a[col],a[pivot]]=[a[pivot],a[col]];const d=a[col][col];if(Math.abs(d)<1e-10)throw new Error('Bitte vier getrennte Papierecken wählen.');for(let c=col;c<=8;c++)a[col][c]/=d;
+    for(let r=0;r<8;r++)if(r!==col){const k=a[r][col];for(let c=col;c<=8;c++)a[r][c]-=k*a[col][c];}}
+  return a.map(row=>row[8]);
+}
+function frRectifyScan(source,q){
+  for(let i=0;i<4;i++){const a=q[i],b=q[(i+1)%4],c=q[(i+2)%4];if((b.x-a.x)*(c.y-b.y)-(b.y-a.y)*(c.x-b.x)<=0)throw new Error('Ecken im Uhrzeigersinn wählen: oben links, oben rechts, unten rechts, unten links.');}
+  const width=Math.max(Math.hypot(q[1].x-q[0].x,q[1].y-q[0].y),Math.hypot(q[2].x-q[3].x,q[2].y-q[3].y)),height=Math.max(Math.hypot(q[3].x-q[0].x,q[3].y-q[0].y),Math.hypot(q[2].x-q[1].x,q[2].y-q[1].y));
+  if(width<80||height<80)throw new Error('Der gewählte Ausschnitt ist zu klein.');
+  const scale=Math.min(1,2200/Math.max(width,height)),out=document.createElement('canvas');out.width=Math.round(width*scale);out.height=Math.round(height*scale);
+  const src=source.getContext('2d').getImageData(0,0,source.width,source.height),ctx=out.getContext('2d'),dst=ctx.createImageData(out.width,out.height),m=frScanHomography(q),sw=source.width,sh=source.height;
+  for(let y=0;y<out.height;y++){const v=y/(out.height-1);for(let x=0;x<out.width;x++){const u=x/(out.width-1),den=m[6]*u+m[7]*v+1;
+    const sx=Math.max(0,Math.min(sw-1,(m[0]*u+m[1]*v+m[2])/den)),sy=Math.max(0,Math.min(sh-1,(m[3]*u+m[4]*v+m[5])/den)),ix=Math.floor(sx),iy=Math.floor(sy),fx=sx-ix,fy=sy-iy;
+    const a=(iy*sw+ix)*4,b=(iy*sw+Math.min(sw-1,ix+1))*4,c=(Math.min(sh-1,iy+1)*sw+ix)*4,d=(Math.min(sh-1,iy+1)*sw+Math.min(sw-1,ix+1))*4,k=(y*out.width+x)*4;
+    for(let j=0;j<3;j++)dst.data[k+j]=(src.data[a+j]*(1-fx)+src.data[b+j]*fx)*(1-fy)+(src.data[c+j]*(1-fx)+src.data[d+j]*fx)*fy;dst.data[k+3]=255;
+  }}ctx.putImageData(dst,0,0);return out;
+}
+function frCleanScan(canvas,mode){
+  if(mode==='original')return canvas;
+  const ctx=canvas.getContext('2d'),img=ctx.getImageData(0,0,canvas.width,canvas.height),d=img.data,w=canvas.width,h=canvas.height,tile=80,nx=Math.ceil(w/tile),ny=Math.ceil(h/tile),bg=new Float32Array(nx*ny);
+  // Estimate paper brightness locally, then brighten the background without replacing document content.
+  for(let ty=0;ty<ny;ty++)for(let tx=0;tx<nx;tx++){const hist=new Uint32Array(256);let count=0;for(let y=ty*tile;y<Math.min(h,(ty+1)*tile);y+=3)for(let x=tx*tile;x<Math.min(w,(tx+1)*tile);x+=3){const k=(y*w+x)*4;hist[Math.round(.299*d[k]+.587*d[k+1]+.114*d[k+2])]++;count++;}let sum=0,b=255;for(let i=0;i<256;i++){sum+=hist[i];if(sum>=count*.9){b=i;break;}}bg[ty*nx+tx]=Math.max(160,b);}
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const gx=Math.max(0,Math.min(nx-1,x/tile-.5)),gy=Math.max(0,Math.min(ny-1,y/tile-.5)),ix=Math.floor(gx),iy=Math.floor(gy),fx=gx-ix,fy=gy-iy;const b=(bg[iy*nx+ix]*(1-fx)+bg[iy*nx+Math.min(nx-1,ix+1)]*fx)*(1-fy)+(bg[Math.min(ny-1,iy+1)*nx+ix]*(1-fx)+bg[Math.min(ny-1,iy+1)*nx+Math.min(nx-1,ix+1)]*fx)*fy;const k=(y*w+x)*4,gain=255/b;
+    if(mode==='gray'){const g=(.299*d[k]+.587*d[k+1]+.114*d[k+2])*gain;d[k]=d[k+1]=d[k+2]=Math.max(0,Math.min(255,(g-128)*1.05+128));}
+    else for(let j=0;j<3;j++)d[k+j]=Math.max(0,Math.min(255,(d[k+j]*gain-128)*1.03+128));
+  }ctx.putImageData(img,0,0);return canvas;
+}
+function frProcessedScan(){const s=frReceiptEditor;if(!s)throw new Error('Kein Scan geöffnet.');return frCleanScan(frRectifyScan(s.source,s.quad),document.getElementById('frScanTone').value);}
+function frPreviewScan(){
+  const s=frReceiptEditor;if(!s)return;
+  try{const out=frProcessedScan(),c=document.getElementById('frScanReviewCanvas');c.width=out.width;c.height=out.height;c.getContext('2d').drawImage(out,0,0);out.width=0;s.preview=true;document.getElementById('frScanReviewStatus').textContent='Vorschau: Sind Text, Beträge und alle Ränder vollständig lesbar?';}
+  catch(e){document.getElementById('frScanReviewStatus').textContent=e.message;}
+}
+function frEditScanEdges(){const s=frReceiptEditor;if(!s)return;s.preview=false;s.edited=true;frDrawScanReview();}
+async function frApplyScan(){
+  const s=frReceiptEditor;if(!s)return;const button=document.getElementById('frScanApply');button.disabled=true;
+  try{const canvas=frProcessedScan(),blob=await frCanvasBlob(canvas);canvas.width=0;if(frReceiptEditor!==s||!receiptSelectionCurrent(s.selection))return;frCloseScanEditor();await acceptReceiptBlob(blob,s.selection);}
+  catch(e){if(frReceiptEditor===s)document.getElementById('frScanReviewStatus').textContent=e.message;}
+  finally{button.disabled=false;}
+}
+async function frReceiptAsPdf(blob,title='Beleg'){
+  if(blob.type==='application/pdf')return blob;
+  if(!blob.type.startsWith('image/'))throw new Error('Unbekanntes Belegformat.');
+  const {jsPDF}=window.jspdf||{};if(!jsPDF)throw new Error('PDF-Modul nicht geladen. Bitte Internetverbindung prüfen.');
+  const c=await frImageCanvas(blob,2400);
+  try{
+    const ratio=c.width/c.height,landscape=ratio>1.25;
+    let pw=landscape?297:210,ph=landscape?210:297;
+    // Long receipts keep a readable width on a correspondingly long page.
+    if(ratio<.42){pw=100;ph=Math.min(1500,8+92/ratio);}
+    const pdf=new jsPDF({unit:'mm',format:[pw,ph],orientation:landscape?'landscape':'portrait',compress:true});
+    pw=pdf.internal.pageSize.getWidth();ph=pdf.internal.pageSize.getHeight();const scale=Math.min((pw-8)/c.width,(ph-8)/c.height),w=c.width*scale,h=c.height*scale;
+    pdf.setProperties({title,subject:'Gescannter Originalbeleg',creator:'FR Fliesen Rechteck'});pdf.addImage(c.toDataURL('image/jpeg',.94),'JPEG',(pw-w)/2,(ph-h)/2,w,h);return pdf.output('blob');
+  }finally{c.width=0;c.height=0;}
+}
+async function frSharePdf(blob,name){
+  const file=new File([blob],frSafeFilePart(name)+'.pdf',{type:'application/pdf'});
+  if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){try{await navigator.share({files:[file],title:name});return;}catch(e){if(e.name==='AbortError')return;}}
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+async function shareStoredDocumentPdf(id){
+  try{const owner=cloudUser?.id,all=await frDocsGetAllForUser(),d=all.find(x=>String(x.id)===String(id)),blob=frDocValidBlob(d);if(!blob)throw new Error('Belegdatei nicht gefunden.');const pdf=await frReceiptAsPdf(blob,d.name);if(owner!==cloudUser?.id)return;await frSharePdf(pdf,(d.date||'')+'_'+(d.name||'Beleg'));}
+  catch(e){alert('PDF Fehler: '+e.message);}
+}
+async function buildDocumentsFolderPdfBlob(folderName,arr){
+  if(!window.PDFLib)await loadReceiptScript('pdf-lib','https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js');
+  const output=await PDFLib.PDFDocument.create();
+  const sources=arr.map(d=>({name:d.name||'Beleg',blob:frDocValidBlob(d)}));
+  for(const {x,i} of invoicesForDocumentFolder(folderName))sources.push({name:x.nr||'Rechnung',blob:await pdfInvoice(i,'blob')});
+  for(const src of sources){
+    if(!src.blob)throw new Error('Datei fehlt: '+src.name);
+    const blob=await frReceiptAsPdf(src.blob,src.name),pdf=await PDFLib.PDFDocument.load(await blob.arrayBuffer());
+    const pages=await output.copyPages(pdf,pdf.getPageIndices());pages.forEach(p=>output.addPage(p));
+  }
+  if(!output.getPageCount())throw new Error('Keine Belege in diesem Ordner.');
+  output.setTitle(folderName);return {blob:new Blob([await output.save()],{type:'application/pdf'}),broken:[]};
+}
+async function shareDocumentsFolderPdf(){
+  const folder=(document.getElementById('documentsFolderFilter')?.value||'').trim();if(!folder){alert('Bitte zuerst Ordner auswählen.');return;}
+  const owner=cloudUser?.id;
+  try{const docs=await frDocsGetFolder(folder),result=await buildDocumentsFolderPdfBlob(folder,docs);if(owner!==cloudUser?.id)return;await frSharePdf(result.blob,folder);}
+  catch(e){alert('Ordner-PDF Fehler: '+e.message);}
+}
+
+// Receipt text recognition runs on the device. No document upload for OCR.
+let frReceiptJob=null;
+let frReceiptSequence=0;
+let frReceiptLoading={};
+function frReceiptStatus(text){
+  const el=document.getElementById('docOcrStatus');if(el)el.textContent=text;
+}
+function frReceiptBusy(busy){
+  const save=document.getElementById('docScanSave');if(save)save.disabled=busy;
+  const retry=document.getElementById('docOcrRetry');if(retry)retry.disabled=busy||!scannedDocumentBlob;
+  document.getElementById('docOcrCancel')?.classList.toggle('hidden',!busy);
+}
+function cancelReceiptOcr(message='Erkennung abgebrochen. Angaben bitte selbst ergänzen.'){
+  const job=frReceiptJob;frReceiptJob=null;
+  if(job){job.cancelled=true;clearTimeout(job.timer);try{Promise.resolve(job.worker?.terminate()).catch(()=>{})}catch(e){}try{Promise.resolve(job.pdfTask?.destroy()).catch(()=>{})}catch(e){}}
+  frReceiptBusy(false);frReceiptStatus(message);
+}
+function beginReceiptSelection(){
+  frCloseScanEditor();
+  cancelReceiptOcr('Beleg wird vorbereitet …');
+  const sequence=++frReceiptSequence;
+  scannedDocumentBlob=null;
+  for(const id of ['docScanName','docScanAmount','docScanNumber','docScanDate','docScanMonth','docScanNote'])document.getElementById(id).value='';
+  frReceiptBusy(true);
+  return {sequence,owner:cloudUser?.id||''};
+}
+function receiptSelectionCurrent(selection){return selection.sequence===frReceiptSequence&&selection.owner===(cloudUser?.id||'');}
+async function acceptReceiptBlob(blob,selection){
+  if(!receiptSelectionCurrent(selection))return;
+  scannedDocumentBlob=blob;revokeScanPreview();
+  const image=document.getElementById('docScanPreview');
+  const isPdf=blob.type==='application/pdf';
+  if(isPdf){image.removeAttribute('src');image.style.display='none';}
+  else{scannedDocumentObjectUrl=URL.createObjectURL(blob);image.src=scannedDocumentObjectUrl;image.style.display='block';}
+  document.getElementById('docScanCapture').classList.toggle('has-image',!isPdf);
+  await recognizeReceipt();
+}
+function loadReceiptScript(key,url){
+  if(frReceiptLoading[key])return frReceiptLoading[key];
+  frReceiptLoading[key]=new Promise((resolve,reject)=>{
+    const script=document.createElement('script');script.src=url;script.async=true;
+    const timer=setTimeout(()=>{script.remove();reject(new Error('Erkennung konnte nicht geladen werden. Internetverbindung prüfen.'));},30000);
+    script.onload=()=>{clearTimeout(timer);resolve()};
+    script.onerror=()=>{clearTimeout(timer);script.remove();reject(new Error('Erkennung konnte nicht geladen werden. Internetverbindung prüfen.'))};
+    document.head.appendChild(script);
+  }).catch(e=>{delete frReceiptLoading[key];throw e});
+  return frReceiptLoading[key];
+}
+function receiptJobCurrent(job){return frReceiptJob===job&&!job.cancelled&&scannedDocumentBlob===job.blob&&(cloudUser?.id||'')===job.owner;}
+async function receiptImageText(image,job){
+  if(!window.Tesseract)await loadReceiptScript('tesseract','https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js');
+  if(!receiptJobCurrent(job))throw new Error('Abgebrochen');
+  if(!job.worker){
+    const worker=await Tesseract.createWorker('deu+eng',1,{
+      workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/worker.min.js',
+      logger:m=>{if(receiptJobCurrent(job)&&m.status==='recognizing text')frReceiptStatus('Beleg lesen … '+Math.round(m.progress*100)+' %');}
+    });
+    if(!receiptJobCurrent(job)){await worker.terminate();throw new Error('Abgebrochen');}
+    job.worker=worker;
+  }
+  const result=await job.worker.recognize(image,{rotateAuto:true});
+  if(Number(result.data.confidence)<50)throw new Error('Text zu unscharf. Bitte näher und bei gutem Licht erneut fotografieren.');
+  return result.data.text||'';
+}
+function receiptPdfTextLines(items){
+  const rows=[];
+  for(const item of items){
+    if(!item.str?.trim())continue;
+    const y=Number(item.transform?.[5]||0),x=Number(item.transform?.[4]||0);
+    let row=rows.find(r=>Math.abs(r.y-y)<3);
+    if(!row){row={y,items:[]};rows.push(row);}row.items.push({x,text:item.str});
+  }
+  return rows.sort((a,b)=>b.y-a.y).map(r=>r.items.sort((a,b)=>a.x-b.x).map(i=>i.text).join(' ')).join('\n');
+}
+async function receiptPdfText(blob,job){
+  const pdfjs=await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs');
+  pdfjs.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+  if(!receiptJobCurrent(job))throw new Error('Abgebrochen');
+  const task=pdfjs.getDocument({data:new Uint8Array(await blob.arrayBuffer()),isEvalSupported:false});job.pdfTask=task;
+  let pdf;
+  try{
+    pdf=await task.promise;
+    if(pdf.numPages>8)throw new Error('Bitte einen einzelnen Beleg mit höchstens 8 Seiten auswählen.');
+    const texts=[];
+    for(let n=1;n<=pdf.numPages;n++){
+      if(!receiptJobCurrent(job))throw new Error('Abgebrochen');
+      frReceiptStatus('PDF lesen … Seite '+n+' / '+pdf.numPages);
+      const page=await pdf.getPage(n);
+      let text=receiptPdfTextLines((await page.getTextContent()).items);
+      if(text.replace(/\s/g,'').length<40){
+        const base=page.getViewport({scale:1});
+        const view=page.getViewport({scale:Math.min(3,2200/Math.max(base.width,base.height))});
+        const canvas=document.createElement('canvas');canvas.width=Math.ceil(view.width);canvas.height=Math.ceil(view.height);
+        try{await page.render({canvasContext:canvas.getContext('2d'),viewport:view}).promise;text=await receiptImageText(canvas,job);}
+        finally{canvas.width=0;canvas.height=0;}
+      }
+      texts.push(text);page.cleanup();
+    }
+    return texts.join('\n');
+  }finally{await task.destroy();job.pdfTask=null;}
+}
+function receiptMoney(value){
+  const s=String(value).replace(/[\s'’]/g,'');
+  if(!/^-?\d[\d.,]*[.,]\d{2}$/.test(s))return null;
+  const split=Math.max(s.lastIndexOf(','),s.lastIndexOf('.'));
+  const number=Number(s.slice(0,split).replace(/[.,]/g,'')+'.'+s.slice(split+1));
+  return Number.isFinite(number)?number:null;
+}
+function parseReceiptText(text){
+  const lines=String(text).split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const out={name:'',date:'',number:'',amount:null};
+  const dateCandidates=[];const amounts=[];
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    if(!out.number){
+      const match=line.match(/(?:Rechnungs?\s*(?:nummer|nr\.?|no\.?)|Beleg\s*(?:nummer|nr\.?)|Bon\s*(?:nummer|nr\.?)|Invoice\s*(?:number|no\.?|#))\s*[:#-]?\s*([A-Z0-9][A-Z0-9/._-]{1,49})/i);
+      if(match&&/\d/.test(match[1]))out.number=match[1];
+    }
+    if(!/fällig|faellig|lieferdatum|leistungsdatum|due\s*date|zahlbar/i.test(line)){
+      const match=line.match(/\b(\d{1,2})[./-](\d{1,2})[./-](20\d{2}|\d{2})\b/);
+      const iso=line.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/);
+      if(match||iso){
+        const d=iso?+iso[3]:+match[1],m=iso?+iso[2]:+match[2],y=iso?+iso[1]:(+match[3]<100?2000+ +match[3]:+match[3]);
+        const dt=new Date(Date.UTC(y,m-1,d));
+        if(dt.getUTCFullYear()===y&&dt.getUTCMonth()===m-1&&dt.getUTCDate()===d){
+          dateCandidates.push({value:`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`,score:/rechnungsdatum|belegdatum|bon.?datum|invoice\s*date/i.test(line)?2:/datum|date/i.test(line)?1:0});
+        }
+      }
+    }
+    if(/netto|net\s*total|zwischensumme|subtotal|übertrag|rückgeld|gegeben|skonto|rabatt|anzahlung|mwst|ust\.?\b|steuer/i.test(line)&&!/brutto|inkl\.?|incl\.?/i.test(line))continue;
+    const score=/rechnungsbetrag|endbetrag|gesamtbetrag|gesamtsumme|endsumme|grand\s*total|total\s*(?:due|amount)|bruttobetrag/i.test(line)?3:/\b(?:gesamt|summe|total|brutto)\b/i.test(line)?2:/zahlbetrag|zu\s*zahlen|zu\s*bezahlen/i.test(line)?1:0;
+    if(score){
+      let matches=[...line.matchAll(/-?\d(?:[\d.,'’]*\d)?(?:[ \u00a0]\d{3})*[.,]\d{2}(?!\d)/g)];
+      if(!matches.length&&i+1<lines.length&&/^\s*(?:EUR|€)?\s*-?[\d.,'’ \u00a0]+\s*(?:EUR|€)?\s*$/.test(lines[i+1]))matches=[...lines[i+1].matchAll(/-?\d(?:[\d.,'’]*\d)?(?:[ \u00a0]\d{3})*[.,]\d{2}(?!\d)/g)];
+      if(matches.length){const value=receiptMoney(matches.at(-1)[0]);if(value!==null)amounts.push({value,score});}
+    }
+  }
+  for(const [candidates,key] of [[dateCandidates,'date'],[amounts,'amount']]){
+    if(candidates.length){const best=Math.max(...candidates.map(c=>c.score));const values=[...new Set(candidates.filter(c=>c.score===best).map(c=>c.value))];if(values.length===1)out[key]=values[0];}
+  }
+  for(const line of lines.slice(0,12)){
+    if(/^(?:Rechnungsempfänger|Kunde\s*:|Kundennummer|Bill\s*to|An\s*:)/i.test(line))break;
+    if(line.length<3||line.length>100||!/[A-Za-zÄÖÜäöüß]{3}/.test(line))continue;
+    if(/\d{3}|@|https?:|www\.|\b(?:IBAN|BIC|UID|Datum|Date|Tel|Telefon|Fax|Kasse|Bediener|Seite|Page)\b|straße|strasse|\bstr\.|gasse|platz|\bweg\b/i.test(line))continue;
+    if(/^(?:Rechnung|Rechnungsnummer|Rechnungsnr|Beleg|Kassenbon|Bon|Quittung|Invoice|Receipt|Original|Kopie|Vielen Dank|Willkommen|Ihre Rechnung)\b/i.test(line))continue;
+    out.name=line;break;
+  }
+  return out;
+}
+async function recognizeReceipt(){
+  const blob=scannedDocumentBlob;if(!blob){frReceiptStatus('Bitte zuerst einen Beleg auswählen.');return;}
+  cancelReceiptOcr('Beleg lesen … Beim ersten Mal werden Sprachdaten geladen.');
+  const ids={name:'docScanName',date:'docScanDate',number:'docScanNumber',amount:'docScanAmount'};
+  const before=Object.fromEntries(Object.values(ids).map(id=>[id,document.getElementById(id).value]));
+  const monthBefore=document.getElementById('docScanMonth').value;
+  const job={blob,owner:cloudUser?.id||'',cancelled:false,worker:null,pdfTask:null};frReceiptJob=job;frReceiptBusy(true);
+  job.timer=setTimeout(()=>{if(receiptJobCurrent(job))cancelReceiptOcr('Das Lesen dauert zu lange. Erneut versuchen oder Angaben selbst ergänzen.');},120000);
+  try{
+    if(blob.size>20*1024*1024)throw new Error('Beleg zu groß. Bitte eine Datei unter 20 MB auswählen.');
+    const text=blob.type==='application/pdf'?await receiptPdfText(blob,job):await receiptImageText(blob,job);
+    if(!receiptJobCurrent(job))return;
+    const fields=parseReceiptText(text);let count=0;
+    for(const [key,id] of Object.entries(ids)){
+      const value=fields[key];const el=document.getElementById(id);
+      if(value!==null&&value!==''&&el.value===before[id]){
+        el.value=key==='amount'?value.toFixed(2):value;count++;
+        if(key==='date'&&document.getElementById('docScanMonth').value===monthBefore)documentSyncMonthFromDate();
+      }
+    }
+    frReceiptStatus(count?`${count} Felder erkannt. Bitte Firma, Datum, Rechnungsnummer und Gesamtbetrag vor dem Speichern prüfen.`:'Keine eindeutigen Angaben erkannt. Bitte Felder selbst ergänzen oder erneut fotografieren.');
+  }catch(e){if(receiptJobCurrent(job))frReceiptStatus('Nicht automatisch gelesen: '+(e?.message||'Bitte erneut versuchen.')+' Manuelle Eingabe bleibt möglich.');}
+  finally{
+    clearTimeout(job.timer);try{await job.worker?.terminate()}catch(e){}
+    if(frReceiptJob===job){frReceiptJob=null;frReceiptBusy(false);}
+  }
+}
+function receiptSavedNote(){
+  const number=(document.getElementById('docScanNumber')?.value||'').trim();
+  const note=(document.getElementById('docScanNote')?.value||'').trim();
+  return [number?'Rechnungsnummer: '+number:'',note].filter(Boolean).join('\n');
+}
+
 let scannedDocumentBlob=null;
 let scannedDocumentObjectUrl='';
 
@@ -6602,57 +6929,21 @@ async function compressDocumentImage(file){
 }
 async function documentScanSelected(e){
   const file=e?.target?.files?.[0];if(!file)return;
-  const pdfInp=document.getElementById('docPdfInput');if(pdfInp)pdfInp.value='';
-  const pdfStatus=document.getElementById('docPdfStatus');if(pdfStatus)pdfStatus.textContent='';
-  try{scannedDocumentBlob=(await autoCropDocumentFile(file))||await compressDocumentImage(file);revokeScanPreview();scannedDocumentObjectUrl=URL.createObjectURL(scannedDocumentBlob);const img=document.getElementById('docScanPreview');if(img){img.src=scannedDocumentObjectUrl;img.style.display='block'}const cap=document.getElementById('docScanCapture');if(cap){cap.classList.add('has-image');setTimeout(()=>cap.scrollIntoView({behavior:'smooth',block:'center'}),80)}}catch(err){alert('Scan Fehler: '+(err?.message||err))}
+  const selection=beginReceiptSelection();
+  document.getElementById('docPdfInput').value='';document.getElementById('docPdfStatus').textContent='';
+  try{
+    // Review page edges and lighting before OCR.
+    await frReviewScan(file,selection);
+  }catch(err){if(receiptSelectionCurrent(selection)){frReceiptBusy(false);frReceiptStatus('Foto konnte nicht gelesen werden. Bitte erneut aufnehmen.');}}
 }
 
 async function documentPdfSelected(e){
-  const file=e?.target?.files?.[0];
-  if(!file)return;
-
-  const type=String(file.type||'').toLowerCase();
-  const name=String(file.name||'');
-  if(type!=='application/pdf' && !name.toLowerCase().endsWith('.pdf')){
-    alert('Bitte eine PDF-Datei auswählen.');
-    e.target.value='';
-    return;
-  }
-
-  try{
-    scannedDocumentBlob=file;
-
-    // Remove old image preview if one was selected before.
-    revokeScanPreview();
-    const img=document.getElementById('docScanPreview');
-    if(img){
-      img.style.display='none';
-      img.removeAttribute('src');
-    }
-    document.getElementById('docScanCapture')?.classList.remove('has-image');
-
-    const imageInput=document.getElementById('docScanInput');
-    if(imageInput)imageInput.value='';
-
-    // Use PDF filename as Beleg/Firma name when the field is empty.
-    const nameInput=document.getElementById('docScanName');
-    if(nameInput && !String(nameInput.value||'').trim()){
-      nameInput.value=name.replace(/\.pdf$/i,'');
-    }
-
-    const status=document.getElementById('docPdfStatus');
-    if(status){
-      const sizeKb=Math.max(1,Math.round((file.size||0)/1024));
-      status.textContent=`✅ PDF ausgewählt: ${name} · ${sizeKb} KB`;
-    }
-
-    document.getElementById('docScanFolderSelect')?.scrollIntoView({
-      behavior:'smooth',
-      block:'center'
-    });
-  }catch(err){
-    alert('PDF Fehler: '+(err?.message||err));
-  }
+  const file=e?.target?.files?.[0];if(!file)return;
+  if(file.type!=='application/pdf'&&!/\.pdf$/i.test(file.name||'')){alert('Bitte eine PDF-Datei auswählen.');return;}
+  const selection=beginReceiptSelection();
+  document.getElementById('docScanInput').value='';
+  document.getElementById('docPdfStatus').textContent='PDF ausgewählt: '+file.name;
+  await acceptReceiptBlob(file.type==='application/pdf'?file:new Blob([file],{type:'application/pdf'}),selection);
 }
 
 async function saveScannedDocument(){
@@ -6902,7 +7193,7 @@ async function renderDocuments(){
   }
 }
 
-async function buildDocumentsFolderPdfBlob(folderName,arr){
+async function legacy_buildDocumentsFolderPdfBlob(folderName,arr){
   return buildDocumentsMonthPdfBlob(folderName,arr);
 }
 
@@ -6975,7 +7266,7 @@ async function sendDocumentsFolder(){
   }
 }
 
-async function shareDocumentsFolderPdf(){
+async function legacy_shareDocumentsFolderPdf(){
   const folderName=(document.getElementById('documentsFolderFilter')?.value||'').trim();
   if(!folderName){alert('Bitte zuerst Ordner auswählen.');return}
 
@@ -7148,7 +7439,7 @@ function setScanbotCaptureLoading(on){
   const cap=document.getElementById('docScanCapture');
   if(cap)cap.classList.toggle('scanbot-loading',!!on);
   const sub=cap?.querySelector('.scan-sub');
-  if(sub)sub.textContent=on?'Scanner wird geladen…':'Scanbot öffnen · Papier automatisch erkennen & zuschneiden';
+  if(sub)sub.textContent=on?'Scanner wird geladen…':'Ränder prüfen · sauberer PDF-Scan';
 }
 async function frScanbotImageToJpegBlob(image){
   if(!image)throw new Error('Kein Scanbild erhalten.');
@@ -7198,66 +7489,18 @@ async function frScanbotImageToJpegBlob(image){
 }
 
 async function useScanbotDocumentResult(result){
-  const doc=result&&result.document;
-  if(!doc || !doc.pages || !doc.pages.length)return false;
-
-  let image=null;
+  const doc=result?.document;if(!doc?.pages?.length)return false;
+  const selection=beginReceiptSelection();let image;
   try{
-    const page=doc.pages[0];
-    const data=page.getData?page.getData():null;
-
-    if(data && data.documentImageId!==null && data.documentImageId!==undefined && page.loadDocumentImage){
-      image=await page.loadDocumentImage();
-    }else if(page.loadDocumentImage){
-      image=await page.loadDocumentImage();
-    }else if(page.loadOriginalImage){
-      image=await page.loadOriginalImage();
-    }
-
-    if(!image)throw new Error('Kein gescanntes Dokument erhalten.');
-
-    scannedDocumentBlob=await frScanbotImageToJpegBlob(image);
-
-    // Verify that the blob is really a displayable image before saving it.
-    await new Promise((resolve,reject)=>{
-      const testUrl=URL.createObjectURL(scannedDocumentBlob);
-      const img=new Image();
-      img.onload=()=>{URL.revokeObjectURL(testUrl);resolve(true)};
-      img.onerror=()=>{URL.revokeObjectURL(testUrl);reject(new Error('Scanbild konnte nicht angezeigt werden.'))};
-      img.src=testUrl;
-    });
-
-    revokeScanPreview();
-    scannedDocumentObjectUrl=URL.createObjectURL(scannedDocumentBlob);
-
-    const preview=document.getElementById('docScanPreview');
-    if(preview){
-      preview.src=scannedDocumentObjectUrl;
-      preview.style.display='block';
-    }
-
-    const cap=document.getElementById('docScanCapture');
-    if(cap){
-      cap.classList.add('has-image');
-      setTimeout(()=>cap.scrollIntoView({behavior:'smooth',block:'center'}),80);
-    }
-
-    const date=document.getElementById('docScanDate');
-    const month=document.getElementById('docScanMonth');
-    if(date && !date.value)date.value=new Date().toISOString().slice(0,10);
-    if(month && !month.value && date?.value)month.value=date.value.slice(0,7);
-
-    return true;
-  }finally{
-    try{image?.delete?.()}catch(e){}
-    try{image?.dispose?.()}catch(e){}
-    try{await doc.delete?.()}catch(e){}
-  }
+    const page=doc.pages[0];image=page.loadDocumentImage?await page.loadDocumentImage():await page.loadOriginalImage();
+    const blob=await frScanbotImageToJpegBlob(image);await frReviewScan(blob,selection);return true;
+  }catch(e){if(receiptSelectionCurrent(selection))frReceiptBusy(false);throw e;}
+  finally{try{image?.delete?.()}catch(e){}try{image?.dispose?.()}catch(e){}try{await doc.delete?.()}catch(e){}}
 }
 
 // This later declaration intentionally replaces the old homemade web scanner.
 // Native VisionKit bridge is still kept when FR Rechnung is wrapped as a native iPhone app.
-async function openDocumentScanner(ev){
+async function openDocumentScanner(ev,useScanbot=false){
   if(ev){ev.preventDefault();ev.stopPropagation()}
 
   try{
@@ -7267,6 +7510,7 @@ async function openDocumentScanner(ev){
     }
   }catch(e){}
 
+  if(!useScanbot){const input=document.getElementById('docScanInput');input.value='';input.click();return;}
   setScanbotCaptureLoading(true);
   try{
     await initFrScanbotSdk();
@@ -7412,6 +7656,10 @@ async function showDocuments(){
 }
 
 async function saveScannedDocument(){
+  if(frReceiptSaving||frReceiptEditor)return;
+  if(frReceiptJob){alert('Bitte Erkennung abwarten oder abbrechen.');return;}
+  if(!document.getElementById('docScanDate').value){alert('Bitte Belegdatum prüfen und eingeben.');return;}
+  if(!document.getElementById('docScanName').value.trim()||!document.getElementById('docScanAmount').value.trim()){alert('Bitte Firma und Gesamtbetrag prüfen und eingeben.');return;}
   if(!cloudUser){alert('Bitte zuerst anmelden.');return}
   if(!scannedDocumentBlob){alert('Bitte zuerst Beleg scannen oder PDF auswählen.');return}
 
@@ -7426,6 +7674,11 @@ async function saveScannedDocument(){
     return;
   }
 
+  const owner=cloudUser.id,source=scannedDocumentBlob,sequence=frReceiptSequence;
+  frReceiptSaving=true;document.getElementById('docScanSave').disabled=true;
+  try{
+  const pdfBlob=await frReceiptAsPdf(source,document.getElementById('docScanName').value.trim());
+  if(cloudUser?.id!==owner||scannedDocumentBlob!==source||sequence!==frReceiptSequence)return;
   const row={
     id:'DOC-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),
     userId:cloudUser.id,
@@ -7433,16 +7686,16 @@ async function saveScannedDocument(){
     name:(document.getElementById('docScanName')?.value||'').trim(),
     amount:Number(document.getElementById('docScanAmount')?.value||0),
     category:document.getElementById('docScanCategory')?.value||'Sonstige',
-    note:(document.getElementById('docScanNote')?.value||'').trim(),
-    mime:scannedDocumentBlob.type||'image/jpeg',
-    blob:scannedDocumentBlob,
+    note:receiptSavedNote(),
+    mime:'application/pdf',
+    blob:pdfBlob,
     savedAt:new Date().toISOString()
   };
 
-  try{
     await frDocsPut(row);
     try{await frCloudPutDocument(row)}catch(e){console.warn('Dokument Cloud',e)}
-    scannedDocumentBlob=null;
+    if(cloudUser?.id!==owner||scannedDocumentBlob!==source||sequence!==frReceiptSequence)return;
+    scannedDocumentBlob=null;cancelReceiptOcr('Beleg gespeichert.');
     revokeScanPreview();
 
     const img=document.getElementById('docScanPreview');
@@ -7457,7 +7710,7 @@ async function saveScannedDocument(){
     const pdfStatus=document.getElementById('docPdfStatus');
     if(pdfStatus)pdfStatus.textContent='';
 
-    ['docScanName','docScanAmount','docScanNote'].forEach(id=>{
+    ['docScanName','docScanAmount','docScanNote','docScanNumber'].forEach(id=>{
       const el=document.getElementById(id);if(el)el.value='';
     });
     const nf=document.getElementById('docScanFolderNew');
@@ -7470,10 +7723,10 @@ async function saveScannedDocument(){
     if(sel)sel.value=folder;
 
     await renderDocuments();
-    alert('Dokument gespeichert · 📁 '+folder);
+    alert('PDF gespeichert · 📁 '+folder);
   }catch(e){
     alert('Speichern Fehler: '+(e?.message||e));
-  }
+  }finally{frReceiptSaving=false;frReceiptBusy(!!frReceiptJob||!!frReceiptEditor);}
 }
 
 function invoicesForDocumentFolder(folderName){
@@ -7668,7 +7921,7 @@ async function renderDocuments(){
         </div>
       </div>
       <div class="docscan-actions">
-        ${blob?`<button onclick="openStoredDocument('${escAttr(d.id)}')">Öffnen</button>`:''}
+        ${blob?`<button onclick="openStoredDocument('${escAttr(d.id)}')">Öffnen</button><button onclick="shareStoredDocumentPdf('${escAttr(d.id)}')">PDF senden</button>`:''}
         <button onclick="deleteStoredDocument('${escAttr(d.id)}')">Löschen</button>
       </div>`;
 
@@ -7694,6 +7947,7 @@ async function sendDocumentsFolder(){
   const folderName=(document.getElementById('documentsFolderFilter')?.value||'').trim();
   if(!folderName){alert('Bitte zuerst Ordner auswählen.');return}
 
+  const owner=cloudUser?.id;
   const docs=await frDocsGetFolder(folderName);
   const invoices=invoicesForDocumentFolder(folderName);
 
@@ -7713,13 +7967,12 @@ async function sendDocumentsFolder(){
     let scanNr=0;
     for(const d of docs){
       const blob=frDocValidBlob(d);
-      if(!blob)continue;
+      if(!blob)throw new Error('Datei fehlt: '+(d.name||'Beleg'));
       scanNr++;
-      const ext=(String(blob.type||'').includes('png'))?'png':
-                (String(blob.type||'').includes('pdf'))?'pdf':'jpg';
+      const pdf=await frReceiptAsPdf(blob,d.name||'Beleg');
       root.file(
-        `Beleg_${String(scanNr).padStart(2,'0')}_${frSafeFilePart(d.name||'Beleg')}.${ext}`,
-        blob
+        `Beleg_${String(scanNr).padStart(2,'0')}_${frSafeFilePart(d.name||'Beleg')}.pdf`,
+        pdf
       );
     }
 
@@ -7735,6 +7988,7 @@ async function sendDocumentsFolder(){
       compression:'DEFLATE',
       compressionOptions:{level:6}
     });
+    if(owner!==cloudUser?.id)return;
     const file=new File([zipBlob],`${frSafeFilePart(folderName)}.zip`,{type:'application/zip'});
 
     if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
@@ -7853,5 +8107,15 @@ document.addEventListener('visibilitychange',()=>{
   </div>
 </div>
 
+<div id="frScanReview" class="fr-scan-review hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="frScanReviewTitle">
+  <div class="fr-scan-panel">
+    <div class="fr-scan-heading"><h2 id="frScanReviewTitle">Beleg zuschneiden</h2><button type="button" class="btn outline" onclick="frCancelScanEditor()">Abbrechen</button></div>
+    <p id="frScanReviewStatus" role="status" aria-live="polite">Vier Ecken auf die Papierränder ziehen.</p>
+    <div class="fr-scan-workspace"><canvas id="frScanReviewCanvas" aria-label="Vier Ecken des Belegs mit dem Finger verschieben"></canvas></div>
+    <div class="fr-scan-tools"><button class="btn outline" type="button" onclick="frRotateScan()">↻ Drehen</button><button class="btn outline" type="button" onclick="frResetScanEdges()">Ganzes Blatt</button><button class="btn outline" type="button" onclick="frEditScanEdges()">Ecken ändern</button></div>
+    <label for="frScanTone">Darstellung</label><select id="frScanTone" onchange="frPreviewScan()"><option value="color">Farbe · helle Papierfläche</option><option value="gray">Graustufen · helle Papierfläche</option><option value="original">Originalfarben</option></select>
+    <div class="fr-scan-footer"><button class="btn outline" type="button" onclick="frPreviewScan()">Vorschau prüfen</button><button id="frScanApply" class="btn" type="button" onclick="frApplyScan()">Scan übernehmen</button></div>
+  </div>
+</div>
 </body>
 </html>
