@@ -22,6 +22,7 @@ body{font-family:-apple-system,Arial,sans-serif;background:#f4f5f7;margin:0;colo
 input,select,textarea{box-sizing:border-box;width:100%;padding:12px;margin:5px 0 12px;border:1px solid #ccc;border-radius:10px;font-size:16px}
 label{font-weight:700}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#invoicePaymentFields.hidden{display:none}
 .small{color:#666}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
 .stat{background:#f7f7f8;border-radius:14px;padding:14px}
@@ -1360,7 +1361,7 @@ label{font-weight:700}
       <div><label>Nummer</label><input id="docNr" placeholder="automatisch"></div>
       <div><label>Rechnungsdatum</label><input id="docDate" type="date" onchange="updateDueDate();updateAutoNumberForDate()"></div>
     </div>
-    <label>Fälligkeitsdatum</label><input id="dueDate" type="date" readonly>
+    <div id="invoiceDueDateFields"><label>Fälligkeitsdatum</label><input id="dueDate" type="date" readonly></div>
 
     <label>Kunde</label>
     <input id="kunde" list="kundenListe" onchange="loadCustomerByName()" onblur="loadCustomerByName()" placeholder="z.B. HB - Fliesen">
@@ -1372,16 +1373,24 @@ label{font-weight:700}
     <label>Baustelle</label><input id="bau">
     <label>Nachricht (optional)</label><textarea id="nachricht" rows="3"></textarea>
     <label>Materialkosten €</label><input id="materialCost" type="number" step="0.01" placeholder="z.B. 350">
-    <label>Fußzeile Rechnung</label><textarea id="invoiceFooter" rows="3">Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung</textarea>
+    <div id="invoiceFooterFields">
+      <label>Fußzeile (Steuerhinweis)</label>
+      <select id="invoiceFooterMode" onchange="changeInvoiceFooterMode()">
+        <option value="none">Ohne Fußzeile</option>
+        <option value="rc" selected>Mit Fußzeile – Reverse Charge</option>
+        <option value="custom">Eigener Text</option>
+      </select>
+      <textarea id="invoiceFooter" rows="3">Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung</textarea>
+    </div>
 
     <div class="row">
       <div>
         <label>Kundentyp</label>
-        <select id="typ"><option>Firma</option><option>Privatkunde</option></select>
+        <select id="typ" onchange="changeDocumentCustomerType()"><option>Firma</option><option>Privatkunde</option></select>
       </div>
       <div>
         <label>Steuer</label>
-        <select id="steuer"><option value="rc">Reverse Charge</option><option value="20">20% USt.</option><option value="0">0% USt.</option></select>
+        <select id="steuer" onchange="changeDocumentTax()"><option value="rc">Reverse Charge</option><option value="20">20% USt.</option><option value="0">0% USt.</option></select>
       </div>
     </div>
 
@@ -1399,7 +1408,8 @@ label{font-weight:700}
     <div id="items"></div>
     <button class="btn outline" type="button" onclick="addItem()">+ Position hinzufügen</button>
 
-    <div class="row">
+    <p id="offerPaymentHint" class="small hidden">Fußzeile und Skonto werden erst auf der Rechnung festgelegt.</p>
+    <div class="row" id="invoicePaymentFields">
       <div>
         <label>Zahlungsziel</label>
         <select id="tage" onchange="updateDueDate()">
@@ -2839,7 +2849,7 @@ function applyUrlInvoice(){
   set('bau','baustelle','bau');
   set('materialCost','material','material_cost');
   set('nachricht','message','nachricht');
-  set('invoiceFooter','footer','fusszeile');
+  const urlFooter=p.has('footer')?p.get('footer'):p.has('fusszeile')?p.get('fusszeile'):null;
   set('tage','payment_days','tage');
 
   if(p.has('steuer')){
@@ -2847,9 +2857,8 @@ function applyUrlInvoice(){
     document.getElementById('steuer').value = (v==='20'||v==='0'||v==='rc') ? v : 'rc';
   }
 
-  if(p.has('skonto')){
-    document.getElementById('skonto').value=(p.get('skonto')==='0')?'0':'3';
-  }
+  loadDocumentFooter(urlFooter);
+  if(p.has('skonto'))setDocumentSkonto(p.get('skonto'));
   updateDueDate();
 
   // Build positions from URL.
@@ -3011,9 +3020,9 @@ async function pullChatgptInvoices(showMessage){
         steuer,
         nachricht:row.nachricht||'',
         tage:String(row.payment_days||14),
-        skonto:String(row.skonto||0),
+        skonto:kind==='Angebot'?'0':String(row.skonto||0),
         material:Number(row.material_cost||0),
-        footer:row.footer||'',
+        footer:documentFooterText(kind,steuer,row.footer??defaultInvoiceFooter(steuer)),
         items,
         net,
         ust,
@@ -3324,8 +3333,75 @@ function updateAutoNumberForDate(){
   if(!n || /^(A-)?\d{4}-\d{2}-\d{3}$/.test(n)) assignNextDocNumber();
 }
 
+function defaultInvoiceFooter(steuer){
+  return steuer==='rc'?'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung':'';
+}
+function isReverseChargeFooter(text){
+  return /Übergang der Steuerschuld|Reverse[ -]?Charge|§\s*19\s*Abs\.?\s*1a/i.test(String(text||''));
+}
+function documentFooterText(type,steuer,text){
+  if(type==='Angebot')return '';
+  const value=String(text??'').trim();
+  if(steuer!=='rc'&&isReverseChargeFooter(value))return '';
+  return value;
+}
+function currentDocumentFooter(){
+  if(document.getElementById('invoiceFooterMode').value==='none')return '';
+  return documentFooterText(docType,document.getElementById('steuer').value,document.getElementById('invoiceFooter').value);
+}
+function refreshDocumentOptions(){
+  const offer=docType==='Angebot';
+  for(const id of ['invoiceFooterFields','invoicePaymentFields','invoiceDueDateFields']){
+    document.getElementById(id).classList.toggle('hidden',offer);
+  }
+  document.getElementById('offerPaymentHint').classList.toggle('hidden',!offer);
+  document.querySelector('#invoiceFooterMode option[value="rc"]').disabled=document.getElementById('steuer').value!=='rc';
+  document.getElementById('invoiceFooter').classList.toggle('hidden',offer||document.getElementById('invoiceFooterMode').value==='none');
+}
+function loadDocumentFooter(text){
+  const tax=document.getElementById('steuer').value;
+  const value=documentFooterText(docType,tax,text??defaultInvoiceFooter(tax));
+  document.getElementById('invoiceFooter').value=value;
+  document.getElementById('invoiceFooterMode').value=!value?'none':value===defaultInvoiceFooter('rc')?'rc':'custom';
+  refreshDocumentOptions();
+}
+function changeInvoiceFooterMode(){
+  const mode=document.getElementById('invoiceFooterMode').value;
+  const field=document.getElementById('invoiceFooter');
+  if(mode==='none')field.value='';
+  else if(mode==='rc')field.value=defaultInvoiceFooter(document.getElementById('steuer').value);
+  else if(isReverseChargeFooter(field.value))field.value='';
+  refreshDocumentOptions();
+}
+function changeDocumentTax(){
+  const field=document.getElementById('invoiceFooter');
+  loadDocumentFooter(!field.value.trim()||isReverseChargeFooter(field.value)?null:field.value);
+}
+function changeDocumentCustomerType(){
+  if(document.getElementById('typ').value==='Privatkunde'){
+    document.getElementById('steuer').value='20';
+    loadDocumentFooter('');
+  }else changeDocumentTax();
+}
+function setDocumentSkonto(value){
+  const select=document.getElementById('skonto');
+  const amount=Math.max(0,Number(value)||0);
+  const normalized=String(amount);
+  if(!Array.from(select.options).some(option=>option.value===normalized)){
+    const option=document.createElement('option');
+    option.value=normalized;option.textContent=normalized+'% Skonto';select.appendChild(option);
+  }
+  select.value=normalized;
+}
 function showForm(t){
+  const previousType=docType;
   docType=t;
+  if(t==='Angebot'){
+    setDocumentSkonto(0);loadDocumentFooter('');
+  }else if(previousType==='Angebot'){
+    setDocumentSkonto(3);loadDocumentFooter(null);
+  }
+  refreshDocumentOptions();
   if(t==='Rechnung')setInvoiceContext('Rechnung','',0);
   hide();document.getElementById('form').classList.remove('hidden');
   document.getElementById('formTitle').textContent=t==='Rechnung'?'Neue '+currentDocumentLabel():'Neues Angebot';
@@ -3491,8 +3567,9 @@ function loadCustomerByName(){
   document.getElementById('adresse').value=c.adresse||'';
   document.getElementById('kundeUid').value=c.uid||'';
   document.getElementById('kundeEmail').value=c.email||'';
-  if(c.typ)document.getElementById('typ').value=c.typ;
+  if(c.typ)document.getElementById('typ').value=/^privat/i.test(c.typ)?'Privatkunde':c.typ;
   if(c.steuer)document.getElementById('steuer').value=c.steuer;
+  changeDocumentTax();
 }
 
 function getInvoices(){
@@ -3527,9 +3604,9 @@ function currentInvoiceData(){
     steuer:st,
     nachricht:document.getElementById('nachricht').value,
     tage:document.getElementById('tage').value,
-    skonto:document.getElementById('skonto').value,
+    skonto:docType==='Angebot'?'0':document.getElementById('skonto').value,
     material:parseFloat(document.getElementById('materialCost').value)||0,
-    footer:document.getElementById('invoiceFooter').value,
+    footer:currentDocumentFooter(),
     pdfPriceMode:(document.getElementById('pdfPriceMode').value||'on'),
     materialPdfPriceMode:(document.getElementById('materialPdfPriceMode').value||'on'),
     invoiceKind:docType==='Rechnung'?currentInvoiceKind:'',
@@ -3615,14 +3692,14 @@ function loadOffer(i){
   document.getElementById('kundeUid').value=x.kundeUid||'';
   document.getElementById('kundeEmail').value=x.email||'';
   document.getElementById('bau').value=x.bau||'';
-  document.getElementById('typ').value=x.typ||'Firma';
+  document.getElementById('typ').value=/^privat/i.test(x.typ||'')?'Privatkunde':(x.typ||'Firma');
   document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('nachricht').value=x.nachricht||'';
   document.getElementById('tage').value=x.tage||'14';
-  document.getElementById('skonto').value=x.skonto||'0';
+  setDocumentSkonto(0);
   updateDueDate();
   document.getElementById('materialCost').value=x.material||'';
-  document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  loadDocumentFooter('');
   document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
   document.getElementById('materialPdfPriceMode').value=materialPdfModeForInvoice(x);
   document.getElementById('items').innerHTML='';
@@ -3685,11 +3762,11 @@ function fillInvoiceCustomerFromOffer(x){
   document.getElementById('kundeUid').value=x.kundeUid||'';
   document.getElementById('kundeEmail').value=x.email||'';
   document.getElementById('bau').value=x.bau||'';
-  document.getElementById('typ').value=x.typ||'Firma';
+  document.getElementById('typ').value=/^privat/i.test(x.typ||'')?'Privatkunde':(x.typ||'Firma');
   document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('tage').value=x.tage||'14';
-  document.getElementById('skonto').value=x.skonto||'0';
-  document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  setDocumentSkonto(3);
+  loadDocumentFooter(null);
   document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
   document.getElementById('materialPdfPriceMode').value=materialPdfModeForInvoice(x);
   document.getElementById('items').innerHTML='';
@@ -4177,9 +4254,9 @@ function loadInvoice(i){
   document.getElementById('docNr').value=x.nr||'';document.getElementById('docDate').value=x.date||'';
   document.getElementById('kunde').value=x.kunde||'';document.getElementById('adresse').value=x.adresse||'';
   document.getElementById('kundeUid').value=x.kundeUid||'';document.getElementById('kundeEmail').value=x.email||'';document.getElementById('bau').value=x.bau||'';
-  document.getElementById('typ').value=x.typ||'Firma';document.getElementById('steuer').value=x.steuer||'rc';
+  document.getElementById('typ').value=/^privat/i.test(x.typ||'')?'Privatkunde':(x.typ||'Firma');document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('nachricht').value=x.nachricht||'';document.getElementById('tage').value=x.tage||'14';
-  document.getElementById('skonto').value=x.skonto||'3';updateDueDate();document.getElementById('materialCost').value=x.material||'';document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  setDocumentSkonto(x.skonto??3);updateDueDate();document.getElementById('materialCost').value=x.material||'';loadDocumentFooter(x.footer??null);
   document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
   document.getElementById('materialPdfPriceMode').value=materialPdfModeForInvoice(x);
   document.getElementById('items').innerHTML='';(x.items||[]).forEach(it=>addItem(it.desc,it.qty,it.unit,it.price,it.kind||'',it.costPrice||''));
@@ -4304,7 +4381,7 @@ async function pdfInvoice(i,mode='open'){
   pdf.setFont(undefined,'bold');pdf.setFontSize(12);pdf.text('Zahlbetrag',150,y);pdf.text(euro(total).replace(/\u00a0/g,' '),192,y,{align:'right'});
 
   y+=12;pdf.setFont(undefined,'normal');pdf.setFontSize(8.5);
-  const footerText=(x.footer||'').trim();
+  const footerText=documentFooterText('Rechnung',x.steuer||'rc',x.footer);
   if(footerText){const fl=pdf.splitTextToSize(footerText,175);pdf.text(fl,left,y);y+=fl.length*4+4}
   const skontoValue=total*sk/100;
   const payText=sk>0?`Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue).replace(/\u00a0/g,' ')}) abgezogen werden.`:`Zahlungsziel: ${dueDays} Tage.`;
@@ -4500,13 +4577,13 @@ function copyInvoice(i){
   document.getElementById('kundeUid').value=x.kundeUid||'';
   document.getElementById('kundeEmail').value=x.email||'';
   document.getElementById('bau').value=x.bau||'';
-  document.getElementById('typ').value=x.typ||'Firma';
+  document.getElementById('typ').value=/^privat/i.test(x.typ||'')?'Privatkunde':(x.typ||'Firma');
   document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('nachricht').value=x.nachricht||'';
   document.getElementById('tage').value=x.tage||'14';
-  document.getElementById('skonto').value=x.skonto||'0';
+  setDocumentSkonto(x.skonto??0);
   document.getElementById('materialCost').value=x.material||'';
-  document.getElementById('invoiceFooter').value=x.footer||'Übergang der Steuerschuld gem. § 19 Abs. 1a UStG auf den Leistungsempfänger Bauleistung';
+  loadDocumentFooter(x.footer??null);
   document.getElementById('pdfPriceMode').value=x.pdfPriceMode||'on';
   document.getElementById('materialPdfPriceMode').value=materialPdfModeForInvoice(x);
   document.getElementById('items').innerHTML='';
@@ -4600,7 +4677,7 @@ async function sharePDF(mode='share'){
   const st=document.getElementById('steuer').value;
   const ust=st==='20'?net*.2:0;
   const total=net+ust;
-  const sk=parseFloat(document.getElementById('skonto').value)||0;
+  const sk=docType==='Angebot'?0:(parseFloat(document.getElementById('skonto').value)||0);
   const dueDays=parseInt(document.getElementById('tage').value)||14;
   const docNr=document.getElementById('docNr').value||'ohne-nummer';
   const docDate=document.getElementById('docDate').value;
@@ -4610,7 +4687,7 @@ async function sharePDF(mode='share'){
   const kundeUid=document.getElementById('kundeUid').value.trim();
   const bau=document.getElementById('bau').value;
   const nachricht=document.getElementById('nachricht').value.trim();
-  const epc=epcPayload(total,docNr); const qrData=epc?await makeQrDataUrl(epc):'';
+  const epc=docType==='Angebot'?'':epcPayload(total,docNr); const qrData=epc?await makeQrDataUrl(epc):'';
   const company=getCompanyProfile();
   const companyName=company.name||'FR Rechnung';
 
@@ -4654,8 +4731,8 @@ async function sharePDF(mode='share'){
   }
   pdf.setFontSize(9);pdf.setFont(undefined,'normal');
   pdf.text('Nr.: '+docNr,right,y-2,{align:'right'});
-  pdf.text('Rechnungsdatum: '+fmtDate(docDate),right,y+3,{align:'right'});
-  pdf.text('Fälligkeitsdatum: '+fmtDate(dueDateValue),right,y+8,{align:'right'});
+  pdf.text((docType==='Angebot'?'Angebotsdatum: ':'Rechnungsdatum: ')+fmtDate(docDate),right,y+3,{align:'right'});
+  if(docType==='Rechnung')pdf.text('Fälligkeitsdatum: '+fmtDate(dueDateValue),right,y+8,{align:'right'});
 
   y+=15;
   pdf.setFontSize(9.5);
@@ -4717,12 +4794,12 @@ async function sharePDF(mode='share'){
   y+=7;
   pdf.setLineWidth(.5);pdf.setDrawColor(34);pdf.line(148,y-4,right,y-4);
   pdf.setFont(undefined,'bold');pdf.setFontSize(12);
-  pdf.text('Zahlbetrag',150,y);
+  pdf.text(docType==='Angebot'?'Gesamt':'Zahlbetrag',150,y);
   pdf.text(euro(total).replace(/\u00a0/g,' '),192,y,{align:'right'});
 
   y+=12;
   pdf.setFont(undefined,'normal');pdf.setFontSize(8.5);
-  const footerText=document.getElementById('invoiceFooter').value.trim();
+  const footerText=currentDocumentFooter();
   if(footerText){
     pdf.text(pdf.splitTextToSize(footerText,175),left,y);
     y+=12;
@@ -4731,7 +4808,7 @@ async function sharePDF(mode='share'){
   const payText=sk>0
     ? `Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue).replace(/\u00a0/g,' ')}) abgezogen werden.`
     : `Zahlungsziel: ${dueDays} Tage.`;
-  pdf.text(pdf.splitTextToSize(payText,175),left,y);
+  if(docType==='Rechnung')pdf.text(pdf.splitTextToSize(payText,175),left,y);
 
   // SEPA / EPC QR-Code für Überweisung
   try{
@@ -4792,7 +4869,7 @@ function makeDoc(){
   const st=document.getElementById('steuer').value;
   const ust=st==='20'?net*.2:0;
   const total=net+ust;
-  const sk=parseFloat(document.getElementById('skonto').value)||0;
+  const sk=docType==='Angebot'?0:(parseFloat(document.getElementById('skonto').value)||0);
   const skontoValue=total*sk/100;
   const docNr=document.getElementById('docNr').value;
   const docDate=document.getElementById('docDate').value;
@@ -4821,9 +4898,9 @@ function makeDoc(){
     ? '<tr><th>Beschreibung</th><th style="text-align:right">Menge</th><th>Einheit</th><th style="text-align:right">Preis</th><th style="text-align:right">Summe</th></tr>'
     : '<tr><th>Beschreibung</th></tr>';
 
-  const footerText=esc(document.getElementById('invoiceFooter').value).replace(/\n/g,'<br>');
+  const footerText=esc(currentDocumentFooter()).replace(/\n/g,'<br>');
   const steuerText=footerText?`<p class="note">${footerText}</p>`:'';
-  const skontoText=sk>0?`<p>Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue)}) abgezogen werden.</p>`:`<p>Zahlungsziel: ${dueDays} Tage.</p>`;
+  const skontoText=docType==='Angebot'?'':sk>0?`<p>Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue)}) abgezogen werden.</p>`:`<p>Zahlungsziel: ${dueDays} Tage.</p>`;
   const mailSubject=encodeURIComponent(`${currentDocumentLabel()} ${docNr} - ${companyName}`);
   const mailBody=encodeURIComponent(`Guten Tag,
 
@@ -4834,7 +4911,7 @@ Vielen Dank.
 Mit freundlichen Grüßen
 ${companyName}`);
   const mailTo=encodeURIComponent(customerEmail);
-  const epcText=epcPayload(total,docNr);
+  const epcText=docType==='Angebot'?'':epcPayload(total,docNr);
 
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${docType} ${esc(docNr)}</title>
   <style>
@@ -4859,12 +4936,12 @@ ${companyName}`);
   <hr class="redline">
   <div class="meta">
     <div><b>Kunde:</b> ${esc(document.getElementById('kunde').value)}<br>${esc(document.getElementById('adresse').value)}${document.getElementById('kundeUid').value?`<br><b>UID:</b> ${esc(document.getElementById('kundeUid').value)}`:''}<br><b>Baustelle:</b> ${esc(document.getElementById('bau').value)}</div>
-    <div style="text-align:right;line-height:1.6"><b>Nr.:</b> ${esc(docNr)}<br><b>Rechnungsdatum:</b> ${fmtDate(docDate)}<br><b>Fälligkeitsdatum:</b> ${due}</div>
+    <div style="text-align:right;line-height:1.6"><b>Nr.:</b> ${esc(docNr)}<br><b>${docType==='Angebot'?'Angebotsdatum':'Rechnungsdatum'}:</b> ${fmtDate(docDate)}${docType==='Rechnung'?`<br><b>Fälligkeitsdatum:</b> ${due}`:''}</div>
   </div>
   <div class="title" style="margin-top:26px">${currentDocumentLabel().toUpperCase()}</div>
   ${document.getElementById('nachricht').value?`<div style="margin:0 0 22px;white-space:pre-line">${esc(document.getElementById('nachricht').value)}</div>`:''}
   <table>${tableHead}${rows}</table>
-  <div class="sum"><div><span>Netto</span><span>${euro(net)}</span></div>${ust?`<div><span>USt. 20%</span><span>${euro(ust)}</span></div>`:''}<div class="big"><span>Zahlbetrag</span><span>${euro(total)}</span></div></div>
+  <div class="sum"><div><span>Netto</span><span>${euro(net)}</span></div>${ust?`<div><span>USt. 20%</span><span>${euro(ust)}</span></div>`:''}<div class="big"><span>${docType==='Angebot'?'Gesamtbetrag':'Zahlbetrag'}</span><span>${euro(total)}</span></div></div>
   ${steuerText}
   <div class="footer">${skontoText}</div>
   ${epcText?`<div class="payqr"><div id="payQr"></div><div><b>Per Banking-App bezahlen</b><br>QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.<br><b>IBAN:</b> ${esc(company.iban||'')}<br><b>Betrag:</b> ${euro(total)}<br><b>Verwendung:</b> Rechnung ${esc(docNr)}</div></div>`:''}
