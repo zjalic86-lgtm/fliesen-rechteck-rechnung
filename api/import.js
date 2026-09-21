@@ -68,6 +68,10 @@ export default async function handler(req, res) {
     );
   }
 
+  if (req.method === "GET" && req.query?.mode === "check") {
+    return res.status(200).json({ok:true, version:2, message:"Import-Schlüssel gültig"});
+  }
+
   if (!supabaseUrl || !supabaseSecret) {
     return res.status(500).json({
       ok: false,
@@ -81,22 +85,47 @@ export default async function handler(req, res) {
     Authorization: `Bearer ${supabaseSecret}`
   };
 
+  if (req.method === "POST" && req.query?.mode === "ack") {
+    const ids = req.body?.ids;
+    if (!Array.isArray(ids) || !ids.length || ids.length > 1000 ||
+        !ids.every(id => /^(?:[0-9]+|[0-9a-fA-F-]{36})$/.test(String(id)))) {
+      return res.status(400).json({ok:false,error:"Ungültige Import-IDs"});
+    }
+    try {
+      const result = await fetch(`${supabaseUrl}/rest/v1/fr_imports?id=in.${encodeURIComponent('('+ids.join(',')+')')}`,
+        {method:"DELETE",headers:{...headers,Prefer:"return=minimal"}});
+      if (!result.ok) return res.status(502).json({ok:false,error:"Bestätigung fehlgeschlagen. Import bleibt zur Wiederholung verfügbar."});
+      return res.status(200).json({ok:true});
+    } catch (e) { return res.status(502).json({ok:false,error:"Bestätigung nicht erreichbar"}); }
+  }
+
   if (req.method === "POST") {
     try {
       const document = req.body;
 
-      if (!document || !document.customer_name) {
+      if (!document || typeof document.customer_name !== "string" || !document.customer_name.trim()) {
         return res.status(400).json({
           ok: false,
           error: "customer_name fehlt"
         });
       }
 
-      const documentType =
-        document.document_type === "Angebot"
-          ? "Angebot"
-          : "Rechnung";
+      const documentType = document.document_type || "Rechnung";
+      if (!["Rechnung", "Angebot", "Regiestunden"].includes(documentType)) {
+        return res.status(400).json({ok:false,error:"Unbekannter Dokumenttyp"});
+      }
 
+      for (const field of ["wand_m2","wand_price","boden_m2","boden_price","hours","skonto","payment_days","material_cost"]) {
+        if (document[field] !== undefined && (typeof document[field] !== "number" || !Number.isFinite(document[field]) || document[field] < 0)) {
+          return res.status(400).json({ok:false,error:`Ungültige Zahl: ${field}`});
+        }
+      }
+      if (document.steuer !== undefined && !["20","0","rc"].includes(document.steuer)) {
+        return res.status(400).json({ok:false,error:"Ungültige Steuer"});
+      }
+      if (document.items !== undefined && (!Array.isArray(document.items) || !document.items.every(x=>x && typeof x.desc === "string" && typeof x.qty === "number" && Number.isFinite(x.qty) && x.qty >= 0 && typeof x.price === "number" && Number.isFinite(x.price) && x.price >= 0))) {
+        return res.status(400).json({ok:false,error:"Ungültige Positionen"});
+      }
       const savedDocument = {
         ...document,
         document_type: documentType
@@ -127,10 +156,7 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         ok: true,
-        message:
-          documentType === "Angebot"
-            ? "FR Angebot gespeichert"
-            : "FR Rechnung gespeichert",
+        message: `FR ${documentType} zum Abruf bereit`,
         document_type: documentType,
         invoice: savedDocument
       });
@@ -197,40 +223,11 @@ export default async function handler(req, res) {
         });
       }
 
-      if (Array.isArray(rows) && rows.length) {
-        const ids = rows
-          .map(row => row.id)
-          .filter(id => id !== undefined && id !== null);
-
-        if (ids.length) {
-          const idList = `(${ids.join(",")})`;
-
-          const del = await fetch(
-            `${supabaseUrl}/rest/v1/fr_imports?id=in.${encodeURIComponent(idList)}`,
-            {
-              method: "DELETE",
-              headers: {
-                ...headers,
-                Prefer: "return=minimal"
-              }
-            }
-          );
-
-          if (!del.ok) {
-            const err = await del.text();
-
-            return res.status(500).json({
-              ok: false,
-              error: "Queue delete failed: " + err
-            });
-          }
-        }
-      }
-
       return res.status(200).json({
         ok: true,
         invoices: (rows || []).map(row => ({
           ...row.invoice,
+          import_id: String(row.id),
           document_type:
             row.invoice?.document_type || "Rechnung",
           created_at: row.created_at
