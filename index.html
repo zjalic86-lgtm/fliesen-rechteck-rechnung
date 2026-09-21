@@ -898,8 +898,55 @@ label{font-weight:700}
 /* FR appointment calendar */
 .fr-cal-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.fr-cal-toolbar button{width:auto;min-height:44px}.fr-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin:16px 0}.fr-cal-grid button{position:relative;min-width:0;width:100%;min-height:48px;padding:6px 0;border:1px solid #ddd;border-radius:10px;background:#fff;color:#222;font-size:16px}.fr-cal-grid button.selected{background:#b9362e;color:white;border-color:#b9362e}.fr-cal-grid button.today{box-shadow:inset 0 0 0 2px #b9362e}.fr-cal-grid small{text-align:center;color:#666;padding:4px 0}.fr-cal-dot{display:block;font-size:11px;line-height:12px}.fr-cal-event{border:1px solid #ddd;border-left:4px solid #b9362e;border-radius:12px;padding:14px;margin:12px 0;overflow-wrap:anywhere}.fr-cal-event p{white-space:pre-wrap;margin:8px 0}.fr-cal-actions{display:flex;flex-wrap:wrap;gap:8px}.fr-cal-actions button{width:auto;min-height:44px}.fr-cal-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.fr-cal-fields input{min-width:0;width:100%;box-sizing:border-box}#frCalendar label{display:block;margin-top:12px}#frCalendar textarea{box-sizing:border-box;width:100%;min-height:90px}#frCalEditor{border-top:1px solid #ddd;margin-top:20px;padding-top:12px}#frCalStatus{margin:12px 0} @media(max-width:420px){.fr-cal-fields{grid-template-columns:1fr}}
 </style>
+<style id="frPlainDesign">
+/* FR open-page design: screen UI only; document templates keep their layout. */
+@media screen {
+body#frPlainApp{background:#fff;color:#242424}
+#frPlainApp #mainApp{padding:20px;max-width:800px}
+#frPlainApp #mainApp :is(div,section,article,details,summary){border-radius:0!important;box-shadow:none!important}
+#frPlainApp #mainApp :is(.card,.stat,.invoice,.item,.measure-card,.measure-result,.measure-repeat-row,.regie-row,.regie-sheet,.regie-selected-item,.signature-box,.regie-draft,.fr-cal-event,[class*="folder"],[class*="stats-pdf"]){border:0!important;background:transparent!important}
+#frPlainApp #mainApp .card{padding:22px 0;margin:0}
+#frPlainApp #mainApp .head{padding:8px 0 22px;border:0!important;border-bottom:1px solid #e8e5e2!important}
+#frPlainApp #mainApp .head h1{font-size:clamp(26px,6vw,38px);letter-spacing:-.8px;margin:16px 0 8px}
+#frPlainApp #mainApp .logo{max-height:76px;max-width:160px}
+#frPlainApp #mainApp #home.photo-overview{background:#fff!important;min-height:0!important;border:0!important}
+#frPlainApp #mainApp #home.photo-overview::before,#frPlainApp #mainApp #home.photo-overview::after{display:none!important}
+#frPlainApp #mainApp #home #overviewMenu{padding:0!important;background:none!important;backdrop-filter:none!important}
+#frPlainApp #mainApp #home #overviewMenu :is(h2,p,.small){background:none!important;color:#242424!important;text-shadow:none!important;border-radius:0!important;padding-left:0!important}
+#frPlainApp #mainApp :is(.invoice,.item,.measure-card,.measure-repeat-row,.regie-row,.regie-sheet,.regie-draft,.fr-cal-event,.stats-pdf-item){padding:20px 0!important;margin:0!important;border-bottom:1px solid #e8e5e2!important}
+#frPlainApp :is(button,.btn,.tab,.settings-menu-item){border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;background-image:none!important;color:#ae332b!important;min-height:44px;cursor:pointer;text-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+#frPlainApp #mainApp .settings-menu{gap:0!important}
+#frPlainApp #mainApp .settings-menu-item{padding:20px 0!important;margin:0!important;border-bottom:1px solid #e8e5e2!important;text-align:left;color:#242424!important}
+#frPlainApp #mainApp .settings-menu-item span:last-child{color:#ae332b!important}
+#frPlainApp #mainApp .tabs{gap:20px;border-bottom:1px solid #e8e5e2;margin:0;padding:6px 0}
+#frPlainApp #mainApp .tab{padding:12px 0!important;font-size:15px}
+#frPlainApp input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),#frPlainApp select,#frPlainApp textarea{background:transparent!important;color:#242424!important;border:0!important;border-bottom:1px solid #b9b5b1!important;border-radius:0!important;box-shadow:none!important;padding:12px 2px!important;min-height:44px}
+#frPlainApp input:focus,#frPlainApp select:focus,#frPlainApp textarea:focus{outline:0;border-bottom:2px solid #ae332b!important}
+#frPlainApp button:focus-visible,#frPlainApp summary:focus-visible{outline:2px solid #ae332b!important;outline-offset:3px}
+#frPlainApp button:disabled{opacity:.45;cursor:default}
+#frPlainApp button:active{color:#631d18!important;text-decoration:underline}
+#frPlainApp #mainApp :is(.badge,.stats-pdf-folder){background:none!important;border:0!important;padding-left:0!important}
+#frPlainApp #mainApp .stat{padding:16px 0;border-bottom:1px solid #e8e5e2!important}
+#frPlainApp #mainApp .signature-canvas{border:0!important;border-bottom:1px solid #aaa!important;border-radius:0!important}
+#frPlainApp :is(.lockScreen,.accountScreen){background:#fff!important}
+#frPlainApp :is(.lockBox,.accountBox,.regie-preview-card,.invoice-folder-box,.fr-scan-panel){border:0!important;border-radius:0!important;box-shadow:none!important;background:#fff!important}
+#frPlainApp #mainApp .fr-cal-grid button{border:0!important;border-radius:0!important;box-shadow:none!important;color:#333!important}
+#frPlainApp #mainApp .fr-cal-grid button.today{color:#ae332b!important;font-weight:800}
+#frPlainApp #mainApp .fr-cal-grid button.selected{border-bottom:3px solid #ae332b!important;font-weight:800}
+#frPlainApp #mainApp .regie-preset-btn.selected{border-bottom:2px solid #ae332b!important;font-weight:800}
+#frPlainApp #mainApp [style*="border:"]{border:0!important;border-bottom:1px solid #e8e5e2!important;border-radius:0!important;box-shadow:none!important}
+#frPlainApp #mainApp [style*="background:"]:not(canvas):not(img):not(video){background:transparent!important}
+#frPlainApp .material-suggestions{background:#fff!important;border-radius:0!important;box-shadow:none!important;border:0!important;border-bottom:1px solid #aaa!important}
+#frPlainApp .fr-doc-shutter{border-radius:50%!important;background:#fff!important;border:4px solid #aaa!important}
+#frPlainApp .fr-doc-scan-tool{color:white!important}
+@media(max-width:480px){#frPlainApp #mainApp{padding:16px}#frPlainApp #mainApp .card{padding:20px 0}#frPlainApp #mainApp .actions{gap:0}#frPlainApp #mainApp .actions button{text-align:left;padding-left:0}}
+}
+
+
+@media screen{#frPlainApp #mainApp :is(.docscan-capture,.scanbot-license-box,.scanbot-trial-link,.docscan-item){border:0!important;border-bottom:1px solid #e8e5e2!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}#frPlainApp #mainApp .docscan-corner{display:none!important}#frPlainApp #mainApp .docscan-capture{min-height:120px!important;padding:20px 0!important}#frPlainApp #mainApp .docscan-empty{padding:12px 0!important}#frPlainApp #mainApp .scan-icon{font-size:32px!important}#frPlainApp #mainApp .docscan-preview-img{border-radius:0!important}}
+</style>
 </head>
-<body>
+<body id="frPlainApp">
 <div id="accountScreen" class="accountScreen">
   <div class="accountBox">
     <h2>FR Rechnung</h2>
