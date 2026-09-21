@@ -894,6 +894,9 @@ label{font-weight:700}
 .fr-scan-workspace{background:#26272b;padding:20px;border-radius:16px;text-align:center}.fr-scan-workspace canvas{display:block;max-width:100%;max-height:48dvh;width:auto;height:auto;margin:auto;touch-action:none}
 .fr-scan-tools,.fr-scan-footer{display:flex;gap:8px;margin:12px 0}.fr-scan-tools .btn,.fr-scan-footer .btn{flex:1;min-width:0;margin:0;padding:12px 8px;font-size:15px}.fr-scan-panel select{width:100%;box-sizing:border-box;min-height:48px}.fr-scan-panel label{font-size:16px}
 .fr-scan-review.hidden{display:none}
+
+/* FR appointment calendar */
+.fr-cal-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.fr-cal-toolbar button{width:auto;min-height:44px}.fr-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin:16px 0}.fr-cal-grid button{position:relative;min-width:0;width:100%;min-height:48px;padding:6px 0;border:1px solid #ddd;border-radius:10px;background:#fff;color:#222;font-size:16px}.fr-cal-grid button.selected{background:#b9362e;color:white;border-color:#b9362e}.fr-cal-grid button.today{box-shadow:inset 0 0 0 2px #b9362e}.fr-cal-grid small{text-align:center;color:#666;padding:4px 0}.fr-cal-dot{display:block;font-size:11px;line-height:12px}.fr-cal-event{border:1px solid #ddd;border-left:4px solid #b9362e;border-radius:12px;padding:14px;margin:12px 0;overflow-wrap:anywhere}.fr-cal-event p{white-space:pre-wrap;margin:8px 0}.fr-cal-actions{display:flex;flex-wrap:wrap;gap:8px}.fr-cal-actions button{width:auto;min-height:44px}.fr-cal-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.fr-cal-fields input{min-width:0;width:100%;box-sizing:border-box}#frCalendar label{display:block;margin-top:12px}#frCalendar textarea{box-sizing:border-box;width:100%;min-height:90px}#frCalEditor{border-top:1px solid #ddd;margin-top:20px;padding-top:12px}#frCalStatus{margin:12px 0} @media(max-width:420px){.fr-cal-fields{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -949,11 +952,28 @@ label{font-weight:700}
 
   <div class="tabs">
     <button class="tab" onclick="home()">Übersicht</button>
+    <button class="tab" onclick="frShowCalendar()">Kalender</button>
     <button class="tab" onclick="showForm('Angebot')">Angebote</button>
     <button class="tab" onclick="showForm('Rechnung')">Rechnungen</button>
     <button class="tab" onclick="showTrash()">Papierkorb</button>
     <button class="tab" onclick="settings()">Einstellungen</button>
   </div>
+
+<section id="frCalendar" class="card hidden" aria-labelledby="frCalTitle">
+<button class="settings-back" onclick="home()">‹ Übersicht</button><h2 id="frCalTitle">Kalender / Termine</h2>
+<p class="small">Termine werden für dein FR-Konto auf diesem Gerät gespeichert. Für eine Kopie im iPhone-Kalender: Termin → Kalender-Datei.</p>
+<div class="fr-cal-toolbar"><button type="button" class="btn outline" aria-label="Vorheriger Monat" onclick="frCalMonth(-1)">‹</button><strong id="frCalMonthLabel"></strong><button type="button" class="btn outline" aria-label="Nächster Monat" onclick="frCalMonth(1)">›</button></div>
+<div class="fr-cal-actions"><button class="btn outline" onclick="frCalToday()">Heute</button><button class="btn" onclick="frCalEdit()">+ Neuer Termin</button></div>
+<div id="frCalGrid" class="fr-cal-grid" aria-label="Monatskalender"></div><h3 id="frCalDayLabel"></h3><div id="frCalList"></div>
+<details><summary>Kommende Termine</summary><div id="frCalUpcoming"></div></details>
+<p id="frCalStatus" role="status" aria-live="polite"></p>
+<form id="frCalEditor" class="hidden" onsubmit="frCalSave(event)"><h3 id="frCalEditorTitle">Neuer Termin</h3>
+<label for="frCalName">Termin *</label><input id="frCalName" required maxlength="160" placeholder="z.B. Besichtigung, Fliesen verlegen">
+<div class="fr-cal-fields"><div><label for="frCalDate">Datum *</label><input id="frCalDate" type="date" required></div><div><label for="frCalTime">Beginn *</label><input id="frCalTime" type="time" required></div><div><label for="frCalEnd">Ende *</label><input id="frCalEnd" type="time" required></div></div>
+<label for="frCalCustomer">Kunde</label><input id="frCalCustomer" maxlength="200" placeholder="Name des Kunden">
+<label for="frCalPlace">Baustelle / Adresse</label><input id="frCalPlace" maxlength="300" placeholder="Straße, Ort">
+<label for="frCalNote">Notizen</label><textarea id="frCalNote" maxlength="4000" placeholder="Material, Arbeiten, Telefonnummer …"></textarea>
+<div class="fr-cal-actions"><button class="btn" type="submit">Termin speichern</button><button class="btn outline" type="button" onclick="frCalClose()">Abbrechen</button></div></form></section>
 
   <div id="home" class="card photo-overview">
     <div id="overviewMenu">
@@ -967,6 +987,7 @@ label{font-weight:700}
         <button class="settings-menu-item" onclick="showOverviewSection('stats')"><span>Auswertung</span><span>›</span></button>
         <button class="settings-menu-item" onclick="showMessen()"><span>📐 Messen</span><span>›</span></button>
         <button class="settings-menu-item" onclick="showRegiestunden()"><span>⏱️ Regiestunden PDF</span><span>›</span></button>
+        <button class="settings-menu-item" onclick="frShowCalendar()"><span>📅 Kalender / Termine</span><span>›</span></button>
         <button class="settings-menu-item" onclick="showDocuments()"><span>📄 Dokumente / Scanner</span><span>›</span></button>
       </div>
     </div>
@@ -3289,7 +3310,7 @@ function setInvoiceContext(kind='Rechnung',offerNr='',percent=0){
   const title=document.getElementById('formTitle');
   if(title && docType==='Rechnung') title.textContent='Neue '+currentDocumentLabel();
 }
-const H=['home','form','settings','trash','messen','regie','documents'];
+const H=['home','form','settings','trash','messen','regie','documents','frCalendar'];
 const units=['m²','lfm','Std.','Stk.','ST','Sack','Dose','m','Kübel','SET','5 KG','20 KG','Kanister','Pauschal','kg'];
 let itemCount=0;
 
@@ -8117,5 +8138,26 @@ document.addEventListener('visibilitychange',()=>{
     <div class="fr-scan-footer"><button class="btn outline" type="button" onclick="frPreviewScan()">Vorschau prüfen</button><button id="frScanApply" class="btn" type="button" onclick="frApplyScan()">Scan übernehmen</button></div>
   </div>
 </div>
+<script>
+let frCalSelected='',frCalView='',frCalOwner='',frCalEditing='';
+function frCalEl(id){return document.getElementById(id)}
+function frCalLocalDate(d=new Date()){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function frCalMessage(s){frCalEl('frCalStatus').textContent=s}
+function frCalRead(){const data=JSON.parse(localStorage.getItem(userKey('frAppointments'))||'[]');if(!Array.isArray(data))throw Error('Termindaten können nicht gelesen werden.');return data}
+function frCalWrite(data){if(!cloudUser?.id||cloudUser.id!==frCalOwner)throw Error('Konto gewechselt. Kalender bitte erneut öffnen.');localStorage.setItem(userKey('frAppointments'),JSON.stringify(data))}
+function frShowCalendar(){if(!cloudUser?.id){alert('Bitte zuerst anmelden.');return}frCalOwner=cloudUser.id;frCalSelected=frCalLocalDate();frCalView=frCalSelected.slice(0,7);hide();frCalEl('frCalendar').classList.remove('hidden');frCalClose();frCalMessage('');frCalRender()}
+function frCalToday(){frCalSelected=frCalLocalDate();frCalView=frCalSelected.slice(0,7);frCalRender()}
+function frCalMonth(delta){const d=new Date(frCalView+'-01T12:00:00');d.setMonth(d.getMonth()+delta);frCalView=frCalLocalDate(d).slice(0,7);frCalSelected=frCalView+'-01';frCalRender()}
+function frCalButton(label,fn){const b=document.createElement('button');b.type='button';b.className='btn outline';b.textContent=label;b.onclick=fn;return b}
+function frCalCard(x){const card=document.createElement('article');card.className='fr-cal-event';const title=document.createElement('strong');title.textContent=x.time+'–'+x.end+' · '+x.title;card.append(title);const p=document.createElement('p');p.textContent=[new Date(x.date+'T12:00:00').toLocaleDateString('de-AT'),x.customer,x.place,x.note].filter(Boolean).join('\n');card.append(p);const actions=document.createElement('div');actions.className='fr-cal-actions';actions.append(frCalButton('Bearbeiten',()=>frCalEdit(x.id)),frCalButton('Kalender-Datei',()=>frCalExport(x.id)),frCalButton('Löschen',()=>frCalDelete(x.id)));card.append(actions);return card}
+function frCalRender(){try{if(cloudUser?.id!==frCalOwner)throw Error('Kalender bitte erneut öffnen.');const data=frCalRead().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));const first=new Date(frCalView+'-01T12:00:00');frCalEl('frCalMonthLabel').textContent=first.toLocaleDateString('de-AT',{month:'long',year:'numeric'});const grid=frCalEl('frCalGrid');grid.replaceChildren();for(const day of ['Mo','Di','Mi','Do','Fr','Sa','So']){const el=document.createElement('small');el.textContent=day;grid.append(el)}for(let i=0;i<(first.getDay()+6)%7;i++)grid.append(document.createElement('span'));const count=new Date(first.getFullYear(),first.getMonth()+1,0).getDate();for(let n=1;n<=count;n++){const date=frCalView+'-'+String(n).padStart(2,'0');const events=data.filter(x=>x.date===date);const b=frCalButton(String(n),()=>{frCalSelected=date;frCalRender()});b.className=(date===frCalSelected?'selected ':'')+(date===frCalLocalDate()?'today':'');b.setAttribute('aria-pressed',String(date===frCalSelected));b.setAttribute('aria-label',date+', '+events.length+' Termine');if(events.length){const dot=document.createElement('span');dot.className='fr-cal-dot';dot.textContent='• '+events.length;b.append(dot)}grid.append(b)}frCalEl('frCalDayLabel').textContent=new Date(frCalSelected+'T12:00:00').toLocaleDateString('de-AT',{weekday:'long',day:'numeric',month:'long'});for(const [id,rows] of [['frCalList',data.filter(x=>x.date===frCalSelected)],['frCalUpcoming',data.filter(x=>x.date>=frCalLocalDate()).slice(0,30)]]){const list=frCalEl(id);list.replaceChildren();if(!rows.length)list.textContent='Keine Termine.';rows.forEach(x=>list.append(frCalCard(x)))}}catch(e){frCalMessage(e.message)}}
+function frCalClose(){frCalEl('frCalEditor').classList.add('hidden');frCalEditing=''}
+function frCalEdit(id){try{if(cloudUser?.id!==frCalOwner)throw Error('Kalender bitte erneut öffnen.');const x=id?frCalRead().find(x=>x.id===id):null;if(id&&!x)throw Error('Termin nicht gefunden.');frCalEditing=id||'';frCalEl('frCalEditor').reset();for(const [field,key,fallback] of [['Name','title',''],['Date','date',frCalSelected],['Time','time','08:00'],['End','end','09:00'],['Customer','customer',''],['Place','place',''],['Note','note','']])frCalEl('frCal'+field).value=x?.[key]??fallback;frCalEl('frCalEditorTitle').textContent=id?'Termin bearbeiten':'Neuer Termin';frCalEl('frCalEditor').classList.remove('hidden');frCalEl('frCalEditor').scrollIntoView({behavior:'smooth',block:'start'})}catch(e){frCalMessage(e.message)}}
+function frCalSave(e){e.preventDefault();try{const val=k=>frCalEl('frCal'+k).value.trim();const x={id:frCalEditing||crypto.randomUUID(),title:val('Name'),date:val('Date'),time:val('Time'),end:val('End'),customer:val('Customer'),place:val('Place'),note:val('Note'),updatedAt:new Date().toISOString()};if(!x.title||!x.date||!x.time||!x.end)throw Error('Bitte Termin, Datum und Uhrzeiten ausfüllen.');if(x.end<=x.time)throw Error('Das Ende muss nach dem Beginn am selben Tag liegen.');const data=frCalRead();if(frCalEditing&&!data.some(v=>v.id===frCalEditing))throw Error('Termin wurde inzwischen entfernt.');const overlap=data.some(v=>v.id!==x.id&&v.date===x.date&&v.time<x.end&&v.end>x.time);if(overlap&&!confirm('Dieser Zeitraum überschneidet sich mit einem anderen Termin. Trotzdem speichern?'))return;frCalWrite([...data.filter(v=>v.id!==x.id),x]);frCalSelected=x.date;frCalView=x.date.slice(0,7);frCalClose();frCalRender();frCalMessage('Termin gespeichert.')}catch(err){frCalMessage(err.message)}}
+function frCalDelete(id){try{if(!confirm('Diesen Termin löschen?'))return;frCalWrite(frCalRead().filter(x=>x.id!==id));if(frCalEditing===id)frCalClose();frCalRender();frCalMessage('Termin gelöscht.')}catch(e){frCalMessage(e.message)}}
+function frCalIcs(x){const esc=s=>String(s||'').replace(/\\/g,'\\\\').replace(/\r?\n/g,'\\n').replace(/;/g,'\\;').replace(/,/g,'\\,');const stamp=t=>new Date(x.date+'T'+t+':00').toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//FR Fliesen Rechteck//Termine//DE','CALSCALE:GREGORIAN','BEGIN:VEVENT','UID:'+x.id+'@fr-app','DTSTAMP:'+new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,''),'DTSTART:'+stamp(x.time),'DTEND:'+stamp(x.end),'SUMMARY:'+esc(x.title),'LOCATION:'+esc(x.place),'DESCRIPTION:'+esc([x.customer,x.note].filter(Boolean).join('\n')),'END:VEVENT','END:VCALENDAR'];return lines.map(line=>{let result='',size=0;for(const char of line){const bytes=new TextEncoder().encode(char).length;if(size+bytes>73){result+='\r\n ';size=1}result+=char;size+=bytes}return result}).join('\r\n')+'\r\n'}
+function frCalExport(id){try{if(cloudUser?.id!==frCalOwner)throw Error('Kalender bitte erneut öffnen.');const x=frCalRead().find(v=>v.id===id);if(!x)throw Error('Termin nicht gefunden.');const blob=new Blob([frCalIcs(x)],{type:'text/calendar;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='FR-Termin-'+x.date+'.ics';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);frCalMessage('Kalender-Datei erstellt. Im Kalender öffnen und hinzufügen. Zeiten entsprechen der Zeitzone dieses Geräts.')}catch(e){frCalMessage(e.message)}}
+
+</script>
 </body>
 </html>
