@@ -1479,12 +1479,13 @@ label{font-weight:700}
 
     <div id="settings-chatgpt" class="settings-section hidden">
       <button class="settings-back" onclick="settingsBack()">‹ Einstellungen</button>
-      <h2>ChatGPT Import</h2>
-      <p class="small">Der Import-Schlüssel wird nur auf diesem Gerät gespeichert.</p>
+      <h2>FR Assistent</h2>
+      <p class="small">Rechnungen, Angebote und Regiestunden aus dem Chat werden bei geöffneter App automatisch abgerufen. Der Schlüssel wird nur auf diesem Gerät gespeichert.</p>
       <label>Import-Schlüssel</label>
       <input id="chatgptImportToken" type="password" placeholder="Import-Schlüssel">
       <div class="actions" style="margin-top:10px">
         <button class="btn outline" onclick="saveChatgptImportToken()">Schlüssel speichern</button>
+        <button class="btn outline" onclick="checkChatgptImportToken()">Verbindung prüfen</button>
         <button class="btn outline" onclick="pullChatgptInvoices(true)">ChatGPT Import abrufen</button>
       </div>
       <p class="small" id="chatgptImportStatus">Noch nicht eingerichtet.</p>
@@ -2322,6 +2323,7 @@ function invoiceToCloudRow(x){
       const arr=Array.isArray(x.items)?x.items.map(it=>({...it})):[];
       if(arr.length){
         arr[0]._frmeta={
+          sourceImportId:x.sourceImportId||'',sourceCreatedAt:x.sourceCreatedAt||'',
           invoiceKind:x.invoiceKind||'Rechnung',
           offerNr:x.offerNr||'',
           anzahlungPercent:Number(x.anzahlungPercent||0),
@@ -2354,7 +2356,7 @@ function cloudRowToInvoice(row){
     invoiceKind:meta.invoiceKind||'Rechnung',offerNr:meta.offerNr||'',anzahlungPercent:Number(meta.anzahlungPercent||0),
     paidAt:meta.paidAt||'',bankMatch:meta.bankMatch||null,
     net:net,ust:ust,total:Number(row.total||net+ust),paid:!!row.paid,
-    savedAt:row.updated_at||row.created_at||new Date().toISOString(),source:'cloud'
+    savedAt:row.updated_at||row.created_at||new Date().toISOString(),source:'cloud',sourceImportId:meta.sourceImportId||'',sourceCreatedAt:meta.sourceCreatedAt||''
   };
 }
 async function cloudUpsertInvoice(x){
@@ -2905,7 +2907,8 @@ function saveChatgptImportToken(){
   const v=(el&&el.value||'').trim();
   if(!v){ alert('Bitte Import-Schlüssel eingeben.'); return; }
   localStorage.setItem(userKey(FR_IMPORT_TOKEN_KEY),v);
-  updateChatgptImportStatus('Schlüssel gespeichert.');
+  updateChatgptImportStatus('Schlüssel gespeichert. Verbindung wird geprüft …');
+  checkChatgptImportToken();
 }
 function updateChatgptImportStatus(msg){
   const s=document.getElementById('chatgptImportStatus');
@@ -2913,50 +2916,58 @@ function updateChatgptImportStatus(msg){
   if(msg){s.textContent=msg;return;}
   s.textContent=localStorage.getItem(userKey(FR_IMPORT_TOKEN_KEY))?'Import-Schlüssel gespeichert.':'Noch nicht eingerichtet.';
 }
-async function pullChatgptInvoices(showMessage){
-  const token=localStorage.getItem(userKey(FR_IMPORT_TOKEN_KEY))||'';
-  if(!token){
-    if(showMessage) alert('Bitte zuerst Import-Schlüssel speichern.');
-    return;
-  }
-
+let frImportBusy=false;
+async function checkChatgptImportToken(){
+  const token=(localStorage.getItem(userKey(FR_IMPORT_TOKEN_KEY))||'').trim();
+  if(!token){updateChatgptImportStatus('Bitte zuerst Schlüssel speichern.');return false;}
+  const owner=userKey(FR_IMPORT_TOKEN_KEY);
   try{
-    const r=await fetch('/api/import?mode=pull&token='+encodeURIComponent(token),{cache:'no-store'});
+    const r=await fetch('/api/import?mode=check',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
     const d=await r.json();
-    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
-
-    const remote=Array.isArray(d.invoices)?d.invoices:[];
-    let local=getInvoices();
-
-    function nextInvoiceNumber(dateValue){
-      const date=dateValue ? new Date(dateValue) : new Date();
-      const year=date.getFullYear();
-      const month=String(date.getMonth()+1).padStart(2,'0');
-      const prefix=year+'-'+month+'-';
-      let max=0;
-      for(const inv of local){
-        const nr=String(inv.nr||'');
-        if(nr.startsWith(prefix)){
-          const n=parseInt(nr.slice(prefix.length),10);
-          if(!isNaN(n) && n>max) max=n;
-        }
-      }
-      return prefix+String(max+1).padStart(2,'0');
-    }
-
+    if(owner!==userKey(FR_IMPORT_TOKEN_KEY))return false;
+    if(!r.ok||!d.ok)throw new Error(d.code||d.error||('HTTP '+r.status));
+    updateChatgptImportStatus('Verbindung geprüft. Rechnung, Angebot und Regiestunden bereit.');
+    return true;
+  }catch(e){updateChatgptImportStatus('Verbindung fehlgeschlagen: '+e.message);return false;}
+}
+async function pullChatgptInvoices(showMessage){
+  if(frImportBusy||!cloudUser||frOfflinePinMode||frManualAccountEntry)return;
+  const owner=userKey(FR_IMPORT_TOKEN_KEY);
+  const token=(localStorage.getItem(owner)||'').trim();
+  if(!token){if(showMessage)alert('Bitte zuerst Import-Schlüssel speichern.');return;}
+  const assertOwner=()=>{if(owner!==userKey(FR_IMPORT_TOKEN_KEY))throw new Error('Benutzerkonto gewechselt. Bitte erneut abrufen.');};
+  frImportBusy=true;
+  try{
+    const r=await fetch('/api/import?mode=pull',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+    const d=await r.json();
+    assertOwner();
+    if(!r.ok||!d.ok)throw new Error(d.code||d.error||('HTTP '+r.status));
+    if(!Array.isArray(d.invoices))throw new Error('Ungültige Import-Antwort');
     let imported=0;
-
-    for(const row of remote){
+    const ack=[];
+    for(const row of d.invoices){
+      assertOwner();
+      const kind=row.document_type||'Rechnung';
+      if(!['Rechnung','Angebot','Regiestunden'].includes(kind))throw new Error('Unbekannter Dokumenttyp');
+      const sourceId=String(row.import_id||'');
       const sourceCreatedAt=String(row.created_at||'');
-      const alreadyExists=local.some(inv => sourceCreatedAt && String(inv.sourceCreatedAt||'')===sourceCreatedAt);
-      if(alreadyExists) continue;
-
-      const date=row.invoice_date||new Date().toISOString().slice(0,10);
-      const invoiceNumber=row.invoice_number||nextInvoiceNumber(date);
-
-      // Novi račun sme ponovo koristiti broj koji je ranije bio obrisan.
-      unmarkInvoiceDeleted(invoiceNumber);
-
+      const existing=[...getInvoices(),...getOffers(),...getRegieDrafts()].some(x=>
+        sourceId ? String(x.sourceImportId||'')===sourceId : sourceCreatedAt&&x.sourceCreatedAt===sourceCreatedAt);
+      if(existing){if(sourceId)ack.push(sourceId);continue;}
+      if(kind==='Regiestunden'){
+        const x={id:sourceId?'REG-IMPORT-'+sourceId:regieDraftId(),
+          bauvorhaben:[row.customer_name,row.baustelle].filter(Boolean).join(' · '),
+          arbeiten:row.arbeiten||'',arbeitszeit:row.arbeitszeit||(row.hours!=null?String(row.hours)+' Std.':''),
+          datum:row.work_date||row.invoice_date||new Date().toISOString().slice(0,10),
+          facharbeiter:row.facharbeiter||'',material:row.material||'',
+          sigDienstnehmer:'',sigChef:'',sigBauleiter:'',status:'Entwurf',
+          savedAt:new Date().toISOString(),source:'chatgpt-api',sourceImportId:sourceId,sourceCreatedAt};
+        setRegieDrafts([x,...getRegieDrafts()]);
+      }else{
+        const date=row.invoice_date||new Date().toISOString().slice(0,10);
+        const local=kind==='Angebot'?getOffers():getInvoices();
+        const invoiceNumber=row.invoice_number||nextDocNumber(kind,date);
+        if(local.some(x=>x.nr===invoiceNumber))throw new Error('Dokumentnummer bereits vorhanden: '+invoiceNumber);
       const items=[];
 
       if(Number(row.wand_m2||0)>0){
@@ -2986,7 +2997,9 @@ async function pullChatgptInvoices(showMessage){
 
       const x={
         id:invoiceNumber,
-        type:'Rechnung',
+        type:kind,
+        status:kind==='Angebot'?'Offen':undefined,
+        sourceImportId:sourceId,
         nr:invoiceNumber,
         date,
         kunde:row.customer_name||'',
@@ -3011,19 +3024,31 @@ async function pullChatgptInvoices(showMessage){
         sourceCreatedAt
       };
 
-      local.unshift(x);
-      imported++;
-    }
 
-    local.sort((a,b)=>String(b.savedAt||'').localeCompare(String(a.savedAt||'')));
-    setInvoices(local);
-    renderDashboard();
-    updateChatgptImportStatus('Importiert: '+imported+' Rechnung(en).');
-    if(showMessage) alert('ChatGPT Import fertig: '+imported+' Rechnung(en)');
+        if(kind==='Angebot')setOffers([x,...local]);
+        else {unmarkInvoiceDeleted(invoiceNumber);setInvoices([x,...local]);}
+      }
+      imported++;
+      if(sourceId)ack.push(sourceId);
+    }
+    // Only acknowledge rows after their destination storage writes succeeded.
+    if(ack.length){
+      assertOwner();
+      const r=await fetch('/api/import?mode=ack',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({ids:ack})});
+      const d=await r.json();
+      assertOwner();
+      if(!r.ok||!d.ok)throw new Error('Lokal gespeichert; Empfangsbestätigung wird beim nächsten Abruf wiederholt.');
+    }
+    renderDashboard();renderRegieDrafts();
+    updateChatgptImportStatus('Importiert: '+imported+' Dokument(e).');
+    if(showMessage)alert('FR Import fertig: '+imported+' Dokument(e).');
   }catch(e){
-    updateChatgptImportStatus('Fehler: '+(e&&e.message?e.message:e));
-    if(showMessage) alert('ChatGPT Import Fehler: '+(e&&e.message?e.message:e));
-  }
+    if(owner===userKey(FR_IMPORT_TOKEN_KEY)){
+      renderDashboard();renderRegieDrafts();
+      updateChatgptImportStatus('Fehler: '+e.message);
+      if(showMessage)alert('FR Import: '+e.message);
+    }
+  }finally{frImportBusy=false;}
 }
 
 function b64urlEncode(buf){
@@ -7686,6 +7711,7 @@ async function frAutoRefresh(){
   try{await autoPullChatgptInvoices();await autoCloudSync();}catch(e){console.warn('FR Hintergrund-Sync nicht beendet.');}
 }
 setTimeout(frAutoRefresh,1200);
+setInterval(()=>{if(document.visibilityState==='visible')frAutoRefresh();},20000);
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible') setTimeout(frAutoRefresh,300);
 });
