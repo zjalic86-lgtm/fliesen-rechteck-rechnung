@@ -7,6 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>FR Fliesen Rechteck</title>
+<!-- FR v131: private Aufträge feed; original invoices, calendar and authentication preserved. -->
 <!-- FR Rechnung V130: E-Mail / Passwort zuerst; lokaler PIN nur als Reserve -->
 <link rel="manifest" href="/fr-manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -947,6 +948,49 @@ body#frPlainApp{background:#fff;color:#242424}
 
 @media screen{#frPlainApp #mainApp :is(.docscan-capture,.scanbot-license-box,.scanbot-trial-link,.docscan-item){border:0!important;border-bottom:1px solid #e8e5e2!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}#frPlainApp #mainApp .docscan-corner{display:none!important}#frPlainApp #mainApp .docscan-capture{min-height:120px!important;padding:20px 0!important}#frPlainApp #mainApp .docscan-empty{padding:12px 0!important}#frPlainApp #mainApp .scan-icon{font-size:32px!important}#frPlainApp #mainApp .docscan-preview-img{border-radius:0!important}}
 </style>
+<style id="frJobsDesign">
+/* FR v131: private, open-list work enquiries. No changes to document layouts. */
+#frJobs{--fr-jobs-accent:#ae332b;line-height:1.5}
+#frJobs .fr-jobs-kicker{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#777;margin:0 0 7px}
+#frJobs h2{font-size:clamp(27px,6vw,36px);letter-spacing:-.75px;line-height:1.16;margin:0 0 10px}
+#frJobs .fr-jobs-subtitle{font-size:16px;margin:0 0 20px;color:#64605d}
+#frJobs .fr-jobs-sync{border-top:1px solid #e8e5e2;border-bottom:1px solid #e8e5e2;padding:14px 0;margin:16px 0 22px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+#frJobs .fr-jobs-sync p{margin:0;font-size:14px}
+#frJobs .fr-jobs-sync strong{font-size:15px}
+#frJobs .fr-jobs-sync button{width:auto;flex-shrink:0;font-size:15px;padding:8px 0;margin:0}
+#frJobs .fr-jobs-sync .fr-jobs-warning{color:#8e420b}
+#frJobs .fr-jobs-filters{display:flex;gap:20px;overflow-x:auto;scrollbar-width:thin;border-bottom:1px solid #e8e5e2;margin-bottom:15px}
+#frJobs .fr-jobs-filters button{font:inherit;font-size:15px;font-weight:600;white-space:nowrap;padding:12px 0;min-height:44px;border:0;background:transparent;color:#777!important}
+#frJobs .fr-jobs-filters button[aria-pressed=true]{color:#ae332b!important;box-shadow:inset 0 -2px #ae332b!important}
+#frJobs label{font-size:14px;font-weight:600}
+#frJobs .fr-jobs-search{display:grid;grid-template-columns:minmax(0,1fr) 100px;gap:18px;margin:0 0 4px}
+#frJobs .fr-jobs-search input,#frJobs .fr-jobs-search select{width:100%;min-width:0}
+#frJobs .fr-jobs-row{padding:23px 0;border-bottom:1px solid #e8e5e2;overflow-wrap:anywhere}
+#frJobs .fr-jobs-meta{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:#696562;margin:0 0 7px;align-items:baseline}
+#frJobs .fr-jobs-state{font-size:12px;letter-spacing:.03em;font-weight:750;white-space:nowrap;color:#ae332b}
+#frJobs .fr-jobs-row h3{font-size:20px;line-height:1.35;margin:0 0 8px;letter-spacing:-.2px}
+#frJobs .fr-jobs-location{font-size:15px;font-weight:650;margin:0 0 8px}
+#frJobs .fr-jobs-description{font-size:15px;color:#494542;white-space:pre-line;margin:0 0 12px}
+#frJobs .fr-jobs-controls{display:flex;justify-content:space-between;align-items:center;gap:18px}
+#frJobs .fr-jobs-controls a{color:#ae332b;min-height:44px;display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-size:16px;font-weight:750}
+#frJobs a:focus-visible{outline:2px solid #ae332b;outline-offset:4px}
+#frJobs a:hover{text-decoration:underline}
+#frJobs .fr-jobs-controls select{max-width:175px;margin:0;font-size:14px;font-weight:600;min-height:44px}
+#frJobs details{font-size:14px;margin-top:10px;color:#666}
+#frJobs summary{min-height:44px;cursor:pointer;display:list-item;padding:10px 0;box-sizing:border-box}
+#frJobs details p{margin:6px 0;white-space:pre-line}
+#frJobs .fr-jobs-empty{padding:38px 0;border-bottom:1px solid #e8e5e2}
+#frJobs .fr-jobs-empty h3{font-size:21px;line-height:1.3;margin:0 0 8px}
+#frJobs .fr-jobs-empty p{font-size:15px;color:#666;margin:0;max-width:540px}
+#frJobs .fr-jobs-status{font-size:14px;color:#815321;margin:8px 0}
+#frJobs .fr-jobs-status:empty{display:none}
+#frJobs .fr-jobs-footnote{font-size:12px;color:#777;margin:18px 0 0}
+.fr-jobs-count{font:inherit;font-size:12px;font-weight:800;color:#ae332b;margin-left:6px}
+#frJobsTitle:focus{outline:none}
+#frJobs [hidden],.fr-jobs-count[hidden]{display:none!important}
+@media(max-width:380px){#frJobs .fr-jobs-controls{gap:12px}#frJobs .fr-jobs-controls select{max-width:150px}#frJobs .fr-jobs-sync{gap:8px}#frJobs .fr-jobs-sync button{font-size:14px}}
+
+</style>
 </head>
 <body id="frPlainApp">
 <div id="accountScreen" class="accountScreen">
@@ -968,7 +1012,7 @@ body#frPlainApp{background:#fff;color:#242424}
       <details class="account-new"><summary>Noch kein FR-Konto?</summary>
         <button class="btn outline" type="button" onclick="accountSignUp()">Neues Konto erstellen</button>
       </details>
-      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v130</div>
+      <div id="accountBuildVersion" class="small" style="text-align:center;margin-top:10px;opacity:.65">v131</div>
     </form>
 
     <div id="accountRecovery" class="hidden">
@@ -1002,11 +1046,45 @@ body#frPlainApp{background:#fff;color:#242424}
   <div class="tabs">
     <button class="tab" onclick="home()">Übersicht</button>
     <button class="tab" onclick="frShowCalendar()">Kalender</button>
+    <button class="tab" type="button" onclick="frShowJobs()">Aufträge <span class="fr-jobs-count" data-fr-jobs-count hidden></span></button>
     <button class="tab" onclick="showForm('Angebot')">Angebote</button>
     <button class="tab" onclick="showForm('Rechnung')">Rechnungen</button>
     <button class="tab" onclick="showTrash()">Papierkorb</button>
     <button class="tab" onclick="settings()">Einstellungen</button>
   </div>
+
+<section id="frJobs" class="card hidden" aria-labelledby="frJobsTitle">
+  <button class="settings-back" type="button" onclick="home()">‹ Übersicht</button>
+  <p class="fr-jobs-kicker">Neue Anfragen für deine Firma</p>
+  <h2 id="frJobsTitle" tabindex="-1">Aufträge in der Nähe</h2>
+  <p class="fr-jobs-subtitle">Fliesenarbeiten · Wels und Umgebung · bis 50 km</p>
+  <div class="fr-jobs-sync">
+    <div><strong id="frJobsWatchLabel">Suchstatus wird geprüft</strong><p id="frJobsWatchTime" class="small">Noch kein bestätigter Suchlauf.</p></div>
+    <button id="frJobsRefreshButton" class="btn outline" type="button" onclick="frJobsRefresh(true)">↻ Aktualisieren</button>
+  </div>
+  <div class="fr-jobs-filters" role="group" aria-label="Aufträge nach Bearbeitungsstatus filtern">
+    <button type="button" data-fr-jobs-filter="alle" aria-pressed="true">Alle</button>
+    <button type="button" data-fr-jobs-filter="neu" aria-pressed="false">Neu <span id="frJobsNewTotal"></span></button>
+    <button type="button" data-fr-jobs-filter="gemerkt" aria-pressed="false">Gemerkt</button>
+    <button type="button" data-fr-jobs-filter="kontaktiert" aria-pressed="false">Kontaktiert</button>
+    <button type="button" data-fr-jobs-filter="uninteressant" aria-pressed="false">Ausgeblendet</button>
+  </div>
+  <div class="fr-jobs-search">
+    <div><label for="frJobsSearch">Ort oder Arbeit suchen</label><input id="frJobsSearch" type="search" placeholder="z. B. Linz, Bad, Terrasse" maxlength="180" autocomplete="off"></div>
+    <div><label for="frJobsRadius">Anzeige</label><select id="frJobsRadius"><option value="50">50 km</option><option value="25">25 km</option><option value="10">10 km</option></select></div>
+  </div>
+  <p id="frJobsMessage" class="fr-jobs-status" role="status" aria-live="polite"></p>
+  <div id="frJobsList" aria-busy="false"></div>
+  <p id="frJobsLoadedAt" class="fr-jobs-footnote"></p>
+  <details>
+    <summary>Wie wird die Liste aktualisiert?</summary>
+    <p>Die eingerichtete ChatGPT-Suche ist stündlich geplant. Erfolgreich in FR gespeicherte Treffer erscheinen hier automatisch, auch wenn die App während der Suche geschlossen war. Die offene App lädt die Liste etwa einmal pro Minute neu.</p>
+    <p>Aktualisieren lädt gespeicherte Treffer aus FR; es startet keine neue Internetsuche. Letzte Suche zeigt nur einen tatsächlich bestätigten Suchlauf. Ohne bestätigten Suchlauf bedeutet eine leere Liste nicht, dass es keine Aufträge gibt.</p>
+    <p>Berücksichtigt werden konkrete Anfragen für selbstständige Fliesenleger und Firmen. Keine Werbung anderer Handwerker und keine Stellenanzeigen. Öffentlich zugängliche Quellen werden geprüft; geschützte Inhalte werden nicht ausgelesen. Die Liste ist nicht vollständig.</p>
+    <p>Entfernungen sind Schätzwerte. Datum des Inserats und Datum des Fundes werden getrennt angezeigt. Ob ein Auftrag noch verfügbar ist, bitte im Original prüfen. Neu bezeichnet einen noch nicht bearbeiteten Treffer.</p>
+    <p>Original öffnen führt zur fremden Plattform. Dort können Anmeldung oder Gebühren erforderlich sein. FR sendet keine Nachricht, bekundet kein Interesse und kauft keinen Kontakt. Kontaktiert ist nur deine eigene Markierung.</p>
+  </details>
+</section>
 
 <section id="frCalendar" class="card hidden" aria-labelledby="frCalTitle">
 <button class="settings-back" onclick="home()">‹ Übersicht</button><h2 id="frCalTitle">Kalender / Termine</h2>
@@ -1039,6 +1117,7 @@ body#frPlainApp{background:#fff;color:#242424}
         <button class="settings-menu-item" onclick="showMessen()"><span>📐 Messen</span><span>›</span></button>
         <button class="settings-menu-item" onclick="showRegiestunden()"><span>⏱️ Regiestunden PDF</span><span>›</span></button>
         <button class="settings-menu-item" onclick="frShowCalendar()"><span>📅 Kalender / Termine</span><span>›</span></button>
+        <button class="settings-menu-item" type="button" onclick="frShowJobs()"><span>Aufträge in der Nähe <b class="fr-jobs-count" data-fr-jobs-count hidden></b></span><span>›</span></button>
         <button class="settings-menu-item" onclick="showDocuments()"><span>📄 Dokumente / Scanner</span><span>›</span></button>
       </div>
     </div>
@@ -1519,7 +1598,7 @@ body#frPlainApp{background:#fff;color:#242424}
   <div id="settings" class="card hidden">
     <div id="settingsMenu">
       <h2>Einstellungen</h2>
-      <p class="small"><b>Version v130 · E-Mail + Passwort · iPhone / iPad / Laptop</b></p>
+      <p class="small"><b>Version v131 · E-Mail + Passwort · iPhone / iPad / Laptop</b></p>
 
       <div class="settings-menu">
         <button class="settings-menu-item" onclick="openSettingsSection('company')">
@@ -3361,7 +3440,7 @@ function setInvoiceContext(kind='Rechnung',offerNr='',percent=0){
   const title=document.getElementById('formTitle');
   if(title && docType==='Rechnung') title.textContent='Neue '+currentDocumentLabel();
 }
-const H=['home','form','settings','trash','messen','regie','documents','frCalendar'];
+const H=['home','form','settings','trash','messen','regie','documents','frCalendar','frJobs'];
 const units=['m²','lfm','Std.','Stk.','ST','Sack','Dose','m','Kübel','SET','5 KG','20 KG','Kanister','Pauschal','kg'];
 let itemCount=0;
 
@@ -8234,6 +8313,254 @@ if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('messag
 window.addEventListener('online',()=>frPushFlush());document.addEventListener('visibilitychange',()=>{if(!document.hidden){frPushFlush();frPushOpen()}});
 setInterval(()=>{frPushOpen();if(!document.hidden)frPushFlush()},60000);
 if(sb?.auth)sb.auth.onAuthStateChange((event,session)=>{setTimeout(async()=>{const old=localStorage.getItem('frPushDeviceOwner');if(old&&(!session||session.user.id!==old)){try{const reg=await navigator.serviceWorker?.getRegistration('/');if(reg){await frPushSetOwner(reg,'');await (await reg.pushManager.getSubscription())?.unsubscribe()}localStorage.removeItem('frPushDeviceOwner');localStorage.removeItem('frPushEnabled:'+old)}catch{}}frPushFlush();frPushOpen()},100)});
+
+</script>
+<script id="frJobsModule">
+/* FR v131 job feed. All lead/runs reads are owner-scoped and protected by RLS.
+   A browser refresh never masquerades as a completed internet search. */
+(function () {
+  'use strict';
+  const VERSION = 1;
+  const REFRESH_MS = 60000;
+  const MAX_ROWS = 500;
+  const STATUSES = {neu:'Neu', gemerkt:'Gemerkt', kontaktiert:'Kontaktiert', uninteressant:'Nicht interessant'};
+  let owner = '', epoch = -1, rows = [], settings = null, run = null, loadedAt = '', truncated = false;
+  let pending = {}, filter = 'alle', fetchJob = null, flushJob = null, lastFetch = 0, message = '';
+  const el = id => document.getElementById(id);
+  const uid = () => typeof cloudUser !== 'undefined' ? String(cloudUser?.id || '') : '';
+  const authEpoch = () => typeof frAuthUiEpoch === 'number' ? frAuthUiEpoch : 0;
+  const onlineAccount = () => !!uid() && !!sb && !frOfflinePinMode && !frManualAccountEntry;
+  const visible = () => !document.hidden && el('mainApp')?.style.display !== 'none';
+  const onPage = () => !el('frJobs')?.classList.contains('hidden');
+  const same = context => context.owner === uid() && context.epoch === authEpoch() && context.owner === owner && context.epoch === epoch;
+  const cacheKey = who => 'frJobsCache:v131:' + who;
+  const pendingKey = who => 'frJobsPending:v131:' + who;
+  const text = (value,max=1600) => typeof value === 'string' ? value.slice(0,max) : '';
+  const isId = value => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value || '');
+  function safeURL(value) {
+    try {
+      const u = new URL(value);
+      if (!['http:','https:'].includes(u.protocol) || u.username || u.password) return '';
+      if (u.hostname === 'localhost' || u.hostname.endsWith('.local') || !u.hostname.includes('.') || /^[\d.]+$/.test(u.hostname)) return '';
+      return u.href;
+    } catch { return ''; }
+  }
+  function dateLabel(value,withTime=false) {
+    if (!value) return 'nicht angegeben';
+    const parsed = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? value+'T12:00:00+02:00' : value);
+    if (!Number.isFinite(parsed.getTime())) return 'nicht angegeben';
+    return parsed.toLocaleString('de-AT',withTime ? {timeZone:'Europe/Vienna',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'} : {timeZone:'Europe/Vienna',day:'2-digit',month:'2-digit',year:'numeric'});
+  }
+  function storageRead(key,fallback) {
+    try { const value=JSON.parse(localStorage.getItem(key)||'null');return value ?? fallback; } catch { return fallback; }
+  }
+  function normalize(raw) {
+    if (!raw || raw.user_id !== owner || !isId(raw.id) || !safeURL(raw.source_url)) return null;
+    const km=Number(raw.distance_km);
+    if(raw.distance_km == null || !Number.isFinite(km) || km < 0 || km > 50 || !raw.title || !raw.location_label) return null;
+    const nested=Array.isArray(raw.fr_job_marks) ? raw.fr_job_marks[0] : null;
+    const mark=raw.mark || nested || {};
+    return {id:raw.id,user_id:owner,source_url:safeURL(raw.source_url),source_name:text(raw.source_name,100),title:text(raw.title,240),summary:text(raw.summary),location_label:text(raw.location_label,180),distance_km:km,distance_basis:text(raw.distance_basis,240),quantity_text:text(raw.quantity_text,240),published_on:text(raw.published_on,10),availability:['open','closed'].includes(raw.availability)?raw.availability:'unconfirmed',contact_hint:text(raw.contact_hint,400),first_seen_at:text(raw.first_seen_at,40),last_checked_at:text(raw.last_checked_at,40),mark:{status:STATUSES[mark.status]?mark.status:'neu',note:text(mark.note,2000),updated_at:text(mark.updated_at,40)}};
+  }
+  function statusOf(row) {return STATUSES[pending[row.id]?.status] ? pending[row.id].status : row.mark.status;}
+  function cacheSave(context) {
+    if(!same(context)) return;
+    try {localStorage.setItem(cacheKey(owner),JSON.stringify({version:VERSION,owner,rows,settings,run,loadedAt,truncated}));}
+    catch {setMessage('Offline-Kopie konnte nicht gespeichert werden. Die Cloud-Liste bleibt erhalten.');}
+  }
+  function setMessage(value) {message=value || '';if(el('frJobsMessage'))el('frJobsMessage').textContent=message;}
+  function clearContext() {
+    if(fetchJob)fetchJob.controller.abort();if(flushJob)flushJob.controller.abort();
+    fetchJob=null;flushJob=null;
+    if(el('frJobsRefreshButton'))el('frJobsRefreshButton').disabled=false;
+    el('frJobsList')?.setAttribute('aria-busy','false');
+    owner='';epoch=-1;rows=[];pending={};settings=null;run=null;loadedAt='';truncated=false;lastFetch=0;
+    filter='alle';setMessage('');
+    el('frJobsList')?.replaceChildren();
+    if(el('frJobsSearch'))el('frJobsSearch').value='';
+    if(el('frJobsRadius'))el('frJobsRadius').value='50';
+    if(el('frJobsLoadedAt'))el('frJobsLoadedAt').textContent='';
+    if(el('frJobsWatchLabel'))el('frJobsWatchLabel').textContent='Bitte anmelden';
+    if(el('frJobsWatchTime'))el('frJobsWatchTime').textContent='Aufträge sind deinem FR-Konto zugeordnet.';
+    document.querySelectorAll('[data-fr-jobs-count]').forEach(node=>{node.textContent='';node.hidden=true;});
+    if(el('frJobsNewTotal'))el('frJobsNewTotal').textContent='';
+  }
+  function ensureContext() {
+    const next=uid(),nextEpoch=authEpoch();
+    if(owner===next && epoch===nextEpoch)return !!owner;
+    clearContext();owner=next;epoch=nextEpoch;
+    if(!owner)return false;
+    const cached=storageRead(cacheKey(owner),null);
+    if(cached?.version===VERSION && cached.owner===owner) {
+      rows=(Array.isArray(cached.rows)?cached.rows:[]).map(normalize).filter(Boolean).slice(0,MAX_ROWS);
+      settings=cached.settings?.user_id===owner ? cached.settings : null;
+      run=cached.run?.user_id===owner ? cached.run : null;
+      loadedAt=text(cached.loadedAt,40);truncated=!!cached.truncated;
+    }
+    const queue=storageRead(pendingKey(owner),{});
+    for(const [id,item] of Object.entries(queue || {}))if(isId(id)&&item&&STATUSES[item.status]&&typeof item.revision==='string')pending[id]={...item,status:item.status,note:text(item.note,2000)};
+    render();return true;
+  }
+  async function tokenFor(context) {
+    if(!same(context)||!onlineAccount())throw Error('Bitte mit E-Mail anmelden. Der lokale PIN zeigt nur gespeicherte Treffer.');
+    let timer,answer;
+    try{answer=await Promise.race([sb.auth.getSession(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Anmeldung konnte nicht geprüft werden. Erneut versuchen.')),10000);})]);}
+    finally{clearTimeout(timer);}
+    if(!same(context)||!onlineAccount())throw Error('Konto gewechselt.');
+    const session=answer?.data?.session;
+    if(!session?.access_token||session.user?.id!==context.owner)throw Error('Bitte erneut mit E-Mail anmelden.');
+    return session.access_token;
+  }
+  async function request(table,query,context,token,signal,options={}) {
+    if(!same(context)||!onlineAccount())throw Error('Konto gewechselt.');
+    const res=await fetch(SUPABASE_URL+'/rest/v1/'+table+'?'+new URLSearchParams(query),{cache:'no-store',signal,...options,headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+token,Accept:'application/json',...(options.body?{'Content-Type':'application/json'}:{}),...(options.headers||{})}});
+    if(!same(context)||!onlineAccount())throw Error('Konto gewechselt.');
+    const data=await res.json().catch(()=>null);
+    if(!res.ok){if([401,403].includes(res.status))throw Error('Anmeldung oder Zugriffsrecht prüfen.');if([404,400].includes(res.status))throw Error('Auftragsliste auf dem Server nicht verfügbar.');throw Error('Cloud zurzeit nicht erreichbar (HTTP '+res.status+').');}
+    if(!Array.isArray(data))throw Error('Unerwartete Antwort der Auftragsliste.');
+    return data;
+  }
+  function watchStatus() {
+    const label=el('frJobsWatchLabel'),time=el('frJobsWatchTime');if(!label||!time)return;
+    time.className='small';
+    if(!owner){label.textContent='Bitte anmelden';time.textContent='Aufträge sind deinem FR-Konto zugeordnet.';return;}
+    if(!onlineAccount()||!navigator.onLine){label.textContent='Gespeicherte Liste · offline';time.textContent=loadedAt?'Zuletzt geladen: '+dateLabel(loadedAt,true):'Noch keine Offline-Kopie auf diesem Gerät.';return;}
+    if(!settings){label.textContent=loadedAt?'Für dieses Konto noch nicht eingerichtet':'Verbindung wird geprüft';time.textContent='Nur bestätigte Suchläufe werden hier angezeigt.';return;}
+    const planned=settings.enabled?'Stündliche Suche geplant':'Suche pausiert';
+    if(!run){label.textContent=planned;time.textContent='Erster automatischer Suchlauf noch nicht bestätigt.';return;}
+    const age=Date.now()-new Date(run.finished_at).getTime();
+    label.textContent=run.outcome==='error'?'Letzte Suche fehlgeschlagen':!settings.enabled?'Suche pausiert':age>150*60000?'Neue Suchprüfung ausstehend':planned;
+    time.textContent='Letzte Suche: '+dateLabel(run.finished_at,true)+(run.outcome==='partial'?' · teilweise geprüft':'')+(run.note?' · '+text(run.note,1200):'');
+    if(run.outcome!=='ok'||age>150*60000)time.classList.add('fr-jobs-warning');
+  }
+  function node(tag,content,className) {const n=document.createElement(tag);if(content!=null)n.textContent=String(content);if(className)n.className=className;return n;}
+  function render() {
+    if(owner!==uid()||epoch!==authEpoch())return;
+    watchStatus();
+    const fresh=rows.filter(r=>statusOf(r)==='neu'&&r.availability!=='closed').length;
+    document.querySelectorAll('[data-fr-jobs-count]').forEach(n=>{n.textContent=String(fresh);n.hidden=!fresh;});
+    el('frJobsNewTotal').textContent=fresh?String(fresh):'';
+    document.querySelectorAll('[data-fr-jobs-filter]').forEach(n=>n.setAttribute('aria-pressed',String(n.dataset.frJobsFilter===filter)));
+    const list=el('frJobsList');if(!list)return;
+    const openIds=new Set(Array.from(list.querySelectorAll('details[open]')).map(n=>n.dataset.leadId));
+    const query=(el('frJobsSearch').value||'').trim().toLocaleLowerCase('de-AT');
+    const radius=Number(el('frJobsRadius').value)||50;
+    const result=rows.filter(r=>{const st=statusOf(r);return (filter==='alle'?st!=='uninteressant':st===filter)&&r.distance_km<=radius&&(!query||[r.title,r.summary,r.location_label,r.quantity_text].join(' ').toLocaleLowerCase('de-AT').includes(query));});
+    list.replaceChildren();
+    if(!result.length){const box=node('div',null,'fr-jobs-empty');let title='Noch keine gespeicherten Treffer',body='Sobald die Suche passende Aufträge erfolgreich in FR speichert, erscheinen sie hier. Der erste automatische Suchlauf ist noch nicht bestätigt.';
+      if(rows.length){title='Keine Treffer für diese Auswahl';body='Anderen Status wählen, Suchtext löschen oder die Anzeige auf 50 km stellen.';}
+      else if(run){title='Bisher keine passenden Treffer gespeichert';body='Die letzte Prüfung hat keine hier gespeicherten Treffer ergeben. Das ist keine vollständige Übersicht aller verfügbaren Aufträge.';}
+      if(!onlineAccount()||!navigator.onLine){title='Keine gespeicherten Treffer';body='Zum Laden der Cloud-Liste mit E-Mail anmelden und eine Internetverbindung herstellen.';}
+      box.append(node('h3',title),node('p',body));list.append(box);
+    }
+    for(const row of result){
+      const article=node('article',null,'fr-jobs-row');article.dataset.leadId=row.id;
+      const meta=node('div',null,'fr-jobs-meta');const source=row.source_name||new URL(row.source_url).hostname;
+      meta.append(node('span',source+' · Inserat '+dateLabel(row.published_on)),node('span',STATUSES[statusOf(row)],'fr-jobs-state'));
+      article.append(meta,node('h3',row.title));
+      article.append(node('p',row.location_label+' · ca. '+Math.round(row.distance_km)+' km'+(row.quantity_text?' · '+row.quantity_text:''),'fr-jobs-location'));
+      if(row.summary)article.append(node('p',row.summary,'fr-jobs-description'));
+      const availability=row.availability==='closed'?'Laut letzter Prüfung bereits geschlossen.':row.availability==='open'?'Bei letzter Prüfung als offen angegeben.':'Verfügbarkeit im Original prüfen.';
+      article.append(node('p',availability,'small'));
+      const controls=node('div',null,'fr-jobs-controls');const link=node('a','Original öffnen ↗');link.href=row.source_url;link.target='_blank';link.rel='noopener noreferrer';link.referrerPolicy='no-referrer';controls.append(link);
+      const select=node('select');select.setAttribute('aria-label','Status für '+row.title);select.dataset.frJobStatus=row.id;
+      for(const [value,label] of Object.entries(STATUSES)){const opt=node('option',label);opt.value=value;select.append(opt);}select.value=statusOf(row);
+      select.addEventListener('change',()=>changeStatus(row.id,select.value));controls.append(select);article.append(controls);
+      const details=node('details');details.dataset.leadId=row.id;details.open=openIds.has(row.id);details.append(node('summary','Weitere Angaben'));
+      details.append(node('p','Entfernung: '+(row.distance_basis||'ungefähr; genaue Entfernung im Original prüfen')));
+      details.append(node('p','In FR gefunden: '+dateLabel(row.first_seen_at,true)+'\nQuelle geprüft: '+dateLabel(row.last_checked_at,true)));
+      if(row.contact_hint)details.append(node('p','Schriftlicher Kontakt: '+row.contact_hint));
+      article.append(details);
+      if(pending[row.id])article.append(node('p','Markierung auf diesem Gerät gespeichert · Cloud-Abgleich ausstehend','fr-jobs-status'));
+      list.append(article);
+    }
+    el('frJobsLoadedAt').textContent=(loadedAt?'Liste geladen: '+dateLabel(loadedAt,true)+' · ':'')+(truncated?'Die neuesten 500 gespeicherten Treffer · ':'')+'Nur dein FR-Konto · Keine Nachrichten werden automatisch versendet.';
+  }
+  async function refresh(userAction=false) {
+    if(!ensureContext())return;
+    if(fetchJob){if(userAction)setMessage('Liste wird bereits geladen …');return fetchJob.promise;}
+    const context={owner,epoch};
+    if(!onlineAccount()||!navigator.onLine){setMessage('Offline: Gespeicherte Treffer bleiben sichtbar. Neue Treffer erfordern Internet und eine E-Mail-Anmeldung.');render();return;}
+    const job={controller:new AbortController(),promise:null};fetchJob=job;
+    const timer=setTimeout(()=>job.controller.abort(),22000);
+    if(userAction)setMessage('Gespeicherte Treffer werden geladen …');
+    el('frJobsRefreshButton').disabled=true;el('frJobsList').setAttribute('aria-busy','true');
+    job.promise=(async()=>{
+      try{
+        const token=await tokenFor(context);
+        const [leads,configs,runs]=await Promise.all([
+          request('fr_job_leads',{select:'*,fr_job_marks(lead_id,status,note,updated_at)',user_id:'eq.'+context.owner,order:'first_seen_at.desc,id.asc',limit:String(MAX_ROWS+1)},context,token,job.controller.signal),
+          request('fr_job_watch_settings',{select:'*',user_id:'eq.'+context.owner,limit:'1'},context,token,job.controller.signal),
+          request('fr_job_watch_runs',{select:'*',user_id:'eq.'+context.owner,order:'finished_at.desc,id.desc',limit:'1'},context,token,job.controller.signal)
+        ]);
+        if(!same(context))return;
+        const seen=new Set();rows=leads.map(normalize).filter(row=>{if(!row||seen.has(row.source_url))return false;seen.add(row.source_url);return true;}).slice(0,MAX_ROWS);
+        settings=configs.find(x=>x.user_id===context.owner)||null;run=runs.find(x=>x.user_id===context.owner)||null;
+        loadedAt=new Date().toISOString();truncated=leads.length>MAX_ROWS;lastFetch=Date.now();
+        setMessage(Object.keys(pending).length?'Gespeicherte Markierungen werden abgeglichen.':'');cacheSave(context);render();
+        await flush();
+      }catch(error){
+        if(same(context)){setMessage((error.name==='AbortError'?'Verbindung dauert zu lange. Bitte erneut versuchen.':error.message)+' Vorhandene Treffer wurden nicht gelöscht.');render();}
+      }finally{
+        clearTimeout(timer);if(fetchJob===job){fetchJob=null;el('frJobsRefreshButton').disabled=false;el('frJobsList').setAttribute('aria-busy','false');}
+      }
+    })();return job.promise;
+  }
+  async function changeStatus(id,status) {
+    if(!ensureContext()||!STATUSES[status])return;
+    const row=rows.find(x=>x.id===id);if(!row)return;
+    const context={owner,epoch};
+    try{
+      const revision=crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+      const next={...pending,[id]:{status,note:row.mark.note||'',updated_at:new Date().toISOString(),revision}};
+      localStorage.setItem(pendingKey(owner),JSON.stringify(next));
+      if(!same(context))return;pending=next;setMessage('Markierung gespeichert; Cloud-Abgleich ausstehend.');render();await flush();
+    }catch(error){if(same(context)){setMessage('Markierung konnte nicht gespeichert werden. Speicherplatz prüfen und erneut versuchen.');render();}}
+  }
+  async function flush() {
+    if(flushJob)return flushJob.promise;
+    if(!owner||!onlineAccount()||!navigator.onLine||!Object.keys(pending).length)return;
+    const context={owner,epoch},job={controller:new AbortController(),promise:null};flushJob=job;
+    job.promise=(async()=>{
+      try{
+        const token=await tokenFor(context);
+        for(const [id,item] of Object.entries({...pending})){
+          if(!same(context))return;
+          if(pending[id]?.revision!==item.revision)continue;
+          const timer=setTimeout(()=>job.controller.abort(),15000);let saved;
+          try{saved=await request('fr_job_marks',{on_conflict:'user_id,lead_id'},context,token,job.controller.signal,{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify({user_id:context.owner,lead_id:id,status:item.status,note:item.note,updated_at:item.updated_at})});}finally{clearTimeout(timer);}
+          if(!same(context))return;
+          if(saved.length!==1||saved[0].user_id!==context.owner||saved[0].lead_id!==id)throw Error('Speicherung nicht bestätigt.');
+          const row=rows.find(x=>x.id===id);if(row)row.mark={status:saved[0].status,note:saved[0].note,updated_at:saved[0].updated_at};
+          if(pending[id]?.revision===item.revision){const next={...pending};delete next[id];localStorage.setItem(pendingKey(owner),JSON.stringify(next));pending=next;}
+        }
+        if(same(context)){setMessage(Object.keys(pending).length?'Weitere Markierungen warten auf den Cloud-Abgleich.':'Markierungen in der Cloud gespeichert.');cacheSave(context);render();}
+      }catch(error){if(same(context)){setMessage('Markierung bleibt auf diesem Gerät gespeichert. Cloud-Abgleich ausstehend: '+(error.name==='AbortError'?'Verbindung unterbrochen.':error.message));render();}}
+      finally{if(flushJob===job)flushJob=null;}
+    })();return job.promise;
+  }
+  function tick() {
+    if(!visible()){if(!uid()&&owner)clearContext();return;}
+    if(!ensureContext())return;
+    if(!onlineAccount()||!navigator.onLine){if(onPage())watchStatus();return;}
+    if(el('frJobs')?.contains(document.activeElement) && document.activeElement?.tagName==='SELECT')return;
+    if(!fetchJob&&Date.now()-lastFetch>=REFRESH_MS)refresh(false);else if(!flushJob&&Object.keys(pending).length)flush();
+  }
+  window.frShowJobs=function(){
+    if(!uid()){alert('Bitte zuerst mit deinem FR-Konto anmelden.');return;}
+    ensureContext();hide();el('frJobs').classList.remove('hidden');render();
+    el('frJobsTitle').focus({preventScroll:true});refresh(false);
+  };
+  window.frJobsRefresh=refresh;
+  document.querySelectorAll('[data-fr-jobs-filter]').forEach(button=>button.addEventListener('click',()=>{if(!ensureContext())return;filter=button.dataset.frJobsFilter;render();}));
+  el('frJobsSearch').addEventListener('input',()=>{if(ensureContext())render();});el('frJobsRadius').addEventListener('change',()=>{if(ensureContext())render();});
+  window.addEventListener('online',tick);window.addEventListener('offline',()=>{if(ensureContext())render();});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick();});
+  window.addEventListener('storage',event=>{if(owner&&event.key===pendingKey(owner)){const oldOwner=owner;clearContext();if(uid()===oldOwner)ensureContext();tick();}});
+  if(sb?.auth)sb.auth.onAuthStateChange(()=>{setTimeout(()=>{if(owner!==uid()||epoch!==authEpoch())ensureContext();tick();},200);});
+  if(el('mainApp'))new MutationObserver(()=>{if(owner!==uid()||epoch!==authEpoch())ensureContext();if(visible())tick();}).observe(el('mainApp'),{attributes:true,attributeFilter:['style']});
+  setInterval(tick,REFRESH_MS);setTimeout(tick,1200);
+})();
 
 </script>
 </body>
