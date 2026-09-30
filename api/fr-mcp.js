@@ -174,7 +174,7 @@ export function createHandler({ env = process.env, fetchImpl = globalThis.fetch 
     res.setHeader('Vary','Origin');
     try {
       const origin = req.headers?.origin;
-      if (origin && ![ORIGIN,'https://chatgpt.com'].includes(origin)) fail(403,'origin_not_allowed');
+      if (origin && ![ORIGIN,'https://chatgpt.com','https://chat.openai.com'].includes(origin)) fail(403,'origin_not_allowed');
       if (origin) res.setHeader('Access-Control-Allow-Origin',origin);
       res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization, MCP-Protocol-Version');
