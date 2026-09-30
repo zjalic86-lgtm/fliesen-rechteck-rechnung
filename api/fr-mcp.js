@@ -224,7 +224,7 @@ export function createHandler({ env = process.env, fetchImpl = globalThis.fetch 
         return page(res,200,context);
       }
       if (route === 'authorize' && req.method === 'POST') {
-        if (origin !== ORIGIN) fail(403,'origin_not_allowed');
+        if (origin && ![ORIGIN,'https://chatgpt.com','https://chat.openai.com'].includes(origin)) fail(403,'origin_not_allowed');
         const b=body(req), context=single(b,'context');
         const row=await tokenRow(context,'context');
         const cookies=String(req.headers.cookie || '').split(';').map(x=>x.trim());
