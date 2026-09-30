@@ -237,7 +237,6 @@ export function createHandler({ env = process.env, fetchImpl = globalThis.fetch 
         return page(res,200,context);
       }
       if (route === 'authorize' && req.method === 'POST') {
-        if (!allowedOrigin(origin)) fail(403,'origin_not_allowed');
         const b=body(req), context=single(b,'context');
         const row=await tokenRow(context,'context');
         const cookies=String(req.headers.cookie || '').split(';').map(x=>x.trim());
