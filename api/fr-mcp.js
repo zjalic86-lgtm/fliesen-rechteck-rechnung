@@ -4,7 +4,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 export const ORIGIN = 'https://fliesen-rechteck-rechnung.vercel.app';
 export const RESOURCE = ORIGIN + '/api/fr-mcp';
 export const CALLBACK = 'https://chatgpt.com/connector_platform_oauth_redirect';
-export const SCOPE = 'regiestunden:write';
+export const SCOPE = 'fr:write';
 const allowedOrigin = value => {
   if (!value) return true;
   if (value === ORIGIN) return true;
@@ -21,7 +21,6 @@ const allowedOrigin = value => {
 };
 const VERSION = '1.0.0';
 const PROTOCOLS = ['2025-06-18', '2025-03-26'];
-const COOKIE = '__Host-fr-mcp-csrf';
 const OAUTH = [{ type: 'oauth2', scopes: [SCOPE] }];
 const random = () => randomBytes(32).toString('base64url');
 export const hash = value => createHash('sha256').update(String(value)).digest('hex');
@@ -32,11 +31,10 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const opaque = /^[A-Za-z0-9_-]{43}$/;
 const string = (max, description) => ({ type: 'string', maxLength: max, description });
 
-export const inputSchema = {
+export const regiestundenSchema = {
   type: 'object', additionalProperties: false,
   properties: {
     request_id: { type: 'string', format: 'uuid', description: 'Neue UUID pro Beleg; bei Wiederholung exakt dieselbe UUID und dieselben Daten verwenden.' },
-    document_type: { type: 'string', enum: ['Regiestunden'] },
     name: string(300, 'Name des Kunden oder Ansprechpartners; alternativ Baustelle oder Adresse.'),
     chef_name: string(300, 'Optionaler Ansprechpartner. Kein Pflichtfeld.'),
     baustelle: string(500, 'Bezeichnung der Baustelle'),
@@ -47,26 +45,43 @@ export const inputSchema = {
     arbeit_beschreibung_2: string(4000, 'Optionale zweite Arbeit'),
     stunden_2: { type: 'number', minimum: 0, maximum: 1000000 },
     gesamt_stunden: { type: 'number', minimum: 0, maximum: 2000000 },
-    stunden_preis: { type: 'number', minimum: 0, maximum: 1000000, description: 'Optional; nur auf ausdrücklichen Wunsch ergänzen.' },
+    stunden_preis: { type: 'number', minimum: 0, maximum: 1000000 },
     bemerkung: string(4000, 'Optionale Bemerkung')
   },
   required: ['request_id', 'datum', 'arbeit_beschreibung_1', 'stunden_1'],
   anyOf: [{ required: ['name'] }, { required: ['baustelle'] }, { required: ['baustelle_adresse'] }, { required: ['chef_name'] }]
 };
-export const TOOLS = [
-  {
-    name: 'fr_send_regiestunden', title: 'Regiestunden an FR senden',
-    description: 'Sendet ausdrücklich beauftragte Regiestunden in den vorhandenen ChatGPT-Import der FR-App. Name oder Baustelle/Adresse genügt. Ein Beleg, maximal zwei Positionen. Rückgabe queued bedeutet zum Abruf bereit; noch keine Unterschrift oder endgültige Rechnung. Bei unklarer Antwort nur mit identischer request_id und identischen Daten wiederholen.',
-    inputSchema, securitySchemes: OAUTH, _meta: { securitySchemes: OAUTH },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+
+export const belegSchema = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    request_id: { type: 'string', format: 'uuid', description: 'Neue UUID pro Beleg; bei Wiederholung exakt dieselbe UUID und dieselben Daten verwenden.' },
+    customer_name: string(300, 'Kundenname'),
+    baustelle: string(500, 'Baustelle / Projekt'),
+    customer_address: string(700, 'Kunden- oder Baustellenadresse'),
+    datum: { type: 'string', format: 'date', description: 'Optionales Datum als YYYY-MM-DD.' },
+    payment_days: { type: 'integer', minimum: 0, maximum: 3650 },
+    skonto: { type: 'number', minimum: 0, maximum: 100 },
+    steuer: { type: 'string', enum: ['20','0','rc'] },
+    wand_m2: { type: 'number', minimum: 0, maximum: 1000000 },
+    wand_price: { type: 'number', minimum: 0, maximum: 1000000 },
+    boden_m2: { type: 'number', minimum: 0, maximum: 1000000 },
+    boden_price: { type: 'number', minimum: 0, maximum: 1000000 },
+    hours: { type: 'number', minimum: 0, maximum: 1000000 },
+    material_cost: { type: 'number', minimum: 0, maximum: 1000000 },
+    bemerkung: string(4000, 'Optionale Bemerkung'),
+    items: { type: 'array', maxItems: 100, items: { type: 'object', additionalProperties: false, properties: {
+      desc: string(4000, 'Positionsbeschreibung'), qty: { type: 'number', minimum: 0, maximum: 1000000 }, price: { type: 'number', minimum: 0, maximum: 1000000 }
+    }, required: ['desc','qty','price'] } }
   },
-  {
-    name: 'fr_regiestunden_status', title: 'FR-Verbindung prüfen',
-    description: 'Prüft Anmeldung und Verbindung zur FR-Datenbank ohne einen Beleg anzulegen. Dies ist kein Nachweis eines bereits übertragenen Belegs.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-    securitySchemes: OAUTH, _meta: { securitySchemes: OAUTH },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-  }
+  required: ['request_id','customer_name']
+};
+
+export const TOOLS = [
+  { name:'fr_send_rechnung', title:'Rechnung an FR senden', description:'Sendet eine Rechnung an den ChatGPT-Import der FR-App.', inputSchema:belegSchema, securitySchemes:OAUTH, _meta:{securitySchemes:OAUTH}, annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false} },
+  { name:'fr_send_angebot', title:'Angebot an FR senden', description:'Sendet ein Angebot an den ChatGPT-Import der FR-App.', inputSchema:belegSchema, securitySchemes:OAUTH, _meta:{securitySchemes:OAUTH}, annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false} },
+  { name:'fr_send_regiestunden', title:'Regiestunden an FR senden', description:'Sendet Regiestunden an den ChatGPT-Import der FR-App.', inputSchema:regiestundenSchema, securitySchemes:OAUTH, _meta:{securitySchemes:OAUTH}, annotations:{readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false} },
+  { name:'fr_status', title:'FR-Verbindung prüfen', description:'Prüft die FR-Verbindung ohne einen Beleg anzulegen.', inputSchema:{type:'object',properties:{},additionalProperties:false}, securitySchemes:OAUTH, _meta:{securitySchemes:OAUTH}, annotations:{readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false} }
 ];
 
 class PublicError extends Error {
@@ -97,41 +112,49 @@ function body(req) {
   return value;
 }
 
-export function validateDocument(args) {
-  if (!object(args)) fail(400, 'invalid_arguments');
-  if (Object.keys(args).some(k => !Object.hasOwn(inputSchema.properties, k))) fail(400, 'unknown_field');
-  if (!uuid.test(args.request_id || '')) fail(400, 'invalid_request_id');
-  if (args.document_type !== undefined && args.document_type !== 'Regiestunden') fail(400, 'invalid_document_type');
-  const d = { document_type: 'Regiestunden' };
-  for (const k of ['name','chef_name','baustelle','baustelle_adresse','datum','arbeit_beschreibung_1','arbeit_beschreibung_2','bemerkung']) {
-    if (args[k] !== undefined) {
-      if (!textField(args[k], inputSchema.properties[k].maxLength || 10)) fail(400, 'invalid_text', `Ungültiger Text: ${k}`);
-      d[k] = args[k].trim();
-    }
+export function validateRegiestunden(args) {
+  if (!object(args)) fail(400,'invalid_arguments');
+  if (Object.keys(args).some(k=>!Object.hasOwn(regiestundenSchema.properties,k))) fail(400,'unknown_field');
+  if (!uuid.test(args.request_id||'')) fail(400,'invalid_request_id');
+  const d={document_type:'Regiestunden'};
+  for (const k of ['name','chef_name','baustelle','baustelle_adresse','datum','arbeit_beschreibung_1','arbeit_beschreibung_2','bemerkung']) if (args[k]!==undefined) {
+    if (!textField(args[k],regiestundenSchema.properties[k].maxLength||10)) fail(400,'invalid_text',`Ungültiger Text: ${k}`); d[k]=args[k].trim();
   }
-  if (![d.name,d.chef_name,d.baustelle,d.baustelle_adresse].some(Boolean)) fail(400, 'missing_name_or_site', 'Name, Baustelle oder Adresse fehlt.');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(d.datum || '') || !Number.isFinite(Date.parse(d.datum)) || new Date(d.datum).toISOString().slice(0,10) !== d.datum) fail(400, 'invalid_date', 'Datum als gültigen Arbeitstag YYYY-MM-DD angeben.');
-  for (const k of ['stunden_1','stunden_2','gesamt_stunden','stunden_preis']) {
-    if (args[k] !== undefined) {
-      if (typeof args[k] !== 'number' || !Number.isFinite(args[k]) || args[k] < 0 || args[k] > inputSchema.properties[k].maximum) fail(400, 'invalid_hours', `Ungültige Zahl: ${k}`);
-      d[k] = args[k];
-    }
+  if (![d.name,d.chef_name,d.baustelle,d.baustelle_adresse].some(Boolean)) fail(400,'missing_name_or_site','Name, Baustelle oder Adresse fehlt.');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d.datum||'') || !Number.isFinite(Date.parse(d.datum)) || new Date(d.datum).toISOString().slice(0,10)!==d.datum) fail(400,'invalid_date','Datum als gültigen Arbeitstag YYYY-MM-DD angeben.');
+  for (const k of ['stunden_1','stunden_2','gesamt_stunden','stunden_preis']) if (args[k]!==undefined) {
+    if (typeof args[k]!=='number'||!Number.isFinite(args[k])||args[k]<0||args[k]>regiestundenSchema.properties[k].maximum) fail(400,'invalid_hours',`Ungültige Zahl: ${k}`); d[k]=args[k];
   }
-  if (!d.arbeit_beschreibung_1 || d.stunden_1 === undefined) fail(400, 'missing_first_work', 'Beschreibung und Stunden der ersten Arbeit fehlen.');
-  if (Boolean(d.arbeit_beschreibung_2) !== (d.stunden_2 !== undefined)) fail(400, 'incomplete_second_work', 'Beschreibung und Stunden der zweiten Arbeit zusammen angeben.');
-  const total = d.stunden_1 + (d.stunden_2 || 0);
-  if (d.gesamt_stunden !== undefined && Math.abs(d.gesamt_stunden - total) > 0.000001) fail(400, 'total_mismatch', 'Gesamtstunden stimmen nicht mit den Positionen überein.');
-  d.gesamt_stunden = total; d.hours = total;
-  if (d.name || d.chef_name) d.customer_name = d.name || d.chef_name;
-  return { requestId: args.request_id.toLowerCase(), document: d };
+  if (!d.arbeit_beschreibung_1||d.stunden_1===undefined) fail(400,'missing_first_work');
+  if (Boolean(d.arbeit_beschreibung_2)!==(d.stunden_2!==undefined)) fail(400,'incomplete_second_work');
+  const total=d.stunden_1+(d.stunden_2||0); if (d.gesamt_stunden!==undefined&&Math.abs(d.gesamt_stunden-total)>0.000001) fail(400,'total_mismatch');
+  d.gesamt_stunden=total; d.hours=total; if (d.name||d.chef_name) d.customer_name=d.name||d.chef_name;
+  return {requestId:args.request_id.toLowerCase(),document:d};
 }
 
-function page(res, status, context, notice = '') {
+export function validateBeleg(args, documentType) {
+  if (!object(args)) fail(400,'invalid_arguments');
+  if (!['Rechnung','Angebot'].includes(documentType)) fail(400,'invalid_document_type');
+  if (Object.keys(args).some(k=>!Object.hasOwn(belegSchema.properties,k))) fail(400,'unknown_field');
+  if (!uuid.test(args.request_id||'')) fail(400,'invalid_request_id');
+  if (!textField(args.customer_name,300)||!args.customer_name.trim()) fail(400,'missing_customer_name','Kundenname fehlt.');
+  const d={document_type:documentType,customer_name:args.customer_name.trim()};
+  for (const k of ['baustelle','customer_address','datum','bemerkung']) if (args[k]!==undefined) { if (!textField(args[k],belegSchema.properties[k].maxLength||10)) fail(400,'invalid_text'); d[k]=args[k].trim(); }
+  if (d.datum && (!/^\d{4}-\d{2}-\d{2}$/.test(d.datum)||!Number.isFinite(Date.parse(d.datum))||new Date(d.datum).toISOString().slice(0,10)!==d.datum)) fail(400,'invalid_date');
+  for (const k of ['payment_days','skonto','wand_m2','wand_price','boden_m2','boden_price','hours','material_cost']) if (args[k]!==undefined) {
+    const max=belegSchema.properties[k].maximum; if (typeof args[k]!=='number'||!Number.isFinite(args[k])||args[k]<0||args[k]>max||(k==='payment_days'&&!Number.isInteger(args[k]))) fail(400,'invalid_number',`Ungültige Zahl: ${k}`); d[k]=args[k];
+  }
+  if (args.steuer!==undefined) { if (!['20','0','rc'].includes(args.steuer)) fail(400,'invalid_tax'); d.steuer=args.steuer; }
+  if (args.items!==undefined) { if (!Array.isArray(args.items)||args.items.length>100) fail(400,'invalid_items'); d.items=args.items.map(x=>{ if (!object(x)||Object.keys(x).some(k=>!['desc','qty','price'].includes(k))||!textField(x.desc,4000)||!x.desc.trim()||typeof x.qty!=='number'||!Number.isFinite(x.qty)||x.qty<0||typeof x.price!=='number'||!Number.isFinite(x.price)||x.price<0) fail(400,'invalid_items'); return {desc:x.desc.trim(),qty:x.qty,price:x.price}; }); }
+  return {requestId:args.request_id.toLowerCase(),document:d};
+}
+
+function page(res, status, context, csrf, notice = '') {
   const esc = v => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
   res.setHeader('X-Frame-Options', 'DENY');
-  return res.status(status).send(`<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FR mit ChatGPT verbinden</title><style>body{font:18px system-ui;background:#f4f4f5;color:#222;margin:0;padding:24px}main{max-width:460px;margin:6vh auto;background:white;padding:28px;border-radius:20px}h1{font-size:28px}p{line-height:1.5}label{display:block;font-weight:650;margin:24px 0 10px}input,button{box-sizing:border-box;width:100%;font:inherit;padding:16px;border-radius:12px}input{border:1px solid #aaa}button{background:#b9362e;color:white;border:0;margin-top:18px;font-weight:700}.hint{color:#555;font-size:16px}.error{color:#a02020}</style><main><h1>FR Rechnung verbinden</h1><p>ChatGPT darf Regiestunden an den ChatGPT-Import dieser FR-App senden.</p><p class="hint">Rechnung und Angebot bleiben unverändert. Die Freigabe gilt 30 Tage.</p>${notice ? `<p role="alert" class="error">${esc(notice)}</p>` : ''}<form action="${endpoint('authorize')}" method="post"><input type="hidden" name="context" value="${esc(context)}"><label for="key">FR Import-Schlüssel</label><input id="key" name="import_key" type="password" required maxlength="4096" autocomplete="off"><p class="hint">Den gespeicherten Schlüssel findest du in der FR-App unter Einstellungen → ChatGPT Import. Hier wird kein E-Mail-Passwort benötigt.</p><button name="decision" value="allow">Regiestunden verbinden</button><button name="decision" value="deny" formnovalidate>Abbrechen</button></form><p class="hint" lang="sr">Unesi FR import ključ samo ovde. ChatGPT ga neće dobiti. Zatim pritisni Regiestunden verbinden.</p></main></html>`);
+  return res.status(status).send(`<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FR mit ChatGPT verbinden</title><style>body{font:18px system-ui;background:#f4f4f5;color:#222;margin:0;padding:24px}main{max-width:460px;margin:6vh auto;background:white;padding:28px;border-radius:20px}h1{font-size:28px}p{line-height:1.5}label{display:block;font-weight:650;margin:24px 0 10px}input,button{box-sizing:border-box;width:100%;font:inherit;padding:16px;border-radius:12px}input{border:1px solid #aaa}button{background:#b9362e;color:white;border:0;margin-top:18px;font-weight:700}.hint{color:#555;font-size:16px}.error{color:#a02020}</style><main><h1>FR Rechnung verbinden</h1><p>ChatGPT darf Rechnung, Angebot und Regiestunden an den ChatGPT-Import dieser FR-App senden.</p><p class="hint">Die Freigabe gilt 30 Tage.</p>${notice ? `<p role="alert" class="error">${esc(notice)}</p>` : ''}<form action="${endpoint('authorize')}" method="post"><input type="hidden" name="context" value="${esc(context)}"><input type="hidden" name="csrf" value="${esc(csrf)}"><label for="key">FR Import-Schlüssel</label><input id="key" name="import_key" type="password" required maxlength="4096" autocomplete="off"><p class="hint">Den gespeicherten Schlüssel findest du in der FR-App unter Einstellungen → ChatGPT Import. Hier wird kein E-Mail-Passwort benötigt.</p><button name="decision" value="allow">FR verbinden</button><button name="decision" value="deny" formnovalidate>Abbrechen</button></form><p class="hint" lang="sr">Unesi FR import ključ samo ovde. ChatGPT ga neće dobiti. Zatim pritisni FR verbinden.</p></main></html>`);
 }
 
 function connectedPage(res) {
@@ -205,7 +228,7 @@ export function createHandler({ env = process.env, fetchImpl = globalThis.fetch 
       const route = req.query?.route || '';
       if (!textField(route,40)) fail(400,'invalid_request');
       if (route === 'resource-metadata' && req.method === 'GET') return json(res,200,{
-        resource:RESOURCE, authorization_servers:[ORIGIN], scopes_supported:[SCOPE], bearer_methods_supported:['header'], resource_name:'FR Regiestunden'
+        resource:RESOURCE, authorization_servers:[ORIGIN], scopes_supported:[SCOPE], bearer_methods_supported:['header'], resource_name:'FR Rechnung'
       });
       if (route === 'oauth-metadata' && req.method === 'GET') return json(res,200,{
         issuer:ORIGIN, authorization_endpoint:endpoint('authorize'), token_endpoint:endpoint('token'),
@@ -242,8 +265,7 @@ export function createHandler({ env = process.env, fetchImpl = globalThis.fetch 
         const context=random(), csrf=random();
         await db('fr_mcp_tokens','POST',{token_hash:hash(context),kind:'context',expires_at:new Date(Date.now()+600000).toISOString(),
           data:{client_id:client,redirect_uri:CALLBACK,resource:RESOURCE,scope:SCOPE,code_challenge:q.code_challenge,state,csrf:hash(csrf)}});
-        res.setHeader('Set-Cookie',`${COOKIE}=${csrf}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=600`);
-        return page(res,200,context);
+        return page(res,200,context,csrf);
       }
       if (route === 'authorize' && req.method === 'POST') {
         const b=body(req), context=single(b,'context');
@@ -252,30 +274,26 @@ export function createHandler({ env = process.env, fetchImpl = globalThis.fetch 
         if (!rows?.length || Date.parse(rows[0].expires_at) <= Date.now())
           fail(400,'expired_request','Verbindungsanfrage abgelaufen. Bitte in ChatGPT erneut starten.');
         const row=rows[0];
-        const cookies=String(req.headers.cookie || '').split(';').map(x=>x.trim());
-        const csrf=cookies.find(x=>x.startsWith(COOKIE+'='))?.slice(COOKIE.length+1) || '';
+        const csrf=single(b,'csrf');
         if (!opaque.test(csrf) || !same(hash(csrf),row.data.csrf)) fail(403,'invalid_csrf');
         if (b.decision === 'deny') {
           if (!row.consumed) await db('fr_mcp_tokens?token_hash=eq.'+hash(context),'PATCH',{consumed:true});
-          res.setHeader('Set-Cookie',`${COOKIE}=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0`);
           return redirect(res,row.data,{error:'access_denied'});
         }
         if (b.decision !== 'allow') fail(400,'invalid_request');
         const supplied=single(b,'import_key',4096).trim();
-        if (!same(supplied,importKey)) return page(res,401,context,'Import-Schlüssel stimmt nicht. Bitte den Schlüssel aus der FR-App verwenden.');
+        if (!same(supplied,importKey)) return page(res,401,context,csrf,'Import-Schlüssel stimmt nicht. Bitte den Schlüssel aus der FR-App verwenden.');
         const code=authorizationCodeFor(context);
         if (row.consumed) {
           const existing=await db('fr_mcp_tokens?token_hash=eq.'+hash(code)+'&kind=eq.code&select=consumed,expires_at','GET');
           if (!existing?.length || Date.parse(existing[0].expires_at) <= Date.now())
             fail(400,'expired_request','Verbindungsanfrage abgelaufen. Bitte in ChatGPT erneut starten.');
-          res.setHeader('Set-Cookie',`${COOKIE}=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0`);
           if (existing[0].consumed) return connectedPage(res);
           return redirect(res,row.data,{code});
         }
         await limit(req,'login',10,50,900);
         const grant=await rpc('fr_mcp_authorize',{p_context:hash(context),p_csrf:hash(csrf),p_code:hash(code),p_key_version:keyVersion});
         if (!grant) fail(400,'expired_request');
-        res.setHeader('Set-Cookie',`${COOKIE}=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0`);
         return redirect(res,grant,{code});
       }
       if (route === 'token' && req.method === 'POST') {
@@ -319,8 +337,8 @@ export function createHandler({ env = process.env, fetchImpl = globalThis.fetch 
       const reply=result=>json(res,200,{jsonrpc:'2.0',id:m.id,result});
       const rpcError=(code,message)=>json(res,200,{jsonrpc:'2.0',id:m.id,error:{code,message}});
       if (m.method === 'initialize') return reply({protocolVersion:PROTOCOLS.includes(m.params?.protocolVersion)?m.params.protocolVersion:PROTOCOLS[0],
-        capabilities:{tools:{listChanged:false}},serverInfo:{name:'fr-regiestunden',version:VERSION},
-        instructions:'Send only explicitly requested Regiestunden. A queued receipt is not a signed or finalized document. Keep request_id identical when retrying.'});
+        capabilities:{tools:{listChanged:false}},serverInfo:{name:'fr-rechnung',version:VERSION},
+        instructions:'Send only explicitly requested Rechnung, Angebot or Regiestunden. Keep request_id identical when retrying.'});
       if (m.method === 'ping') return reply({});
       if (m.method === 'tools/list') return reply({tools:TOOLS});
       if (m.method !== 'tools/call') return rpcError(-32601,'Method not found');
@@ -330,16 +348,21 @@ export function createHandler({ env = process.env, fetchImpl = globalThis.fetch 
         res.setHeader('WWW-Authenticate',challenge);
         return json(res,401,{jsonrpc:'2.0',id:m.id,error:{code:-32001,message:'FR-Anmeldung erforderlich.'}});
       }
-      if (m.params.name === 'fr_regiestunden_status') {
+      if (m.params.name === 'fr_status') {
         if (m.params.arguments && (!object(m.params.arguments) || Object.keys(m.params.arguments).length)) return rpcError(-32602,'No arguments expected');
         return reply({content:[{type:'text',text:'FR-Verbindung geprüft. Es wurde kein Beleg angelegt.'}],structuredContent:{ok:true,authenticated:true,bridge_version:VERSION}});
       }
       try {
-        const {requestId,document}=validateDocument(m.params.arguments);
+        let validated;
+        if (m.params.name === 'fr_send_regiestunden') validated=validateRegiestunden(m.params.arguments);
+        else if (m.params.name === 'fr_send_rechnung') validated=validateBeleg(m.params.arguments,'Rechnung');
+        else if (m.params.name === 'fr_send_angebot') validated=validateBeleg(m.params.arguments,'Angebot');
+        else return rpcError(-32602,'Unknown tool');
+        const {requestId,document}=validated;
         const result=await rpc('fr_mcp_enqueue',{p_hash:tokenHash,p_resource:RESOURCE,p_key_version:keyVersion,p_request_id:requestId,p_document:document});
         if (!result?.ok) fail(400,result?.error || 'import_failed');
-        return reply({content:[{type:'text',text:`Regiestunden zum Abruf in FR bereit. Import-ID ${result.import_id}. In der FR-App bei Bedarf ChatGPT Import abrufen drücken.`}],
-          structuredContent:{ok:true,status:'queued',request_id:requestId,import_id:result.import_id,duplicate:result.duplicate,document_type:'Regiestunden'}});
+        return reply({content:[{type:'text',text:`${document.document_type} zum Abruf in FR bereit. Import-ID ${result.import_id}.`}],
+          structuredContent:{ok:true,status:'queued',request_id:requestId,import_id:result.import_id,duplicate:result.duplicate,document_type:document.document_type}});
       } catch (e) {
         const message=e instanceof PublicError && e.status < 500 ? e.message : 'FR-Import nicht bestätigt. Bei Wiederholung dieselbe request_id und dieselben Daten verwenden.';
         return reply({isError:true,content:[{type:'text',text:message}]});
