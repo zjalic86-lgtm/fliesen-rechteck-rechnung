@@ -134,9 +134,18 @@ function page(res, status, context, notice = '') {
   return res.status(status).send(`<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FR mit ChatGPT verbinden</title><style>body{font:18px system-ui;background:#f4f4f5;color:#222;margin:0;padding:24px}main{max-width:460px;margin:6vh auto;background:white;padding:28px;border-radius:20px}h1{font-size:28px}p{line-height:1.5}label{display:block;font-weight:650;margin:24px 0 10px}input,button{box-sizing:border-box;width:100%;font:inherit;padding:16px;border-radius:12px}input{border:1px solid #aaa}button{background:#b9362e;color:white;border:0;margin-top:18px;font-weight:700}.hint{color:#555;font-size:16px}.error{color:#a02020}</style><main><h1>FR Rechnung verbinden</h1><p>ChatGPT darf Regiestunden an den ChatGPT-Import dieser FR-App senden.</p><p class="hint">Rechnung und Angebot bleiben unverändert. Die Freigabe gilt 30 Tage.</p>${notice ? `<p role="alert" class="error">${esc(notice)}</p>` : ''}<form action="${endpoint('authorize')}" method="post"><input type="hidden" name="context" value="${esc(context)}"><label for="key">FR Import-Schlüssel</label><input id="key" name="import_key" type="password" required maxlength="4096" autocomplete="off"><p class="hint">Den gespeicherten Schlüssel findest du in der FR-App unter Einstellungen → ChatGPT Import. Hier wird kein E-Mail-Passwort benötigt.</p><button name="decision" value="allow">Regiestunden verbinden</button><button name="decision" value="deny" formnovalidate>Abbrechen</button></form><p class="hint" lang="sr">Unesi FR import ključ samo ovde. ChatGPT ga neće dobiti. Zatim pritisni Regiestunden verbinden.</p></main></html>`);
 }
 
+function connectedPage(res) {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'");
+  res.setHeader('X-Frame-Options', 'DENY');
+  return res.status(200).send(`<!doctype html><html lang="de"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FR verbunden</title><style>body{font:18px system-ui;background:#f4f4f5;color:#222;margin:0;padding:24px}main{max-width:460px;margin:10vh auto;background:#fff;padding:28px;border-radius:20px}h1{font-size:28px}p{line-height:1.5}</style><main><h1>FR Rechnung verbunden</h1><p>Die Verbindung wurde bereits bestätigt. Dieses Fenster kann geschlossen werden.</p><p lang="sr">FR Rechnung je povezan. Možeš zatvoriti ovaj prozor.</p></main></html>`);
+}
+
 export function createHandler({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
   const importKey = String(env.FR_IMPORT_TOKEN || '').trim();
   const keyVersion = hash(importKey);
+  const authorizationCodeFor = context =>
+    createHash('sha256').update('fr-oauth-code:' + context + ':' + keyVersion).digest('base64url');
   const database = String(env.SUPABASE_URL || '').replace(/\/$/, '');
   const secret = env.SUPABASE_SECRET_KEY;
   function configured() { if (!importKey || !/^https:\/\//.test(database) || !secret) fail(503, 'FR_MCP_NOT_CONFIGURED'); }
@@ -238,20 +247,32 @@ export function createHandler({ env = process.env, fetchImpl = globalThis.fetch 
       }
       if (route === 'authorize' && req.method === 'POST') {
         const b=body(req), context=single(b,'context');
-        const row=await tokenRow(context,'context');
+        if (!opaque.test(context)) fail(400,'invalid_request');
+        const rows=await db('fr_mcp_tokens?token_hash=eq.'+hash(context)+'&kind=eq.context&select=data,consumed,expires_at','GET');
+        if (!rows?.length || Date.parse(rows[0].expires_at) <= Date.now())
+          fail(400,'expired_request','Verbindungsanfrage abgelaufen. Bitte in ChatGPT erneut starten.');
+        const row=rows[0];
         const cookies=String(req.headers.cookie || '').split(';').map(x=>x.trim());
         const csrf=cookies.find(x=>x.startsWith(COOKIE+'='))?.slice(COOKIE.length+1) || '';
         if (!opaque.test(csrf) || !same(hash(csrf),row.data.csrf)) fail(403,'invalid_csrf');
         if (b.decision === 'deny') {
-          await db('fr_mcp_tokens?token_hash=eq.'+hash(context),'PATCH',{consumed:true});
+          if (!row.consumed) await db('fr_mcp_tokens?token_hash=eq.'+hash(context),'PATCH',{consumed:true});
           res.setHeader('Set-Cookie',`${COOKIE}=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0`);
           return redirect(res,row.data,{error:'access_denied'});
         }
         if (b.decision !== 'allow') fail(400,'invalid_request');
-        await limit(req,'login',10,50,900);
         const supplied=single(b,'import_key',4096).trim();
         if (!same(supplied,importKey)) return page(res,401,context,'Import-Schlüssel stimmt nicht. Bitte den Schlüssel aus der FR-App verwenden.');
-        const code=random();
+        const code=authorizationCodeFor(context);
+        if (row.consumed) {
+          const existing=await db('fr_mcp_tokens?token_hash=eq.'+hash(code)+'&kind=eq.code&select=consumed,expires_at','GET');
+          if (!existing?.length || Date.parse(existing[0].expires_at) <= Date.now())
+            fail(400,'expired_request','Verbindungsanfrage abgelaufen. Bitte in ChatGPT erneut starten.');
+          res.setHeader('Set-Cookie',`${COOKIE}=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0`);
+          if (existing[0].consumed) return connectedPage(res);
+          return redirect(res,row.data,{code});
+        }
+        await limit(req,'login',10,50,900);
         const grant=await rpc('fr_mcp_authorize',{p_context:hash(context),p_csrf:hash(csrf),p_code:hash(code),p_key_version:keyVersion});
         if (!grant) fail(400,'expired_request');
         res.setHeader('Set-Cookie',`${COOKIE}=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0`);
