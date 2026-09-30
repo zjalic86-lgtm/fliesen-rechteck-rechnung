@@ -101,9 +101,61 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     try {
-      const document = req.body;
+      let document = req.body;
 
-      if (!document || typeof document.customer_name !== "string" || !document.customer_name.trim()) {
+      // Regiestunden may identify the job by a name, site or address.
+      // Leave Rechnung, Angebot and legacy Regiestunden payloads unchanged.
+      if (document?.document_type === "Regiestunden") {
+        document = { ...document };
+        for (const field of ["name", "customer_name", "chef_name", "baustelle", "baustelle_adresse", "customer_address", "adresse", "datum", "arbeit_beschreibung_1", "arbeit_beschreibung_2", "bemerkung"]) {
+          if (document[field] !== undefined && typeof document[field] !== "string") {
+            return res.status(400).json({ok:false,error:`Ungültiger Text: ${field}`});
+          }
+        }
+        for (const field of ["stunden_1", "stunden_2", "gesamt_stunden", "stunden_preis"]) {
+          if (document[field] !== undefined && (typeof document[field] !== "number" || !Number.isFinite(document[field]) || document[field] < 0)) {
+            return res.status(400).json({ok:false,error:`Ungültige Zahl: ${field}`});
+          }
+        }
+        const name = [document.name, document.customer_name, document.chef_name]
+          .find(value => typeof value === "string" && value.trim());
+        const job = [document.baustelle, document.baustelle_adresse, document.customer_address, document.adresse]
+          .find(value => typeof value === "string" && value.trim());
+        if (!name && !job) {
+          return res.status(400).json({ok:false,error:"Name, Baustelle oder Adresse fehlt"});
+        }
+        if (name && !document.customer_name?.trim()) {
+          document.customer_name = name.trim();
+        }
+        for (const n of [1, 2]) {
+          const description = document[`arbeit_beschreibung_${n}`];
+          const hours = document[`stunden_${n}`];
+          if ((description?.trim() && hours === undefined) ||
+              (hours !== undefined && !description?.trim())) {
+            return res.status(400).json({ok:false,error:`Beschreibung und Stunden für Position ${n} erforderlich`});
+          }
+        }
+        const hasLineHours = document.stunden_1 !== undefined || document.stunden_2 !== undefined;
+        if (hasLineHours) {
+          const total = (document.stunden_1 ?? 0) + (document.stunden_2 ?? 0);
+          if (!Number.isFinite(total)) {
+            return res.status(400).json({ok:false,error:"Ungültige Gesamtstunden"});
+          }
+          if (document.gesamt_stunden !== undefined && Math.abs(document.gesamt_stunden - total) > 0.000001) {
+            return res.status(400).json({ok:false,error:"gesamt_stunden stimmt nicht mit den Positionen überein"});
+          }
+          document.gesamt_stunden = document.gesamt_stunden ?? total;
+        }
+        if (document.gesamt_stunden !== undefined) {
+          if (document.hours !== undefined && (typeof document.hours !== "number" || !Number.isFinite(document.hours) || Math.abs(document.hours - document.gesamt_stunden) > 0.000001)) {
+            return res.status(400).json({ok:false,error:"hours stimmt nicht mit gesamt_stunden überein"});
+          }
+          document.hours = document.gesamt_stunden;
+        }
+      }
+
+      if (!document || (document.document_type !== "Regiestunden" &&
+          (typeof document.customer_name !== "string" || !document.customer_name.trim()))) {
         return res.status(400).json({
           ok: false,
           error: "customer_name fehlt"
