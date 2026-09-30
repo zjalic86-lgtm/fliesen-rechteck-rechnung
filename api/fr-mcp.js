@@ -4,7 +4,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 export const ORIGIN = 'https://fliesen-rechteck-rechnung.vercel.app';
 export const RESOURCE = ORIGIN + '/api/fr-mcp';
 export const CALLBACK = 'https://chatgpt.com/connector_platform_oauth_redirect';
-export const SCOPE = 'fr:write';
+export const SCOPE = 'regiestunden:write';
 const allowedOrigin = value => {
   if (!value) return true;
   if (value === ORIGIN) return true;
