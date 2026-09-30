@@ -5,6 +5,20 @@ export const ORIGIN = 'https://fliesen-rechteck-rechnung.vercel.app';
 export const RESOURCE = ORIGIN + '/api/fr-mcp';
 export const CALLBACK = 'https://chatgpt.com/connector_platform_oauth_redirect';
 export const SCOPE = 'regiestunden:write';
+const allowedOrigin = value => {
+  if (!value) return true;
+  if (value === ORIGIN) return true;
+  try {
+    const u = new URL(value);
+    if (u.protocol !== 'https:') return false;
+    const h = u.hostname.toLowerCase();
+    return h === 'chatgpt.com' || h.endsWith('.chatgpt.com')
+      || h === 'openai.com' || h.endsWith('.openai.com')
+      || h === 'oaiusercontent.com' || h.endsWith('.oaiusercontent.com');
+  } catch {
+    return false;
+  }
+};
 const VERSION = '1.0.0';
 const PROTOCOLS = ['2025-06-18', '2025-03-26'];
 const COOKIE = '__Host-fr-mcp-csrf';
@@ -174,7 +188,7 @@ export function createHandler({ env = process.env, fetchImpl = globalThis.fetch 
     res.setHeader('Vary','Origin');
     try {
       const origin = req.headers?.origin;
-      if (origin && ![ORIGIN,'https://chatgpt.com','https://chat.openai.com'].includes(origin)) fail(403,'origin_not_allowed');
+      if (!allowedOrigin(origin)) fail(403,'origin_not_allowed');
       if (origin) res.setHeader('Access-Control-Allow-Origin',origin);
       res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization, MCP-Protocol-Version');
@@ -224,7 +238,7 @@ export function createHandler({ env = process.env, fetchImpl = globalThis.fetch 
         return page(res,200,context);
       }
       if (route === 'authorize' && req.method === 'POST') {
-        if (origin && ![ORIGIN,'https://chatgpt.com','https://chat.openai.com'].includes(origin)) fail(403,'origin_not_allowed');
+        if (!allowedOrigin(origin)) fail(403,'origin_not_allowed');
         const b=body(req), context=single(b,'context');
         const row=await tokenRow(context,'context');
         const cookies=String(req.headers.cookie || '').split(';').map(x=>x.trim());
