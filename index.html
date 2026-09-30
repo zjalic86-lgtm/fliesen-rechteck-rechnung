@@ -1656,10 +1656,12 @@ body#frPlainApp{background:#fff;color:#242424}
       <label>Import-Schlüssel</label>
       <input id="chatgptImportToken" type="password" placeholder="Import-Schlüssel">
       <div class="actions" style="margin-top:10px">
+        <button type="button" class="btn outline" onclick="copyChatgptImportToken()">Schlüssel kopieren</button>
         <button class="btn outline" onclick="saveChatgptImportToken()">Schlüssel speichern</button>
         <button class="btn outline" onclick="checkChatgptImportToken()">Verbindung prüfen</button>
         <button class="btn outline" onclick="pullChatgptInvoices(true)">ChatGPT Import abrufen</button>
       </div>
+      <p class="small" id="chatgptImportCopyStatus" role="status" aria-live="polite"></p>
       <p class="small" id="chatgptImportStatus">Noch nicht eingerichtet.</p>
     </div>
 
@@ -3071,7 +3073,42 @@ const FR_IMPORT_TOKEN_KEY='frChatgptImportToken';
 function loadChatgptImportToken(){
   const el=document.getElementById('chatgptImportToken');
   if(el) el.value=localStorage.getItem(userKey(FR_IMPORT_TOKEN_KEY))||'';
+  const copyStatus=document.getElementById('chatgptImportCopyStatus');
+  if(copyStatus)copyStatus.textContent='';
   updateChatgptImportStatus();
+}
+async function copyChatgptImportToken(){
+  const el=document.getElementById('chatgptImportToken');
+  const status=document.getElementById('chatgptImportCopyStatus');
+  const token=(el&&el.value||'').trim();
+  if(!status)return;
+  if(!token){status.textContent='Kein Import-Schlüssel vorhanden.';return;}
+  status.textContent='';
+  const fallback=()=>{
+    const field=document.createElement('textarea');
+    const previous=document.activeElement;
+    field.value=token;
+    field.readOnly=true;
+    field.setAttribute('aria-hidden','true');
+    field.style.cssText='position:fixed;left:-9999px;top:0;font-size:16px;';
+    document.body.appendChild(field);
+    try{
+      field.focus();field.select();field.setSelectionRange(0,field.value.length);
+      return document.execCommand('copy');
+    }finally{
+      field.value='';field.remove();
+      if(previous&&typeof previous.focus==='function')previous.focus({preventScroll:true});
+    }
+  };
+  try{
+    if(navigator.clipboard&&typeof navigator.clipboard.writeText==='function'){
+      try{await navigator.clipboard.writeText(token);}
+      catch(e){if(!fallback())throw e;}
+    }else if(!fallback()){throw new Error('copy unavailable');}
+    status.textContent='Schlüssel kopiert. Jetzt im Verbindungsfenster einfügen.';
+  }catch(e){
+    status.textContent='Kopieren blockiert. Bitte die App in Safari öffnen und erneut tippen.';
+  }
 }
 function saveChatgptImportToken(){
   const el=document.getElementById('chatgptImportToken');
