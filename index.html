@@ -1525,12 +1525,13 @@ body#frPlainApp{background:#fff;color:#242424}
     </div>
     <div id="invoiceDueDateFields"><label>Fälligkeitsdatum</label><input id="dueDate" type="date" readonly></div>
 
-    <label>Kunde</label>
-    <input id="kunde" list="kundenListe" onchange="loadCustomerByName()" onblur="loadCustomerByName()" placeholder="z.B. HB - Fliesen">
+    <label>Kunde / Firma</label>
+    <input id="kunde" list="kundenListe" onchange="loadCustomerByName()" onblur="loadCustomerByName()" placeholder="z.B. Stefan Kappler oder Muster GmbH">
     <datalist id="kundenListe"></datalist>
-    <label>Adresse</label><input id="adresse">
-    <label>UID Kunde</label><input id="kundeUid" placeholder="z.B. ATU12345678">
-    <label>E-Mail Kunde</label><input id="kundeEmail" type="email" placeholder="kunde@email.at">
+    <label>Straße / Hausnummer</label><input id="adresse" placeholder="z.B. Kaplanstraße 14">
+    <label>PLZ / Ort</label><input id="plzOrt" placeholder="z.B. 4522 Sierning">
+    <label>UID Kunde (optional)</label><input id="kundeUid" placeholder="z.B. ATU12345678">
+    <label>E-Mail Kunde (optional)</label><input id="kundeEmail" type="email" placeholder="kunde@email.at">
     <button class="btn outline" type="button" onclick="saveCustomer()">Kunde speichern</button>
     <label>Baustelle</label><input id="bau">
     <label>Nachricht (optional)</label><textarea id="nachricht" rows="3"></textarea>
@@ -2503,7 +2504,7 @@ function invoiceToCloudRow(x){
           anzahlungPercent:Number(x.anzahlungPercent||0),
           paidAt:x.paidAt||'',
           bankMatch:x.bankMatch||null,
-          pdfFolder:x.pdfFolder||'',kundeUid:x.kundeUid||'',typ:x.typ||'Privat',
+          pdfFolder:x.pdfFolder||'',kundeUid:x.kundeUid||'',plzOrt:x.plzOrt||'',typ:x.typ||'Privat',
           pdfPriceMode:x.pdfPriceMode||'on',materialPdfPriceMode:x.materialPdfPriceMode||'on'
         };
       }
@@ -2523,7 +2524,7 @@ function cloudRowToInvoice(row){
   return {
     id:row.invoice_number||('FR-'+Date.now()),type:'Rechnung',nr:row.invoice_number||'',
     date:row.invoice_date||new Date().toISOString().slice(0,10),kunde:row.customer_name||'',
-    adresse:row.customer_address||'',kundeUid:meta.kundeUid||'',email:row.customer_email||'',bau:row.baustelle||'',
+    adresse:row.customer_address||'',plzOrt:meta.plzOrt||'',kundeUid:meta.kundeUid||'',email:row.customer_email||'',bau:row.baustelle||'',
     ...(Object.prototype.hasOwnProperty.call(meta,'pdfFolder')?{pdfFolder:meta.pdfFolder||''}:{}),pdfPriceMode:meta.pdfPriceMode||'on',materialPdfPriceMode:meta.materialPdfPriceMode||'on',
     typ:meta.typ||'Privat',steuer:steuer,nachricht:row.nachricht||'',tage:String(row.payment_days||14),
     skonto:String(row.skonto||0),material:Number(row.material_cost||0),footer:row.footer||'',items:items,
@@ -2983,7 +2984,7 @@ function getUrlParams(){
 
 function hasInvoiceParams(){
   const p=getUrlParams();
-  const keys=['customer_name','kunde','baustelle','bau','email','adresse','payment_days',
+  const keys=['customer_name','kunde','baustelle','bau','email','adresse','customer_address','customer_plz_ort','plz_ort','plzOrt','ort','city','payment_days',
               'material','message','nachricht','wand_m2','wand_price','boden_m2','boden_price',
               'p1_desc','p1_qty','p1_price'];
   return keys.some(k=>p.has(k));
@@ -3007,7 +3008,8 @@ function applyUrlInvoice(){
   set('docNr','number','doc_nr','rechnung_nr');
   set('docDate','date','doc_date');
   set('kunde','customer_name','kunde');
-  set('adresse','address','adresse');
+  set('adresse','address','adresse','customer_address');
+  set('plzOrt','customer_plz_ort','plz_ort','plzOrt','ort','city');
   set('kundeUid','customer_uid','kunde_uid','uid');
   set('kundeEmail','email','customer_email');
   set('bau','baustelle','bau');
@@ -3247,6 +3249,7 @@ async function pullChatgptInvoices(showMessage){
         date,
         kunde:row.customer_name||'',
         adresse:row.customer_address||'',
+        plzOrt:row.customer_plz_ort||row.plz_ort||'',
         kundeUid:row.customer_uid||'',
         email:row.customer_email||'',
         bau:row.baustelle||'',
@@ -3781,6 +3784,7 @@ function saveCustomer(){
   const c={
     name:(document.getElementById('kunde').value||'').trim(),
     adresse:(document.getElementById('adresse').value||'').trim(),
+    plzOrt:(document.getElementById('plzOrt').value||'').trim(),
     uid:(document.getElementById('kundeUid').value||'').trim(),
     email:(document.getElementById('kundeEmail').value||'').trim(),
     typ:document.getElementById('typ').value||'Firma',
@@ -3799,6 +3803,7 @@ function loadCustomerByName(){
   const c=getCustomers().find(x=>(x.name||'').toLowerCase()===n);
   if(!c)return;
   document.getElementById('adresse').value=c.adresse||'';
+  document.getElementById('plzOrt').value=c.plzOrt||'';
   document.getElementById('kundeUid').value=c.uid||'';
   document.getElementById('kundeEmail').value=c.email||'';
   if(c.typ)document.getElementById('typ').value=/^privat/i.test(c.typ)?'Privatkunde':c.typ;
@@ -3831,6 +3836,7 @@ function currentInvoiceData(){
     date:document.getElementById('docDate').value,
     kunde:document.getElementById('kunde').value,
     adresse:document.getElementById('adresse').value,
+    plzOrt:document.getElementById('plzOrt').value,
     kundeUid:document.getElementById('kundeUid').value,
     email:document.getElementById('kundeEmail').value,
     bau:document.getElementById('bau').value,
@@ -3923,6 +3929,7 @@ function loadOffer(i){
   document.getElementById('docDate').value=x.date||'';
   document.getElementById('kunde').value=x.kunde||'';
   document.getElementById('adresse').value=x.adresse||'';
+  document.getElementById('plzOrt').value=x.plzOrt||'';
   document.getElementById('kundeUid').value=x.kundeUid||'';
   document.getElementById('kundeEmail').value=x.email||'';
   document.getElementById('bau').value=x.bau||'';
@@ -3993,6 +4000,7 @@ function fillInvoiceCustomerFromOffer(x){
   assignNextDocNumber();
   document.getElementById('kunde').value=x.kunde||'';
   document.getElementById('adresse').value=x.adresse||'';
+  document.getElementById('plzOrt').value=x.plzOrt||'';
   document.getElementById('kundeUid').value=x.kundeUid||'';
   document.getElementById('kundeEmail').value=x.email||'';
   document.getElementById('bau').value=x.bau||'';
@@ -4487,6 +4495,7 @@ function loadInvoice(i){
   document.getElementById('formTitle').textContent=invoiceDocumentLabel(x);
   document.getElementById('docNr').value=x.nr||'';document.getElementById('docDate').value=x.date||'';
   document.getElementById('kunde').value=x.kunde||'';document.getElementById('adresse').value=x.adresse||'';
+  document.getElementById('plzOrt').value=x.plzOrt||'';
   document.getElementById('kundeUid').value=x.kundeUid||'';document.getElementById('kundeEmail').value=x.email||'';document.getElementById('bau').value=x.bau||'';
   document.getElementById('typ').value=/^privat/i.test(x.typ||'')?'Privatkunde':(x.typ||'Firma');document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('nachricht').value=x.nachricht||'';document.getElementById('tage').value=x.tage||'14';
@@ -4568,9 +4577,10 @@ async function pdfInvoice(i,mode='open'){
   pdf.text('Fälligkeitsdatum: '+fmtDate(dueDateValue),right,y+8,{align:'right'});
   y+=15;
 
-  pdf.setFontSize(9.5);pdf.setFont(undefined,'bold');pdf.text('Kunde:',left,y);
-  pdf.setFont(undefined,'normal');pdf.text(x.kunde||'',left+15,y);y+=5;
+  pdf.setFontSize(9.5);pdf.setFont(undefined,'bold');pdf.text('Kunde / Firma:',left,y);
+  pdf.setFont(undefined,'normal');pdf.text(x.kunde||'',left+28,y);y+=5;
   if(x.adresse){pdf.text(x.adresse,left,y);y+=5}
+  if(x.plzOrt){pdf.text(x.plzOrt,left,y);y+=5}
   if(x.kundeUid){pdf.setFont(undefined,'bold');pdf.text('UID:',left,y);pdf.setFont(undefined,'normal');pdf.text(x.kundeUid,left+10,y);y+=5}
   pdf.setFont(undefined,'bold');pdf.text('Baustelle:',left,y);pdf.setFont(undefined,'normal');pdf.text(x.bau||'',left+20,y);y+=10;
 
@@ -4730,7 +4740,14 @@ async function mahnungInvoice(i){
   if(x.adresse){
     const lines=pdf.splitTextToSize(x.adresse,100);
     pdf.text(lines,left,y);
+    y+=lines.length*5;
+  }
+  if(x.plzOrt){
+    const lines=pdf.splitTextToSize(x.plzOrt,100);
+    pdf.text(lines,left,y);
     y+=lines.length*5+4;
+  }else{
+    y+=4;
   }
 
   pdf.setFontSize(11);
@@ -4808,6 +4825,7 @@ function copyInvoice(i){
   document.getElementById('docDate').value=new Date().toISOString().slice(0,10);
   document.getElementById('kunde').value=x.kunde||'';
   document.getElementById('adresse').value=x.adresse||'';
+  document.getElementById('plzOrt').value=x.plzOrt||'';
   document.getElementById('kundeUid').value=x.kundeUid||'';
   document.getElementById('kundeEmail').value=x.email||'';
   document.getElementById('bau').value=x.bau||'';
@@ -4918,6 +4936,7 @@ async function sharePDF(mode='share'){
   const dueDateValue=calcDueDate(docDate,document.getElementById('tage').value);
   const kunde=document.getElementById('kunde').value;
   const adresse=document.getElementById('adresse').value;
+  const plzOrt=document.getElementById('plzOrt').value.trim();
   const kundeUid=document.getElementById('kundeUid').value.trim();
   const bau=document.getElementById('bau').value;
   const nachricht=document.getElementById('nachricht').value.trim();
@@ -4970,10 +4989,11 @@ async function sharePDF(mode='share'){
 
   y+=15;
   pdf.setFontSize(9.5);
-  pdf.setFont(undefined,'bold');pdf.text('Kunde:',left,y);
-  pdf.setFont(undefined,'normal');pdf.text(kunde,left+15,y);
+  pdf.setFont(undefined,'bold');pdf.text('Kunde / Firma:',left,y);
+  pdf.setFont(undefined,'normal');pdf.text(kunde,left+28,y);
   y+=5;
   if(adresse){pdf.text(adresse,left,y);y+=5}
+  if(plzOrt){pdf.text(plzOrt,left,y);y+=5}
   if(kundeUid){pdf.setFont(undefined,'bold');pdf.text('UID:',left,y);pdf.setFont(undefined,'normal');pdf.text(kundeUid,left+10,y);y+=5}
   pdf.setFont(undefined,'bold');pdf.text('Baustelle:',left,y);
   pdf.setFont(undefined,'normal');pdf.text(bau,left+20,y);
@@ -5169,7 +5189,7 @@ ${companyName}`);
   <div class="top"><div>${lg}</div><div class="right">${esc(company.address||'')}<br>${company.uid?'UID '+esc(company.uid):''}${company.taxNr?' · StNr. '+esc(company.taxNr):''}<br>${esc(company.email||'')}${company.phone?' · '+esc(company.phone):''}<br>${company.iban?'IBAN '+esc(company.iban):''}<br>${company.bic?'BIC '+esc(company.bic):''}</div></div>
   <hr class="redline">
   <div class="meta">
-    <div><b>Kunde:</b> ${esc(document.getElementById('kunde').value)}<br>${esc(document.getElementById('adresse').value)}${document.getElementById('kundeUid').value?`<br><b>UID:</b> ${esc(document.getElementById('kundeUid').value)}`:''}<br><b>Baustelle:</b> ${esc(document.getElementById('bau').value)}</div>
+    <div><b>Kunde / Firma:</b> ${esc(document.getElementById('kunde').value)}<br>${esc(document.getElementById('adresse').value)}${document.getElementById('plzOrt').value?`<br>${esc(document.getElementById('plzOrt').value)}`:''}${document.getElementById('kundeUid').value?`<br><b>UID:</b> ${esc(document.getElementById('kundeUid').value)}`:''}<br><b>Baustelle:</b> ${esc(document.getElementById('bau').value)}</div>
     <div style="text-align:right;line-height:1.6"><b>Nr.:</b> ${esc(docNr)}<br><b>${docType==='Angebot'?'Angebotsdatum':'Rechnungsdatum'}:</b> ${fmtDate(docDate)}${docType==='Rechnung'?`<br><b>Fälligkeitsdatum:</b> ${due}`:''}</div>
   </div>
   <div class="title" style="margin-top:26px">${currentDocumentLabel().toUpperCase()}</div>
