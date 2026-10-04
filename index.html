@@ -991,6 +991,83 @@ body#frPlainApp{background:#fff;color:#242424}
 @media(max-width:380px){#frJobs .fr-jobs-controls{gap:12px}#frJobs .fr-jobs-controls select{max-width:150px}#frJobs .fr-jobs-sync{gap:8px}#frJobs .fr-jobs-sync button{font-size:14px}}
 
 </style>
+
+<style id="invoiceCompactListStyle">
+/* Compact Rechnung list: one invoice per row, actions behind the menu button. */
+#overview-invoices #invoiceList .invoice-compact-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 48px;
+  align-items:stretch;
+  border-bottom:1px solid #e8e5e2;
+  position:relative;
+}
+#overview-invoices #invoiceList .invoice-compact-main{
+  width:100%;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:14px;
+  align-items:center;
+  padding:16px 8px 16px 0 !important;
+  margin:0 !important;
+  color:#242424 !important;
+  text-align:left;
+  text-decoration:none !important;
+}
+#overview-invoices #invoiceList .invoice-compact-main:active{
+  text-decoration:none !important;
+}
+#overview-invoices #invoiceList .invoice-compact-info{min-width:0}
+#overview-invoices #invoiceList .invoice-compact-number{
+  display:block;font-size:19px;line-height:1.2;font-weight:800;color:#242424;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+#overview-invoices #invoiceList .invoice-compact-customer{
+  display:block;margin-top:4px;font-size:16px;line-height:1.25;color:#242424;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+#overview-invoices #invoiceList .invoice-compact-meta{
+  display:block;margin-top:4px;font-size:14px;line-height:1.25;color:#777;
+}
+#overview-invoices #invoiceList .invoice-compact-amount{
+  min-width:118px;text-align:right;
+}
+#overview-invoices #invoiceList .invoice-compact-amount > b{
+  display:block;font-size:18px;line-height:1.2;color:#242424;white-space:nowrap;
+}
+#overview-invoices #invoiceList .invoice-compact-amount .badge{
+  display:inline-block !important;margin-top:5px !important;
+  font-size:12px !important;line-height:1.2 !important;color:#555 !important;
+}
+#overview-invoices #invoiceList .invoice-compact-more{
+  width:48px !important;min-width:48px !important;min-height:48px !important;
+  padding:0 !important;margin:auto 0 !important;font-size:28px !important;
+  line-height:1 !important;text-align:center !important;color:#ae332b !important;
+}
+#overview-invoices #invoiceList .invoice-compact-menu{
+  grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr;
+  gap:0 16px;padding:4px 0 12px;border-top:1px solid #f0eeec;
+}
+#overview-invoices #invoiceList .invoice-compact-menu.hidden{display:none !important}
+#overview-invoices #invoiceList .invoice-compact-menu button{
+  width:100%;min-height:46px;padding:10px 2px !important;text-align:left !important;
+  font-size:15px !important;font-weight:750 !important;color:#ae332b !important;
+  border-bottom:1px solid #f0eeec !important;
+}
+#overview-invoices #invoiceList .invoice-compact-menu button.invoice-delete-action{
+  color:#a01818 !important;
+}
+@media(max-width:520px){
+  #overview-invoices #invoiceList .invoice-compact-main{
+    gap:10px;padding:14px 6px 14px 0 !important;
+  }
+  #overview-invoices #invoiceList .invoice-compact-number{font-size:18px}
+  #overview-invoices #invoiceList .invoice-compact-customer{font-size:15px}
+  #overview-invoices #invoiceList .invoice-compact-meta{font-size:13px}
+  #overview-invoices #invoiceList .invoice-compact-amount{min-width:104px}
+  #overview-invoices #invoiceList .invoice-compact-amount > b{font-size:16px}
+}
+</style>
+
 </head>
 <body id="frPlainApp">
 <div id="accountScreen" class="accountScreen">
@@ -4420,6 +4497,29 @@ function renderStatsInvoiceList(){
   }).join('');
 }
 
+
+function toggleInvoiceCompactMenu(i,event){
+  if(event){
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const id='invoiceCompactMenu'+i;
+  const target=document.getElementById(id);
+  if(!target)return;
+
+  document.querySelectorAll('#invoiceList .invoice-compact-menu').forEach(el=>{
+    if(el.id!==id)el.classList.add('hidden');
+  });
+  document.querySelectorAll('#invoiceList .invoice-compact-more').forEach(btn=>{
+    if(btn.getAttribute('aria-controls')!==id)btn.setAttribute('aria-expanded','false');
+  });
+
+  const willOpen=target.classList.contains('hidden');
+  target.classList.toggle('hidden',!willOpen);
+  const button=document.querySelector(`#invoiceList .invoice-compact-more[aria-controls="${id}"]`);
+  if(button)button.setAttribute('aria-expanded',willOpen?'true':'false');
+}
+
 function renderDashboard(){
   const arr=getInvoices();
   const total=arr.reduce((s,x)=>s+(Number(x.total)||0),0);
@@ -4442,34 +4542,34 @@ function renderDashboard(){
       const folder=invoiceFolderLabel(x);
       const status=invoiceStatusInfo(x);
 
-      return `<div class="stats-pdf-item ${status.cardCls}">
-        <div class="stats-pdf-top">
-          <div>
-            <b>${esc(x.nr||'Ohne Nummer')}</b><br>
-            ${esc(x.kunde||'')}<br>
-            <span class="small">${esc(kind)}${percent} · ${fmtDate(x.date)}</span>
-            ${folder?`<br><span class="stats-pdf-folder">📁 ${esc(folder)}</span>`:''}
-          </div>
-          <div style="text-align:right">
-            <b>${euro(x.total||0)}</b><br>
+      return `<div class="invoice-compact-row">
+        <button type="button" class="invoice-compact-main" onclick="editInvoiceFromPdfList(${i})">
+          <span class="invoice-compact-info">
+            <span class="invoice-compact-number">${esc(x.nr||'Ohne Nummer')}</span>
+            <span class="invoice-compact-customer">${esc(x.kunde||'')}</span>
+            <span class="invoice-compact-meta">${esc(kind)}${percent} · ${fmtDate(x.date)}</span>
+          </span>
+          <span class="invoice-compact-amount">
+            <b>${euro(x.total||0)}</b>
             ${invoiceStatusBadgeHtml(x)}
-          </div>
-        </div>
+          </span>
+        </button>
 
-        <div class="stats-pdf-actions">
-          <button onclick="pdfInvoice(${i})">📄 PDF</button>
-          <button onclick="editInvoiceFromPdfList(${i})">✏️ Bearbeiten</button>
+        <button type="button" class="invoice-compact-more"
+          aria-label="Rechnungsmenü"
+          aria-controls="invoiceCompactMenu${i}"
+          aria-expanded="false"
+          onclick="toggleInvoiceCompactMenu(${i},event)">⋯</button>
 
-          <button onclick="pdfInvoice(${i},'share')">📤 Senden / teilen</button>
-          <button class="${status.key==='overdue'?'mahnung-auto':''}" onclick="mahnungInvoice(${i})">
-            ${status.key==='overdue'?'🔴':'⚠️'} Mahnung 10 €
-          </button>
-
-          <button onclick="togglePaid(${i})">${x.paid?'↩️ Offen setzen':'✅ Bezahlt'}</button>
-          <button onclick="openInvoiceFolderPicker(${i})">📁 ${folder?esc(folder):'Ordner'}</button>
-
-          <button onclick="copyInvoice(${i})">📋 Kopieren</button>
-          <button onclick="deleteInvoice(${i})">🗑️ Löschen</button>
+        <div id="invoiceCompactMenu${i}" class="invoice-compact-menu hidden">
+          <button type="button" onclick="pdfInvoice(${i})">📄 PDF</button>
+          <button type="button" onclick="editInvoiceFromPdfList(${i})">✏️ Bearbeiten</button>
+          <button type="button" onclick="pdfInvoice(${i},'share')">📤 Senden / teilen</button>
+          <button type="button" onclick="mahnungInvoice(${i})">${status.key==='overdue'?'🔴':'⚠️'} Mahnung 10 €</button>
+          <button type="button" onclick="togglePaid(${i})">${x.paid?'↩️ Offen setzen':'✅ Bezahlt'}</button>
+          <button type="button" onclick="openInvoiceFolderPicker(${i})">📁 ${folder?esc(folder):'Ordner'}</button>
+          <button type="button" onclick="copyInvoice(${i})">📋 Kopieren</button>
+          <button type="button" class="invoice-delete-action" onclick="deleteInvoice(${i})">🗑️ Löschen</button>
         </div>
       </div>`;
     }).join('');
