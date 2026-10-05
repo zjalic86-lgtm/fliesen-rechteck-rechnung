@@ -3311,6 +3311,7 @@ async function pullChatgptInvoices(showMessage){
       }else{
         const date=row.invoice_date||new Date().toISOString().slice(0,10);
         const local=kind==='Angebot'?getOffers():getInvoices();
+        const customer=importCustomerData(row);
         const invoiceNumber=row.invoice_number||nextDocNumber(kind,date);
         if(local.some(x=>x.nr===invoiceNumber))throw new Error('Dokumentnummer bereits vorhanden: '+invoiceNumber);
       const items=[];
@@ -3336,7 +3337,7 @@ async function pullChatgptInvoices(showMessage){
       }
 
       const net=items.reduce((sum,item)=>sum+Number(item.sum||0),0);
-      const steuer=String(row.steuer||'20');
+      const steuer=customer.steuer;
       const ust=steuer==='20'?net*0.20:0;
       const total=net+ust;
 
@@ -3347,13 +3348,13 @@ async function pullChatgptInvoices(showMessage){
         sourceImportId:sourceId,
         nr:invoiceNumber,
         date,
-        kunde:row.customer_name||'',
-        adresse:row.customer_address||'',
-        plzOrt:row.customer_plz_ort||row.plz_ort||'',
-        kundeUid:row.customer_uid||'',
-        email:row.customer_email||'',
+        kunde:customer.name,
+        adresse:customer.adresse,
+        plzOrt:customer.plzOrt,
+        kundeUid:customer.uid,
+        email:customer.email,
         bau:row.baustelle||'',
-        typ:row.customer_type||'Privat',
+        typ:customer.typ,
         steuer,
         nachricht:row.nachricht||'',
         tage:String(row.payment_days||14),
@@ -3371,6 +3372,7 @@ async function pullChatgptInvoices(showMessage){
       };
 
 
+        upsertCustomer(customer);
         if(kind==='Angebot')setOffers([x,...local]);
         else {unmarkInvoiceDeleted(invoiceNumber);setInvoices([x,...local]);}
       }
@@ -3875,40 +3877,125 @@ function setCustomers(v){
   localStorage.setItem(userKey('frCustomers'),JSON.stringify(v||[]));
   renderCustomerList();
 }
+function normalizeCustomerName(v){
+  return String(v||'').trim().replace(/\s+/g,' ').toLowerCase();
+}
+function isStefanKapplerName(v){
+  return normalizeCustomerName(v)==='stefan kappler';
+}
+function customerFromHistory(name){
+  const key=normalizeCustomerName(name);
+  if(!key)return null;
+  const saved=getCustomers().find(x=>normalizeCustomerName(x.name)===key);
+  if(saved)return {...saved};
+  const docs=[...getInvoices(),...getOffers()].filter(x=>normalizeCustomerName(x&&x.kunde)===key);
+  const x=docs.find(x=>x&&(x.adresse||x.plzOrt||x.kundeUid||x.email))||docs[0];
+  if(!x)return null;
+  return {
+    name:x.kunde||name,
+    adresse:x.adresse||'',
+    plzOrt:x.plzOrt||'',
+    uid:x.kundeUid||'',
+    email:x.email||'',
+    typ:/^privat/i.test(x.typ||'')?'Privatkunde':(x.typ||'Firma'),
+    steuer:x.steuer||'rc'
+  };
+}
+function upsertCustomer(c){
+  if(!c||!String(c.name||'').trim())return null;
+  let a=getCustomers();
+  const key=normalizeCustomerName(c.name);
+  const i=a.findIndex(x=>normalizeCustomerName(x.name)===key);
+  const prev=i>=0?a[i]:{};
+  const merged={
+    name:String(c.name||prev.name||'').trim(),
+    adresse:String(c.adresse||prev.adresse||'').trim(),
+    plzOrt:String(c.plzOrt||prev.plzOrt||'').trim(),
+    uid:String(c.uid||prev.uid||'').trim(),
+    email:String(c.email||prev.email||'').trim(),
+    typ:c.typ||prev.typ||'Firma',
+    steuer:c.steuer||prev.steuer||'rc'
+  };
+  if(isStefanKapplerName(merged.name)){merged.typ='Firma';merged.steuer='rc';}
+  if(i>=0)a[i]=merged;else a.unshift(merged);
+  setCustomers(a);
+  return merged;
+}
 function renderCustomerList(){
   const el=document.getElementById('kundenListe');
   if(!el)return;
   el.innerHTML=getCustomers().map(c=>`<option value="${escAttr(c.name||'')}"></option>`).join('');
 }
-function saveCustomer(){
-  const c={
-    name:(document.getElementById('kunde').value||'').trim(),
+function customerFromForm(){
+  const name=(document.getElementById('kunde').value||'').trim();
+  const kappler=isStefanKapplerName(name);
+  return {
+    name,
     adresse:(document.getElementById('adresse').value||'').trim(),
     plzOrt:(document.getElementById('plzOrt').value||'').trim(),
     uid:(document.getElementById('kundeUid').value||'').trim(),
     email:(document.getElementById('kundeEmail').value||'').trim(),
-    typ:document.getElementById('typ').value||'Firma',
-    steuer:document.getElementById('steuer').value||'rc'
+    typ:kappler?'Firma':(document.getElementById('typ').value||'Firma'),
+    steuer:kappler?'rc':(document.getElementById('steuer').value||'rc')
   };
-  if(!c.name){alert('Bitte Kundenname eingeben.');return}
-  let a=getCustomers();
-  const i=a.findIndex(x=>(x.name||'').toLowerCase()===c.name.toLowerCase());
-  if(i>=0)a[i]=c;else a.unshift(c);
-  setCustomers(a);
-  alert('Kunde gespeichert');
+}
+function saveCustomer(silent=false){
+  const c=customerFromForm();
+  if(!c.name){if(!silent)alert('Bitte Kundenname eingeben.');return null}
+  const saved=upsertCustomer(c);
+  if(!silent)alert('Kunde gespeichert');
+  return saved;
+}
+function saveCustomerFromDocument(d){
+  if(!d||!String(d.kunde||'').trim())return;
+  upsertCustomer({
+    name:d.kunde,
+    adresse:d.adresse||'',
+    plzOrt:d.plzOrt||'',
+    uid:d.kundeUid||'',
+    email:d.email||'',
+    typ:d.typ||'Firma',
+    steuer:d.steuer||'rc'
+  });
 }
 function loadCustomerByName(){
-  const n=(document.getElementById('kunde').value||'').trim().toLowerCase();
-  if(!n)return;
-  const c=getCustomers().find(x=>(x.name||'').toLowerCase()===n);
-  if(!c)return;
+  const raw=(document.getElementById('kunde').value||'').trim();
+  if(!raw)return;
+  const c=customerFromHistory(raw);
+  if(!c){
+    if(isStefanKapplerName(raw)){
+      document.getElementById('typ').value='Firma';
+      document.getElementById('steuer').value='rc';
+      changeDocumentTax();
+    }
+    return;
+  }
   document.getElementById('adresse').value=c.adresse||'';
   document.getElementById('plzOrt').value=c.plzOrt||'';
   document.getElementById('kundeUid').value=c.uid||'';
   document.getElementById('kundeEmail').value=c.email||'';
-  if(c.typ)document.getElementById('typ').value=/^privat/i.test(c.typ)?'Privatkunde':c.typ;
-  if(c.steuer)document.getElementById('steuer').value=c.steuer;
+  if(isStefanKapplerName(raw)){
+    document.getElementById('typ').value='Firma';
+    document.getElementById('steuer').value='rc';
+  }else{
+    if(c.typ)document.getElementById('typ').value=/^privat/i.test(c.typ)?'Privatkunde':c.typ;
+    if(c.steuer)document.getElementById('steuer').value=c.steuer;
+  }
   changeDocumentTax();
+}
+function importCustomerData(row){
+  const name=String(row.customer_name||'').trim();
+  const saved=customerFromHistory(name)||{};
+  const kappler=isStefanKapplerName(name);
+  return {
+    name,
+    adresse:String(row.customer_address||saved.adresse||'').trim(),
+    plzOrt:String(row.customer_plz_ort||row.plz_ort||saved.plzOrt||'').trim(),
+    uid:String(row.customer_uid||saved.uid||'').trim(),
+    email:String(row.customer_email||saved.email||'').trim(),
+    typ:kappler?'Firma':(row.customer_type||saved.typ||'Privat'),
+    steuer:kappler?'rc':String(row.steuer||saved.steuer||'20')
+  };
 }
 
 function getInvoices(){
@@ -3927,20 +4014,26 @@ function addToTrash(x){
 function currentInvoiceData(){
   const items=collectItems();
   const net=items.reduce((a,b)=>a+b.sum,0);
-  const st=document.getElementById('steuer').value;
+  const customerName=(document.getElementById('kunde').value||'').trim();
+  const kappler=isStefanKapplerName(customerName);
+  if(kappler){
+    document.getElementById('typ').value='Firma';
+    document.getElementById('steuer').value='rc';
+  }
+  const st=kappler?'rc':document.getElementById('steuer').value;
   const ust=st==='20'?net*.2:0;
   return {
     id:document.getElementById('docNr').value||('FR-'+Date.now()),
     type:docType,
     nr:document.getElementById('docNr').value,
     date:document.getElementById('docDate').value,
-    kunde:document.getElementById('kunde').value,
+    kunde:customerName,
     adresse:document.getElementById('adresse').value,
     plzOrt:document.getElementById('plzOrt').value,
     kundeUid:document.getElementById('kundeUid').value,
     email:document.getElementById('kundeEmail').value,
     bau:document.getElementById('bau').value,
-    typ:document.getElementById('typ').value,
+    typ:kappler?'Firma':document.getElementById('typ').value,
     steuer:st,
     nachricht:document.getElementById('nachricht').value,
     tage:document.getElementById('tage').value,
@@ -3977,6 +4070,7 @@ function saveCurrentInvoiceSilently(){
     arr.unshift(d);
   }
 
+  saveCustomerFromDocument(d);
   setInvoices(arr);
   renderDashboard();
   cloudUpsertInvoice(d).catch(()=>{});
@@ -3998,6 +4092,7 @@ function saveInvoice(){
     d.lockedAt='';
     arr[i]=d;
   }else arr.unshift(d);
+  saveCustomerFromDocument(d);
   setInvoices(arr);alert('Rechnung gespeichert');renderDashboard();
   cloudUpsertInvoice(d).catch(()=>{});
 }
@@ -4018,6 +4113,7 @@ function saveOffer(){
     d.status=arr[i].status||'Offen';
     arr[i]=d;
   }else arr.unshift(d);
+  saveCustomerFromDocument(d);
   setOffers(arr);
   alert('Angebot gespeichert');
   renderDashboard();
