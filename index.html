@@ -1068,6 +1068,29 @@ body#frPlainApp{background:#fff;color:#242424}
 }
 </style>
 
+
+<style id="invoicePositionDeleteStyle">
+.itemline .item-remove{
+  border:1px solid #c92d29 !important;
+  background:#fff !important;
+  color:#c92d29 !important;
+  border-radius:10px !important;
+  padding:11px 12px !important;
+  min-height:44px !important;
+  font-size:14px !important;
+  font-weight:800 !important;
+  white-space:nowrap;
+}
+@media(max-width:620px){
+  .itemline .item-remove{
+    grid-column:1 / -1 !important;
+    width:100% !important;
+    margin-top:8px !important;
+    font-size:16px !important;
+  }
+}
+</style>
+
 </head>
 <body id="frPlainApp">
 <div id="accountScreen" class="accountScreen">
@@ -3808,7 +3831,7 @@ function addItem(desc='',qty='',unit='m²',price='',kind='',costPrice=''){
       <div><label>Menge</label><input class="i-qty" type="number" step="0.01" value="${qty}" oninput="recalcMaterialCostFromItems()"></div>
       <div><label>Einheit</label><select class="i-unit">${units.map(u=>`<option ${u===unit?'selected':''}>${u}</option>`).join('')}</select></div>
       <div><label>Preis €</label><input class="i-price" type="number" step="0.01" value="${price}"></div>
-      <button type="button" class="remove" onclick="removeInvoiceItem(this)">✕</button>
+      <button type="button" class="remove item-remove" onclick="removeInvoiceItem(this)">🗑 Position löschen</button>
     </div>`;
   document.getElementById('items').appendChild(box);
 }
