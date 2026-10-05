@@ -4849,20 +4849,26 @@ async function pdfInvoice(i,mode='open'){
   const skontoValue=total*sk/100;
   const payText=sk>0?`Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue).replace(/\u00a0/g,' ')}) abgezogen werden.`:`Zahlungsziel: ${dueDays} Tage.`;
   const payLines=pdf.splitTextToSize(payText,175);
-  const closingHeight=31+(ust?5:0)+(footerLines.length*4)+(footerLines.length?4:0)+(payLines.length*4)+(qrData?40:0);
-  const closingLimit=270;
-  if(y+closingHeight>closingLimit){pdf.addPage();y=24}
+  const closingLimit=274;
+  const regularClosingHeight=8+(ust?5:0)+7+12+(footerLines.length*4)+(footerLines.length?4:0)+(payLines.length*4)+(payLines.length?6:0)+(qrData?34:0);
+  const compactClosingHeight=4+(ust?4.5:0)+5+7+(footerLines.length*3.5)+(footerLines.length?2:0)+(payLines.length*3.5)+(payLines.length?3:0)+(qrData?30:0);
+  let compactClosing=false;
+  if(y+regularClosingHeight>closingLimit){
+    if(y+compactClosingHeight<=closingLimit) compactClosing=true;
+    else {pdf.addPage();y=24;}
+  }
 
-  y+=8;pdf.setFontSize(10);
+  y+=compactClosing?4:8;pdf.setFontSize(10);
   pdf.text('Netto',150,y);pdf.text(euro(net).replace(/\u00a0/g,' '),192,y,{align:'right'});
-  if(ust){y+=5;pdf.text('USt. 20%',150,y);pdf.text(euro(ust).replace(/\u00a0/g,' '),192,y,{align:'right'})}
-  y+=7;pdf.setDrawColor(34);pdf.line(148,y-4,right,y-4);
+  if(ust){y+=compactClosing?4.5:5;pdf.text('USt. 20%',150,y);pdf.text(euro(ust).replace(/\u00a0/g,' '),192,y,{align:'right'})}
+  y+=compactClosing?5:7;pdf.setDrawColor(34);pdf.line(148,y-4,right,y-4);
   pdf.setFont(undefined,'bold');pdf.setFontSize(12);pdf.text('Zahlbetrag',150,y);pdf.text(euro(total).replace(/\u00a0/g,' '),192,y,{align:'right'});
 
-  y+=12;pdf.setFont(undefined,'normal');pdf.setFontSize(8.5);
-  if(footerLines.length){pdf.text(footerLines,left,y);y+=footerLines.length*4+4}
+  y+=compactClosing?7:12;pdf.setFont(undefined,'normal');pdf.setFontSize(8.5);
+  const closingLineHeight=compactClosing?3.5:4;
+  if(footerLines.length){pdf.text(footerLines,left,y);y+=footerLines.length*closingLineHeight+(compactClosing?2:4)}
   pdf.text(payLines,left,y);
-  y+=payLines.length*4+6;
+  y+=payLines.length*closingLineHeight+(compactClosing?3:6);
 
   try{
     if(qrData){
@@ -5290,32 +5296,38 @@ async function sharePDF(mode='share'){
     ? `Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue).replace(/\u00a0/g,' ')}) abgezogen werden.`
     : `Zahlungsziel: ${dueDays} Tage.`;
   const payLines=docType==='Rechnung'?pdf.splitTextToSize(payText,175):[];
-  const closingHeight=31+(ust?5:0)+(footerLines.length*4)+(footerLines.length?4:0)+(payLines.length*4)+(qrData?40:0);
-  const closingLimit=270;
-  if(y+closingHeight>closingLimit){pdf.addPage();y=24}
+  const closingLimit=274;
+  const regularClosingHeight=8+(ust?5:0)+7+12+(footerLines.length*4)+(footerLines.length?4:0)+(payLines.length*4)+(payLines.length?6:0)+(qrData?34:0);
+  const compactClosingHeight=4+(ust?4.5:0)+5+7+(footerLines.length*3.5)+(footerLines.length?2:0)+(payLines.length*3.5)+(payLines.length?3:0)+(qrData?30:0);
+  let compactClosing=false;
+  if(y+regularClosingHeight>closingLimit){
+    if(y+compactClosingHeight<=closingLimit) compactClosing=true;
+    else {pdf.addPage();y=24;}
+  }
 
-  y+=8;
+  y+=compactClosing?4:8;
   pdf.setFontSize(10);
   pdf.text('Netto',150,y);
   pdf.text(euro(net).replace(/\u00a0/g,' '),192,y,{align:'right'});
   if(ust){
-    y+=5;
+    y+=compactClosing?4.5:5;
     pdf.text('USt. 20%',150,y);
     pdf.text(euro(ust).replace(/\u00a0/g,' '),192,y,{align:'right'});
   }
-  y+=7;
+  y+=compactClosing?5:7;
   pdf.setLineWidth(.5);pdf.setDrawColor(34);pdf.line(148,y-4,right,y-4);
   pdf.setFont(undefined,'bold');pdf.setFontSize(12);
   pdf.text(docType==='Angebot'?'Gesamt':'Zahlbetrag',150,y);
   pdf.text(euro(total).replace(/\u00a0/g,' '),192,y,{align:'right'});
 
-  y+=12;
+  y+=compactClosing?7:12;
   pdf.setFont(undefined,'normal');pdf.setFontSize(8.5);
+  const closingLineHeight=compactClosing?3.5:4;
   if(footerLines.length){
     pdf.text(footerLines,left,y);
-    y+=footerLines.length*4+4;
+    y+=footerLines.length*closingLineHeight+(compactClosing?2:4);
   }
-  if(payLines.length){pdf.text(payLines,left,y);y+=payLines.length*4+6}
+  if(payLines.length){pdf.text(payLines,left,y);y+=payLines.length*closingLineHeight+(compactClosing?3:6)}
 
   // SEPA / EPC QR-Code für Überweisung
   try{
