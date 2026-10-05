@@ -4865,12 +4865,12 @@ async function pdfInvoice(i,mode='open'){
 
   try{
     if(qrData){
-    pdf.addImage(qrData,'PNG',16,222,42,42);
-    pdf.setFontSize(8);pdf.setFont(undefined,'bold');pdf.text('Per Banking-App bezahlen',62,229);
+    pdf.addImage(qrData,'PNG',16,228,30,30);
+    pdf.setFontSize(7.5);pdf.setFont(undefined,'bold');pdf.text('Per Banking-App bezahlen',50,232);
     pdf.setFont(undefined,'normal');
-    pdf.text('QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.',62,234);
-    if(qrData){pdf.text('Empfänger: '+companyName,62,239);pdf.text('IBAN: '+(company.iban||''),62,244);}
-    pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),62,249);pdf.text('Verwendung: Rechnung '+docNr,62,254);
+    pdf.text('QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.',50,237);
+    if(qrData){pdf.text('Empfänger: '+companyName,50,242);pdf.text('IBAN: '+(company.iban||''),50,247);}
+    pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),50,252);pdf.text('Verwendung: Rechnung '+docNr,50,257);
     }
   }catch(e){}
 
@@ -5317,15 +5317,15 @@ async function sharePDF(mode='share'){
   // SEPA / EPC QR-Code für Überweisung
   try{
     if(qrData){
-    pdf.addImage(qrData,'PNG',16,222,42,42);
-    pdf.setFontSize(8);pdf.setFont(undefined,'bold');
-    pdf.text('Per Banking-App bezahlen',62,229);
+    pdf.addImage(qrData,'PNG',16,228,30,30);
+    pdf.setFontSize(7.5);pdf.setFont(undefined,'bold');
+    pdf.text('Per Banking-App bezahlen',50,232);
     pdf.setFont(undefined,'normal');
-    pdf.text('QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.',62,234);
-    pdf.text('Empfänger: '+companyName,62,239);
-    pdf.text('IBAN: '+(company.iban||''),62,244);
-    pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),62,249);
-    pdf.text('Verwendung: Rechnung '+docNr,62,254);
+    pdf.text('QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.',50,237);
+    pdf.text('Empfänger: '+companyName,50,242);
+    pdf.text('IBAN: '+(company.iban||''),50,247);
+    pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),50,252);
+    pdf.text('Verwendung: Rechnung '+docNr,50,257);
     }
   }catch(e){}
 
@@ -5434,7 +5434,7 @@ ${companyName}`);
   .big{font-weight:800;font-size:18px;border-top:2px solid #222;margin-top:5px;padding-top:9px!important}
   .note{margin-top:22px}
   .closing{break-inside:avoid;page-break-inside:avoid}
-  .footer{margin-top:28px;line-height:1.5}.payqr{display:flex;gap:18px;align-items:center;margin-top:28px;padding-top:14px;border-top:1px solid #ddd;break-inside:avoid;page-break-inside:avoid}.payqr #payQr{width:120px;height:120px}.companyfooter{margin-top:42px;border-top:1px solid #555;padding-top:9px;text-align:center;font-size:10px;line-height:1.45;break-inside:avoid;page-break-inside:avoid}
+  .footer{margin-top:28px;line-height:1.5}.payqr{display:flex;gap:14px;align-items:center;margin-top:22px;padding-top:12px;border-top:1px solid #ddd;break-inside:avoid;page-break-inside:avoid;font-size:11px;line-height:1.4}.payqr #payQr{width:90px;height:90px;flex:0 0 90px}.companyfooter{margin-top:42px;border-top:1px solid #555;padding-top:9px;text-align:center;font-size:10px;line-height:1.45;break-inside:avoid;page-break-inside:avoid}
   .printbtn{margin-top:25px;padding:12px 18px;border:0;border-radius:9px;background:#111;color:white;font-weight:700;margin-right:6px}
   @media print{.printbtn{display:none}body{padding:0}}
   </style></head><body>
@@ -5458,7 +5458,7 @@ ${companyName}`);
   <button class="printbtn" onclick="location.href='mailto:${mailTo}?subject=${mailSubject}&body=${mailBody}'">E-Mail senden</button>
   <button class="printbtn" onclick="window.close()">← Zurück</button>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-  <script>if(${JSON.stringify(!!epcText)}){new QRCode(document.getElementById('payQr'),{text:${JSON.stringify(epcText)},width:120,height:120,correctLevel:QRCode.CorrectLevel.M});}<\/script>
+  <script>if(${JSON.stringify(!!epcText)}){new QRCode(document.getElementById('payQr'),{text:${JSON.stringify(epcText)},width:90,height:90,correctLevel:QRCode.CorrectLevel.M});}<\/script>
   
 
 
