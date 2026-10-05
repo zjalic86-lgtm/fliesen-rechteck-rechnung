@@ -3332,7 +3332,7 @@ async function pullChatgptInvoices(showMessage){
         for(const item of row.items){
           const qty=Number(item.qty||0);
           const price=Number(item.price||0);
-          items.push({desc:item.desc||'',qty,unit:item.unit||'m²',price,sum:qty*price,kind:item.kind||'',costPrice:Number(item.costPrice||0),hidePrice:!!item.hidePrice});
+          items.push({desc:item.desc||'',qty,unit:item.unit||((/^Regiestunden\b/i.test(String(item.desc||'').trim())||Number(row.hours||0)>0)?'Std.':'m²'),price,sum:qty*price,kind:item.kind||'',costPrice:Number(item.costPrice||0),hidePrice:!!item.hidePrice});
         }
       }
 
@@ -4731,7 +4731,7 @@ async function pdfInvoice(i,mode='open'){
   if(!jsPDF){alert('PDF-Modul konnte nicht geladen werden. Bitte Internetverbindung prüfen.');return}
 
   const items=(x.items||[]).map(it=>({
-    desc:it.desc||'',qty:Number(it.qty)||0,unit:it.unit||'',
+    desc:it.desc||'',qty:Number(it.qty)||0,unit:(/^Regiestunden\b/i.test(String(it.desc||'').trim())&&(!it.unit||it.unit==='m²'))?'Std.':(it.unit||''),
     price:Number(it.price)||0,sum:(Number(it.qty)||0)*(Number(it.price)||0),
     kind:it.kind||'',costPrice:Number(it.costPrice||0),hidePrice:!!it.hidePrice
   }));
@@ -4803,22 +4803,25 @@ async function pdfInvoice(i,mode='open'){
   if(x.kundeUid){pdf.setFont(undefined,'bold');pdf.text('UID:',left,y);pdf.setFont(undefined,'normal');pdf.text(x.kundeUid,left+10,y);y+=5}
   pdf.setFont(undefined,'bold');pdf.text('Baustelle:',left,y);pdf.setFont(undefined,'normal');pdf.text(x.bau||'',left+20,y);y+=10;
 
-  pdf.setFillColor(243,243,243);pdf.rect(left,y,right-left,7,'F');
-  pdf.setFont(undefined,'bold');pdf.setFontSize(8.5);
-  pdf.text('Beschreibung',left+2,y+4.8);
-  if(showPrices){
-    pdf.text('Menge',118,y+4.8,{align:'right'});
-    pdf.text('Einheit',126,y+4.8);
-    pdf.text('Preis',164,y+4.8,{align:'right'});pdf.text('Summe',192,y+4.8,{align:'right'});
-  }else{
-    pdf.text('Pauschal',192,y+4.8,{align:'right'});
-  }
-  y+=8;pdf.setFont(undefined,'normal');
+  const drawItemsHeader=()=>{
+    pdf.setFillColor(243,243,243);pdf.rect(left,y,right-left,7,'F');
+    pdf.setFont(undefined,'bold');pdf.setFontSize(8.5);
+    pdf.text('Beschreibung',left+2,y+4.8);
+    if(showPrices){
+      pdf.text('Menge',118,y+4.8,{align:'right'});
+      pdf.text('Einheit',126,y+4.8);
+      pdf.text('Preis',164,y+4.8,{align:'right'});pdf.text('Summe',192,y+4.8,{align:'right'});
+    }else{
+      pdf.text('Pauschal',192,y+4.8,{align:'right'});
+    }
+    y+=8;pdf.setFont(undefined,'normal');
+  };
+  drawItemsHeader();
 
   for(const it of items){
-    if(y>205){pdf.addPage();y=18}
     const lines=pdf.splitTextToSize(it.desc,78);
     const rowH=Math.max(7,lines.length*4.2+2);
+    if(y+rowH>272){pdf.addPage();y=18;drawItemsHeader()}
     pdf.text(lines,left+2,y+4);
     if(showPrices){
       if(it.kind==='regieinfo'){
@@ -4837,6 +4840,15 @@ async function pdfInvoice(i,mode='open'){
     pdf.setDrawColor(220);pdf.line(left,y+rowH,right,y+rowH);y+=rowH;
   }
 
+  const footerText=documentFooterText('Rechnung',x.steuer||'rc',x.footer);
+  const footerLines=footerText?pdf.splitTextToSize(footerText,175):[];
+  const skontoValue=total*sk/100;
+  const payText=sk>0?`Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue).replace(/\u00a0/g,' ')}) abgezogen werden.`:`Zahlungsziel: ${dueDays} Tage.`;
+  const payLines=pdf.splitTextToSize(payText,175);
+  const closingHeight=31+(ust?5:0)+(footerLines.length*4)+(footerLines.length?4:0)+(payLines.length*4);
+  const closingLimit=qrData?214:270;
+  if(y+closingHeight>closingLimit){pdf.addPage();y=24}
+
   y+=8;pdf.setFontSize(10);
   pdf.text('Netto',150,y);pdf.text(euro(net).replace(/\u00a0/g,' '),192,y,{align:'right'});
   if(ust){y+=5;pdf.text('USt. 20%',150,y);pdf.text(euro(ust).replace(/\u00a0/g,' '),192,y,{align:'right'})}
@@ -4844,11 +4856,8 @@ async function pdfInvoice(i,mode='open'){
   pdf.setFont(undefined,'bold');pdf.setFontSize(12);pdf.text('Zahlbetrag',150,y);pdf.text(euro(total).replace(/\u00a0/g,' '),192,y,{align:'right'});
 
   y+=12;pdf.setFont(undefined,'normal');pdf.setFontSize(8.5);
-  const footerText=documentFooterText('Rechnung',x.steuer||'rc',x.footer);
-  if(footerText){const fl=pdf.splitTextToSize(footerText,175);pdf.text(fl,left,y);y+=fl.length*4+4}
-  const skontoValue=total*sk/100;
-  const payText=sk>0?`Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue).replace(/\u00a0/g,' ')}) abgezogen werden.`:`Zahlungsziel: ${dueDays} Tage.`;
-  pdf.text(pdf.splitTextToSize(payText,175),left,y);
+  if(footerLines.length){pdf.text(footerLines,left,y);y+=footerLines.length*4+4}
+  pdf.text(payLines,left,y);
 
   try{
     if(qrData){
@@ -5218,24 +5227,26 @@ async function sharePDF(mode='share'){
   pdf.setFont(undefined,'normal');pdf.text(bau,left+20,y);
   y+=10;
 
-  pdf.setFillColor(243,243,243);pdf.rect(left,y,right-left,7,'F');
-  pdf.setFont(undefined,'bold');pdf.setFontSize(8.5);
-  pdf.text('Beschreibung',left+2,y+4.8);
-  if(showPrices){
-    pdf.text('Menge',118,y+4.8,{align:'right'});
-    pdf.text('Einheit',126,y+4.8);
-    pdf.text('Preis',164,y+4.8,{align:'right'});
-    pdf.text('Summe',192,y+4.8,{align:'right'});
-  }else{
-    pdf.text('Pauschal',192,y+4.8,{align:'right'});
-  }
-  y+=8;
+  const drawItemsHeader=()=>{
+    pdf.setFillColor(243,243,243);pdf.rect(left,y,right-left,7,'F');
+    pdf.setFont(undefined,'bold');pdf.setFontSize(8.5);
+    pdf.text('Beschreibung',left+2,y+4.8);
+    if(showPrices){
+      pdf.text('Menge',118,y+4.8,{align:'right'});
+      pdf.text('Einheit',126,y+4.8);
+      pdf.text('Preis',164,y+4.8,{align:'right'});
+      pdf.text('Summe',192,y+4.8,{align:'right'});
+    }else{
+      pdf.text('Pauschal',192,y+4.8,{align:'right'});
+    }
+    y+=8;pdf.setFont(undefined,'normal');
+  };
+  drawItemsHeader();
 
-  pdf.setFont(undefined,'normal');
   for(const x of items){
-    if(y>260){pdf.addPage();y=18}
     const lines=pdf.splitTextToSize(x.desc||'',78);
     const rowH=Math.max(7,lines.length*4.2+2);
+    if(y+rowH>272){pdf.addPage();y=18;drawItemsHeader()}
     pdf.text(lines,left+2,y+4);
     if(showPrices){
       if(x.kind==='regieinfo'){
@@ -5243,7 +5254,8 @@ async function sharePDF(mode='share'){
         pdf.text(euro(x.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
       }else{
         pdf.text(num(x.qty),118,y+4,{align:'right'});
-        pdf.text(x.unit||'',126,y+4);
+        const displayUnit=(/^Regiestunden\b/i.test(String(x.desc||'').trim())&&(!x.unit||x.unit==='m²'))?'Std.':(x.unit||'');
+        pdf.text(displayUnit,126,y+4);
         const itemPriceVisible=x.kind!=='material'||showMaterialPrices;
         if(itemPriceVisible){
           pdf.text(euro(x.price).replace(/\u00a0/g,' '),164,y+4,{align:'right'});
@@ -5254,6 +5266,17 @@ async function sharePDF(mode='share'){
     pdf.setDrawColor(220);pdf.line(left,y+rowH,right,y+rowH);
     y+=rowH;
   }
+
+  const footerText=currentDocumentFooter();
+  const footerLines=footerText?pdf.splitTextToSize(footerText,175):[];
+  const skontoValue=total*sk/100;
+  const payText=sk>0
+    ? `Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue).replace(/\u00a0/g,' ')}) abgezogen werden.`
+    : `Zahlungsziel: ${dueDays} Tage.`;
+  const payLines=docType==='Rechnung'?pdf.splitTextToSize(payText,175):[];
+  const closingHeight=31+(ust?5:0)+(footerLines.length*4)+(footerLines.length?4:0)+(payLines.length*4);
+  const closingLimit=qrData?214:270;
+  if(y+closingHeight>closingLimit){pdf.addPage();y=24}
 
   y+=8;
   pdf.setFontSize(10);
@@ -5272,16 +5295,11 @@ async function sharePDF(mode='share'){
 
   y+=12;
   pdf.setFont(undefined,'normal');pdf.setFontSize(8.5);
-  const footerText=currentDocumentFooter();
-  if(footerText){
-    pdf.text(pdf.splitTextToSize(footerText,175),left,y);
-    y+=12;
+  if(footerLines.length){
+    pdf.text(footerLines,left,y);
+    y+=footerLines.length*4+4;
   }
-  const skontoValue=total*sk/100;
-  const payText=sk>0
-    ? `Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue).replace(/\u00a0/g,' ')}) abgezogen werden.`
-    : `Zahlungsziel: ${dueDays} Tage.`;
-  if(docType==='Rechnung')pdf.text(pdf.splitTextToSize(payText,175),left,y);
+  if(payLines.length)pdf.text(payLines,left,y);
 
   // SEPA / EPC QR-Code für Überweisung
   try{
@@ -5397,11 +5415,13 @@ ${companyName}`);
   table{width:100%;border-collapse:collapse;margin-top:22px}
   th{background:#f3f3f3;font-weight:700}
   th,td{padding:9px;border-bottom:1px solid #ddd;text-align:left}
+  tr{break-inside:avoid;page-break-inside:avoid}
   .sum{margin-left:auto;width:310px;margin-top:20px}
   .sum div{display:flex;justify-content:space-between;padding:5px 0}
   .big{font-weight:800;font-size:18px;border-top:2px solid #222;margin-top:5px;padding-top:9px!important}
   .note{margin-top:22px}
-  .footer{margin-top:28px;line-height:1.5}.payqr{display:flex;gap:18px;align-items:center;margin-top:28px;padding-top:14px;border-top:1px solid #ddd}.payqr #payQr{width:120px;height:120px}.companyfooter{margin-top:42px;border-top:1px solid #555;padding-top:9px;text-align:center;font-size:10px;line-height:1.45}
+  .closing{break-inside:avoid;page-break-inside:avoid}
+  .footer{margin-top:28px;line-height:1.5}.payqr{display:flex;gap:18px;align-items:center;margin-top:28px;padding-top:14px;border-top:1px solid #ddd;break-inside:avoid;page-break-inside:avoid}.payqr #payQr{width:120px;height:120px}.companyfooter{margin-top:42px;border-top:1px solid #555;padding-top:9px;text-align:center;font-size:10px;line-height:1.45;break-inside:avoid;page-break-inside:avoid}
   .printbtn{margin-top:25px;padding:12px 18px;border:0;border-radius:9px;background:#111;color:white;font-weight:700;margin-right:6px}
   @media print{.printbtn{display:none}body{padding:0}}
   </style></head><body>
@@ -5414,11 +5434,13 @@ ${companyName}`);
   <div class="title" style="margin-top:26px">${currentDocumentLabel().toUpperCase()}</div>
   ${document.getElementById('nachricht').value?`<div style="margin:0 0 22px;white-space:pre-line">${esc(document.getElementById('nachricht').value)}</div>`:''}
   <table>${tableHead}${rows}</table>
+  <div class="closing">
   <div class="sum"><div><span>Netto</span><span>${euro(net)}</span></div>${ust?`<div><span>USt. 20%</span><span>${euro(ust)}</span></div>`:''}<div class="big"><span>${docType==='Angebot'?'Gesamtbetrag':'Zahlbetrag'}</span><span>${euro(total)}</span></div></div>
   ${steuerText}
   <div class="footer">${skontoText}</div>
   ${epcText?`<div class="payqr"><div id="payQr"></div><div><b>Per Banking-App bezahlen</b><br>QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.<br><b>IBAN:</b> ${esc(company.iban||'')}<br><b>Betrag:</b> ${euro(total)}<br><b>Verwendung:</b> Rechnung ${esc(docNr)}</div></div>`:''}
   <div class="companyfooter"><b>Adresse</b> ${esc(company.address||'')} ${company.taxNr?'&nbsp;&nbsp; <b>Steuernummer (SN)</b> '+esc(company.taxNr):''} ${company.uid?'&nbsp;&nbsp; <b>UID</b> '+esc(company.uid):''}<br><b>E-Mail</b> ${esc(company.email||'')} ${company.phone?'&nbsp;&nbsp; <b>Tel.</b> '+esc(company.phone):''} ${company.website?'&nbsp;&nbsp; <b>Website</b> '+esc(company.website):''} ${company.bank?'&nbsp;&nbsp; <b>Bank</b> '+esc(company.bank):''}<br>${company.bic?'<b>SWIFT/BIC</b> '+esc(company.bic):''} ${company.iban?'&nbsp;&nbsp; <b>IBAN</b> '+esc(company.iban):''}</div>
+  </div>
   <button class="printbtn" onclick="window.print()">PDF / Drucken</button>
   <button class="printbtn" onclick="location.href='mailto:${mailTo}?subject=${mailSubject}&body=${mailBody}'">E-Mail senden</button>
   <button class="printbtn" onclick="window.close()">← Zurück</button>
