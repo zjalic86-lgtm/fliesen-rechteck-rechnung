@@ -4755,10 +4755,11 @@ async function pdfInvoice(i,mode='open'){
   const left=16,right=194;
   let y=18;
 
-  if(logo){
+  const appLogo=await frAppLogoDataUrl();
+  if(appLogo){
     try{
-      const format=logo.startsWith('data:image/jpeg')?'JPEG':'PNG';
-      pdf.addImage(logo,format,left,y,36,18,'','FAST');
+      const format=appLogo.startsWith('data:image/jpeg')?'JPEG':'PNG';
+      pdf.addImage(appLogo,format,left,y,20,20,'','FAST');
     }catch(e){
       pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text(companyName,left,y+7);
     }
@@ -5138,6 +5139,22 @@ function makeQrDataUrl(text,size=260){
   });
 }
 
+async function frAppLogoDataUrl(){
+  try{
+    const response=await fetch('/fr-icon.png',{cache:'force-cache'});
+    if(!response.ok)throw new Error('FR Logo konnte nicht geladen werden.');
+    const blob=await response.blob();
+    return await new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(String(reader.result||''));
+      reader.onerror=()=>reject(reader.error||new Error('FR Logo konnte nicht gelesen werden.'));
+      reader.readAsDataURL(blob);
+    });
+  }catch(e){
+    return logo||'';
+  }
+}
+
 async function sharePDF(mode='share'){
   const items=collectItems();
   if(docType==='Rechnung'){
@@ -5176,10 +5193,11 @@ async function sharePDF(mode='share'){
   const left=16,right=194;
   let y=18;
 
-  if(logo){
+  const appLogo=await frAppLogoDataUrl();
+  if(appLogo){
     try{
-      const format = logo.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
-      pdf.addImage(logo,format,left,y,36,18,'','FAST');
+      const format=appLogo.startsWith('data:image/jpeg')?'JPEG':'PNG';
+      pdf.addImage(appLogo,format,left,y,20,20,'','FAST');
     }catch(e){
       pdf.setFontSize(17);pdf.setFont(undefined,'bold');pdf.text(companyName,left,y+7);
     }
@@ -5375,7 +5393,7 @@ function makeDoc(){
   let w=window.open('','_blank');
   if(!w){alert('Popup blockiert. Bitte Popups erlauben.');return}
 
-  const lg=logo?`<img src="${logo}" style="max-width:190px;max-height:95px">`:`<div style="font-size:25px;font-weight:800">${esc(companyName)}</div>`;
+  const lg=`<img src="/fr-icon.png" alt="FR Fliesen Rechteck" style="width:72px;height:72px;object-fit:contain;display:block">`;
   const rows=showPrices
     ? items.map(x=>{
         const itemPriceVisible=x.kind!=='material'||showMaterialPrices;
