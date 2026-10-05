@@ -4849,8 +4849,8 @@ async function pdfInvoice(i,mode='open'){
   const skontoValue=total*sk/100;
   const payText=sk>0?`Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue).replace(/\u00a0/g,' ')}) abgezogen werden.`:`Zahlungsziel: ${dueDays} Tage.`;
   const payLines=pdf.splitTextToSize(payText,175);
-  const closingHeight=31+(ust?5:0)+(footerLines.length*4)+(footerLines.length?4:0)+(payLines.length*4);
-  const closingLimit=qrData?214:270;
+  const closingHeight=31+(ust?5:0)+(footerLines.length*4)+(footerLines.length?4:0)+(payLines.length*4)+(qrData?40:0);
+  const closingLimit=270;
   if(y+closingHeight>closingLimit){pdf.addPage();y=24}
 
   y+=8;pdf.setFontSize(10);
@@ -4862,15 +4862,18 @@ async function pdfInvoice(i,mode='open'){
   y+=12;pdf.setFont(undefined,'normal');pdf.setFontSize(8.5);
   if(footerLines.length){pdf.text(footerLines,left,y);y+=footerLines.length*4+4}
   pdf.text(payLines,left,y);
+  y+=payLines.length*4+6;
 
   try{
     if(qrData){
-    pdf.addImage(qrData,'PNG',16,228,30,30);
-    pdf.setFontSize(7.5);pdf.setFont(undefined,'bold');pdf.text('Per Banking-App bezahlen',50,232);
+    const qrY=y;
+    pdf.addImage(qrData,'PNG',16,qrY,30,30);
+    pdf.setFontSize(7.5);pdf.setFont(undefined,'bold');pdf.text('Per Banking-App bezahlen',50,qrY+4);
     pdf.setFont(undefined,'normal');
-    pdf.text('QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.',50,237);
-    if(qrData){pdf.text('Empfänger: '+companyName,50,242);pdf.text('IBAN: '+(company.iban||''),50,247);}
-    pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),50,252);pdf.text('Verwendung: Rechnung '+docNr,50,257);
+    pdf.text('QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.',50,qrY+9);
+    pdf.text('Empfänger: '+companyName,50,qrY+14);pdf.text('IBAN: '+(company.iban||''),50,qrY+19);
+    pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),50,qrY+24);pdf.text('Verwendung: Rechnung '+docNr,50,qrY+29);
+    y=qrY+34;
     }
   }catch(e){}
 
@@ -5287,8 +5290,8 @@ async function sharePDF(mode='share'){
     ? `Zahlungsziel: ${dueDays} Tage. Bei Zahlung innerhalb 7 Tagen können ${sk}% Skonto (${euro(skontoValue).replace(/\u00a0/g,' ')}) abgezogen werden.`
     : `Zahlungsziel: ${dueDays} Tage.`;
   const payLines=docType==='Rechnung'?pdf.splitTextToSize(payText,175):[];
-  const closingHeight=31+(ust?5:0)+(footerLines.length*4)+(footerLines.length?4:0)+(payLines.length*4);
-  const closingLimit=qrData?214:270;
+  const closingHeight=31+(ust?5:0)+(footerLines.length*4)+(footerLines.length?4:0)+(payLines.length*4)+(qrData?40:0);
+  const closingLimit=270;
   if(y+closingHeight>closingLimit){pdf.addPage();y=24}
 
   y+=8;
@@ -5312,20 +5315,22 @@ async function sharePDF(mode='share'){
     pdf.text(footerLines,left,y);
     y+=footerLines.length*4+4;
   }
-  if(payLines.length)pdf.text(payLines,left,y);
+  if(payLines.length){pdf.text(payLines,left,y);y+=payLines.length*4+6}
 
   // SEPA / EPC QR-Code für Überweisung
   try{
     if(qrData){
-    pdf.addImage(qrData,'PNG',16,228,30,30);
+    const qrY=y;
+    pdf.addImage(qrData,'PNG',16,qrY,30,30);
     pdf.setFontSize(7.5);pdf.setFont(undefined,'bold');
-    pdf.text('Per Banking-App bezahlen',50,232);
+    pdf.text('Per Banking-App bezahlen',50,qrY+4);
     pdf.setFont(undefined,'normal');
-    pdf.text('QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.',50,237);
-    pdf.text('Empfänger: '+companyName,50,242);
-    pdf.text('IBAN: '+(company.iban||''),50,247);
-    pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),50,252);
-    pdf.text('Verwendung: Rechnung '+docNr,50,257);
+    pdf.text('QR-Code scannen – IBAN, Betrag und Rechnungsnummer werden übernommen.',50,qrY+9);
+    pdf.text('Empfänger: '+companyName,50,qrY+14);
+    pdf.text('IBAN: '+(company.iban||''),50,qrY+19);
+    pdf.text('Betrag: '+euro(total).replace(/\u00a0/g,' '),50,qrY+24);
+    pdf.text('Verwendung: Rechnung '+docNr,50,qrY+29);
+    y=qrY+34;
     }
   }catch(e){}
 
