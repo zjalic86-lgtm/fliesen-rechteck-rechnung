@@ -1159,7 +1159,7 @@ body#frPlainApp{background:#fff;color:#242424}
   <h2 id="frJobsTitle" tabindex="-1">Aufträge in der Nähe</h2>
   <p class="fr-jobs-subtitle">Fliesenarbeiten · Wels und Umgebung · bis 50 km</p>
   <div class="fr-jobs-sync">
-    <div><strong id="frJobsWatchLabel">Suchstatus wird geprüft</strong><p id="frJobsWatchTime" class="small">Noch kein bestätigter Suchlauf.</p></div>
+    <div><strong id="frJobsWatchLabel">Aufträge werden geprüft</strong><p id="frJobsWatchTime" class="small">Letzte Prüfung wird geladen …</p></div>
     <button id="frJobsRefreshButton" class="btn outline" type="button" onclick="frJobsRefresh(true)">↻ Aktualisieren</button>
   </div>
   <div class="fr-jobs-filters" role="group" aria-label="Aufträge nach Bearbeitungsstatus filtern">
@@ -1177,12 +1177,9 @@ body#frPlainApp{background:#fff;color:#242424}
   <div id="frJobsList" aria-busy="false"></div>
   <p id="frJobsLoadedAt" class="fr-jobs-footnote"></p>
   <details>
-    <summary>Wie wird die Liste aktualisiert?</summary>
-    <p>Die eingerichtete ChatGPT-Suche ist stündlich geplant. Erfolgreich in FR gespeicherte Treffer erscheinen hier automatisch, auch wenn die App während der Suche geschlossen war. Die offene App lädt die Liste etwa einmal pro Minute neu.</p>
-    <p>Aktualisieren lädt gespeicherte Treffer aus FR; es startet keine neue Internetsuche. Letzte Suche zeigt nur einen tatsächlich bestätigten Suchlauf. Ohne bestätigten Suchlauf bedeutet eine leere Liste nicht, dass es keine Aufträge gibt.</p>
-    <p>Berücksichtigt werden konkrete Anfragen für selbstständige Fliesenleger und Firmen. Keine Werbung anderer Handwerker und keine Stellenanzeigen. Öffentlich zugängliche Quellen werden geprüft; geschützte Inhalte werden nicht ausgelesen. Die Liste ist nicht vollständig.</p>
-    <p>Entfernungen sind Schätzwerte. Datum des Inserats und Datum des Fundes werden getrennt angezeigt. Ob ein Auftrag noch verfügbar ist, bitte im Original prüfen. Neu bezeichnet einen noch nicht bearbeiteten Treffer.</p>
-    <p>Original öffnen führt zur fremden Plattform. Dort können Anmeldung oder Gebühren erforderlich sein. FR sendet keine Nachricht, bekundet kein Interesse und kauft keinen Kontakt. Kontaktiert ist nur deine eigene Markierung.</p>
+    <summary>Wie funktioniert die Suche?</summary>
+    <p>Passende Fliesenleger-Aufträge bis 50 km um Wels werden automatisch in FR gespeichert. Aktualisieren lädt den aktuellen Stand.</p>
+    <p>Bitte Verfügbarkeit, Entfernung und Kontaktdaten immer im Original prüfen.</p>
   </details>
 </section>
 
@@ -8805,12 +8802,19 @@ if(sb?.auth)sb.auth.onAuthStateChange((event,session)=>{setTimeout(async()=>{con
     time.className='small';
     if(!owner){label.textContent='Bitte anmelden';time.textContent='Aufträge sind deinem FR-Konto zugeordnet.';return;}
     if(!onlineAccount()||!navigator.onLine){label.textContent='Gespeicherte Liste · offline';time.textContent=loadedAt?'Zuletzt geladen: '+dateLabel(loadedAt,true):'Noch keine Offline-Kopie auf diesem Gerät.';return;}
-    if(!settings){label.textContent=loadedAt?'Für dieses Konto noch nicht eingerichtet':'Verbindung wird geprüft';time.textContent='Nur bestätigte Suchläufe werden hier angezeigt.';return;}
-    const planned=settings.enabled?'Stündliche Suche geplant':'Suche pausiert';
-    if(!run){label.textContent=planned;time.textContent='Erster automatischer Suchlauf noch nicht bestätigt.';return;}
+    if(!settings){label.textContent=loadedAt?'Suche noch nicht eingerichtet':'Verbindung wird geprüft';time.textContent='Radius: 50 km um Wels';return;}
+    if(!run){label.textContent=settings.enabled?'Noch keine Prüfung abgeschlossen':'Suche pausiert';time.textContent='Radius: 50 km um Wels';return;}
     const age=Date.now()-new Date(run.finished_at).getTime();
-    label.textContent=run.outcome==='error'?'Letzte Suche fehlgeschlagen':!settings.enabled?'Suche pausiert':age>150*60000?'Neue Suchprüfung ausstehend':planned;
-    time.textContent='Letzte Suche: '+dateLabel(run.finished_at,true)+(run.outcome==='partial'?' · teilweise geprüft':'')+(run.note?' · '+text(run.note,1200):'');
+    const freshCount=rows.filter(r=>statusOf(r)==='neu'&&r.availability!=='closed').length;
+    if(run.outcome==='error') label.textContent='Letzte Prüfung fehlgeschlagen';
+    else if(!settings.enabled) label.textContent='Suche pausiert';
+    else if(freshCount>0) label.textContent=freshCount+' neue '+(freshCount===1?'Auftrag':'Aufträge')+' gefunden';
+    else label.textContent='Keine neuen Aufträge gefunden';
+    const parts=['Letzte Prüfung: '+dateLabel(run.finished_at,true)];
+    if(run.outcome==='partial')parts.push('teilweise geprüft');
+    if(settings.enabled&&age>150*60000)parts.push('neue Prüfung ausstehend');
+    parts.push('Radius: 50 km um Wels');
+    time.textContent=parts.join(' · ');
     if(run.outcome!=='ok'||age>150*60000)time.classList.add('fr-jobs-warning');
   }
   function node(tag,content,className) {const n=document.createElement(tag);if(content!=null)n.textContent=String(content);if(className)n.className=className;return n;}
@@ -8829,7 +8833,7 @@ if(sb?.auth)sb.auth.onAuthStateChange((event,session)=>{setTimeout(async()=>{con
     list.replaceChildren();
     if(!result.length){const box=node('div',null,'fr-jobs-empty');let title='Noch keine gespeicherten Treffer',body='Sobald die Suche passende Aufträge erfolgreich in FR speichert, erscheinen sie hier. Der erste automatische Suchlauf ist noch nicht bestätigt.';
       if(rows.length){title='Keine Treffer für diese Auswahl';body='Anderen Status wählen, Suchtext löschen oder die Anzeige auf 50 km stellen.';}
-      else if(run){title='Bisher keine passenden Treffer gespeichert';body='Die letzte Prüfung hat keine hier gespeicherten Treffer ergeben. Das ist keine vollständige Übersicht aller verfügbaren Aufträge.';}
+      else if(run){title='Keine neuen Aufträge gefunden';body='Im aktuellen Stand gibt es keine neuen gespeicherten Treffer bis 50 km um Wels.';}
       if(!onlineAccount()||!navigator.onLine){title='Keine gespeicherten Treffer';body='Zum Laden der Cloud-Liste mit E-Mail anmelden und eine Internetverbindung herstellen.';}
       box.append(node('h3',title),node('p',body));list.append(box);
     }
