@@ -1634,6 +1634,7 @@ body#frPlainApp{background:#fff;color:#242424}
     <label>E-Mail Kunde (optional)</label><input id="kundeEmail" type="email" placeholder="kunde@email.at">
     <button class="btn outline" type="button" onclick="saveCustomer()">Kunde speichern</button>
     <label>Baustelle</label><input id="bau">
+    <label>Leistungszeitraum</label><input id="leistungszeitraum" placeholder="z.B. September 2026 oder 21.09.2026–28.09.2026">
     <label>Nachricht (optional)</label><textarea id="nachricht" rows="3"></textarea>
     <label>Materialkosten €</label><input id="materialCost" type="number" step="0.01" placeholder="z.B. 350">
     <div id="invoiceFooterFields">
@@ -2604,7 +2605,7 @@ function invoiceToCloudRow(x){
           anzahlungPercent:Number(x.anzahlungPercent||0),
           paidAt:x.paidAt||'',
           bankMatch:x.bankMatch||null,
-          pdfFolder:x.pdfFolder||'',kundeUid:x.kundeUid||'',plzOrt:x.plzOrt||'',typ:x.typ||'Privat',
+          pdfFolder:x.pdfFolder||'',kundeUid:x.kundeUid||'',plzOrt:x.plzOrt||'',typ:x.typ||'Privat',leistungszeitraum:x.leistungszeitraum||'',
           pdfPriceMode:x.pdfPriceMode||'on',materialPdfPriceMode:x.materialPdfPriceMode||'on'
         };
       }
@@ -2624,7 +2625,7 @@ function cloudRowToInvoice(row){
   return {
     id:row.invoice_number||('FR-'+Date.now()),type:'Rechnung',nr:row.invoice_number||'',
     date:row.invoice_date||new Date().toISOString().slice(0,10),kunde:row.customer_name||'',
-    adresse:row.customer_address||'',plzOrt:meta.plzOrt||'',kundeUid:meta.kundeUid||'',email:row.customer_email||'',bau:row.baustelle||'',
+    adresse:row.customer_address||'',plzOrt:meta.plzOrt||'',kundeUid:meta.kundeUid||'',email:row.customer_email||'',bau:row.baustelle||'',leistungszeitraum:meta.leistungszeitraum||'',
     ...(Object.prototype.hasOwnProperty.call(meta,'pdfFolder')?{pdfFolder:meta.pdfFolder||''}:{}),pdfPriceMode:meta.pdfPriceMode||'on',materialPdfPriceMode:meta.materialPdfPriceMode||'on',
     typ:meta.typ||'Privat',steuer:steuer,nachricht:row.nachricht||'',tage:String(row.payment_days||14),
     skonto:String(row.skonto||0),material:Number(row.material_cost||0),footer:row.footer||'',items:items,
@@ -3084,7 +3085,7 @@ function getUrlParams(){
 
 function hasInvoiceParams(){
   const p=getUrlParams();
-  const keys=['customer_name','kunde','baustelle','bau','email','adresse','customer_address','customer_plz_ort','plz_ort','plzOrt','ort','city','payment_days',
+  const keys=['customer_name','kunde','baustelle','bau','leistungszeitraum','service_period','email','adresse','customer_address','customer_plz_ort','plz_ort','plzOrt','ort','city','payment_days',
               'material','message','nachricht','wand_m2','wand_price','boden_m2','boden_price',
               'p1_desc','p1_qty','p1_price'];
   return keys.some(k=>p.has(k));
@@ -3113,6 +3114,7 @@ function applyUrlInvoice(){
   set('kundeUid','customer_uid','kunde_uid','uid');
   set('kundeEmail','email','customer_email');
   set('bau','baustelle','bau');
+  set('leistungszeitraum','leistungszeitraum','service_period','leistungs_zeitraum');
   set('materialCost','material','material_cost');
   set('nachricht','message','nachricht');
   const urlFooter=p.has('footer')?p.get('footer'):p.has('fusszeile')?p.get('fusszeile'):null;
@@ -3354,6 +3356,7 @@ async function pullChatgptInvoices(showMessage){
         kundeUid:customer.uid,
         email:customer.email,
         bau:row.baustelle||'',
+        leistungszeitraum:row.leistungszeitraum||row.service_period||'',
         typ:customer.typ,
         steuer,
         nachricht:row.nachricht||'',
@@ -4033,6 +4036,7 @@ function currentInvoiceData(){
     kundeUid:document.getElementById('kundeUid').value,
     email:document.getElementById('kundeEmail').value,
     bau:document.getElementById('bau').value,
+    leistungszeitraum:(document.getElementById('leistungszeitraum')?.value||'').trim(),
     typ:kappler?'Firma':document.getElementById('typ').value,
     steuer:st,
     nachricht:document.getElementById('nachricht').value,
@@ -4129,6 +4133,7 @@ function loadOffer(i){
   document.getElementById('kundeUid').value=x.kundeUid||'';
   document.getElementById('kundeEmail').value=x.email||'';
   document.getElementById('bau').value=x.bau||'';
+  document.getElementById('leistungszeitraum').value=x.leistungszeitraum||'';
   document.getElementById('typ').value=/^privat/i.test(x.typ||'')?'Privatkunde':(x.typ||'Firma');
   document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('nachricht').value=x.nachricht||'';
@@ -4200,6 +4205,7 @@ function fillInvoiceCustomerFromOffer(x){
   document.getElementById('kundeUid').value=x.kundeUid||'';
   document.getElementById('kundeEmail').value=x.email||'';
   document.getElementById('bau').value=x.bau||'';
+  document.getElementById('leistungszeitraum').value=x.leistungszeitraum||'';
   document.getElementById('typ').value=/^privat/i.test(x.typ||'')?'Privatkunde':(x.typ||'Firma');
   document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('tage').value=x.tage||'14';
@@ -4716,6 +4722,7 @@ function loadInvoice(i){
   document.getElementById('kunde').value=x.kunde||'';document.getElementById('adresse').value=x.adresse||'';
   document.getElementById('plzOrt').value=x.plzOrt||'';
   document.getElementById('kundeUid').value=x.kundeUid||'';document.getElementById('kundeEmail').value=x.email||'';document.getElementById('bau').value=x.bau||'';
+  document.getElementById('leistungszeitraum').value=x.leistungszeitraum||'';
   document.getElementById('typ').value=/^privat/i.test(x.typ||'')?'Privatkunde':(x.typ||'Firma');document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('nachricht').value=x.nachricht||'';document.getElementById('tage').value=x.tage||'14';
   setDocumentSkonto(x.skonto??3);updateDueDate();document.getElementById('materialCost').value=x.material||'';loadDocumentFooter(x.footer??null);
@@ -4805,7 +4812,9 @@ async function pdfInvoice(i,mode='open'){
   if(x.adresse){pdf.text(x.adresse,left,y);y+=5}
   if(x.plzOrt){pdf.text(x.plzOrt,left,y);y+=5}
   if(x.kundeUid){pdf.setFont(undefined,'bold');pdf.text('UID:',left,y);pdf.setFont(undefined,'normal');pdf.text(x.kundeUid,left+10,y);y+=5}
-  pdf.setFont(undefined,'bold');pdf.text('Baustelle:',left,y);pdf.setFont(undefined,'normal');pdf.text(x.bau||'',left+20,y);y+=10;
+  pdf.setFont(undefined,'bold');pdf.text('Baustelle:',left,y);pdf.setFont(undefined,'normal');pdf.text(x.bau||'',left+20,y);y+=5;
+  if(x.leistungszeitraum){pdf.setFont(undefined,'bold');pdf.text('Leistungszeitraum:',left,y);pdf.setFont(undefined,'normal');pdf.text(String(x.leistungszeitraum),left+34,y);y+=5}
+  y+=5;
 
   const drawItemsHeader=()=>{
     pdf.setFillColor(243,243,243);pdf.rect(left,y,right-left,7,'F');
@@ -5070,6 +5079,7 @@ function copyInvoice(i){
   document.getElementById('kundeUid').value=x.kundeUid||'';
   document.getElementById('kundeEmail').value=x.email||'';
   document.getElementById('bau').value=x.bau||'';
+  document.getElementById('leistungszeitraum').value=x.leistungszeitraum||'';
   document.getElementById('typ').value=/^privat/i.test(x.typ||'')?'Privatkunde':(x.typ||'Firma');
   document.getElementById('steuer').value=x.steuer||'rc';
   document.getElementById('nachricht').value=x.nachricht||'';
@@ -5185,6 +5195,7 @@ async function sharePDF(mode='share'){
   const plzOrt=document.getElementById('plzOrt').value.trim();
   const kundeUid=document.getElementById('kundeUid').value.trim();
   const bau=document.getElementById('bau').value;
+  const leistungszeitraum=(document.getElementById('leistungszeitraum')?.value||'').trim();
   const nachricht=document.getElementById('nachricht').value.trim();
   const epc=docType==='Angebot'?'':epcPayload(total,docNr); const qrData=epc?await makeQrDataUrl(epc):'';
   const company=getCompanyProfile();
@@ -5247,7 +5258,13 @@ async function sharePDF(mode='share'){
   if(kundeUid){pdf.setFont(undefined,'bold');pdf.text('UID:',left,y);pdf.setFont(undefined,'normal');pdf.text(kundeUid,left+10,y);y+=5}
   pdf.setFont(undefined,'bold');pdf.text('Baustelle:',left,y);
   pdf.setFont(undefined,'normal');pdf.text(bau,left+20,y);
-  y+=10;
+  y+=5;
+  if(leistungszeitraum){
+    pdf.setFont(undefined,'bold');pdf.text('Leistungszeitraum:',left,y);
+    pdf.setFont(undefined,'normal');pdf.text(leistungszeitraum,left+34,y);
+    y+=5;
+  }
+  y+=5;
 
   const drawItemsHeader=()=>{
     pdf.setFillColor(243,243,243);pdf.rect(left,y,right-left,7,'F');
@@ -5458,7 +5475,7 @@ ${companyName}`);
   <div class="top"><div>${lg}</div><div class="right">${esc(company.address||'')}<br>${company.uid?'UID '+esc(company.uid):''}${company.taxNr?' · StNr. '+esc(company.taxNr):''}<br>${esc(company.email||'')}${company.phone?' · '+esc(company.phone):''}<br>${company.iban?'IBAN '+esc(company.iban):''}<br>${company.bic?'BIC '+esc(company.bic):''}</div></div>
   <hr class="redline">
   <div class="meta">
-    <div><b>Kunde / Firma:</b> ${esc(document.getElementById('kunde').value)}<br>${esc(document.getElementById('adresse').value)}${document.getElementById('plzOrt').value?`<br>${esc(document.getElementById('plzOrt').value)}`:''}${document.getElementById('kundeUid').value?`<br><b>UID:</b> ${esc(document.getElementById('kundeUid').value)}`:''}<br><b>Baustelle:</b> ${esc(document.getElementById('bau').value)}</div>
+    <div><b>Kunde / Firma:</b> ${esc(document.getElementById('kunde').value)}<br>${esc(document.getElementById('adresse').value)}${document.getElementById('plzOrt').value?`<br>${esc(document.getElementById('plzOrt').value)}`:''}${document.getElementById('kundeUid').value?`<br><b>UID:</b> ${esc(document.getElementById('kundeUid').value)}`:''}<br><b>Baustelle:</b> ${esc(document.getElementById('bau').value)}${document.getElementById('leistungszeitraum').value?`<br><b>Leistungszeitraum:</b> ${esc(document.getElementById('leistungszeitraum').value)}`:''}</div>
     <div style="text-align:right;line-height:1.6"><b>Nr.:</b> ${esc(docNr)}<br><b>${docType==='Angebot'?'Angebotsdatum':'Rechnungsdatum'}:</b> ${fmtDate(docDate)}${docType==='Rechnung'?`<br><b>Fälligkeitsdatum:</b> ${due}`:''}</div>
   </div>
   <div class="title" style="margin-top:26px">${currentDocumentLabel().toUpperCase()}</div>
